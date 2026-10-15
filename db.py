@@ -18,6 +18,24 @@ def get_conn():
     return conn
 
 
+def get_contract(contract_id: int):
+    """Return one contract as a dict, or None if the ID does not exist."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT contract_id, filename, upload_timestamp,
+                      processing_status, raw_text
+               FROM contracts
+               WHERE contract_id = ?""",
+            (contract_id,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
 def init_db():
     """Initialize database tables safely. Can run multiple times without deleting data."""
     conn = get_conn()
