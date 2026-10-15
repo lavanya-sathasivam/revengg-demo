@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 
-from db import get_conn, get_contract, init_db
+from db import get_conn, get_contract, init_db, list_contracts
 from extract import extract_text
 
 logging.basicConfig(level=logging.INFO)
@@ -188,6 +188,12 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         "status": "extracted",
         "extracted_characters": len(text),
     }
+
+
+@app.get("/contracts")
+def list_contracts_route() -> list:
+    """Return a lightweight list of all stored contracts (no extracted text)."""
+    return list_contracts()
 
 
 @app.get("/contracts/{contract_id}")

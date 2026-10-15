@@ -36,6 +36,21 @@ def get_contract(contract_id: int):
         conn.close()
 
 
+def list_contracts():
+    """Return all contracts (lightweight fields only) ordered by contract_id."""
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT contract_id, filename, upload_timestamp, processing_status
+               FROM contracts
+               ORDER BY contract_id ASC"""
+        )
+        return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
 def init_db():
     """Initialize database tables safely. Can run multiple times without deleting data."""
     conn = get_conn()
