@@ -1,0 +1,23 @@
+# Environment / secrets
+.env
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# SQLite database (local, regenerated on run)
+app.db
+
+# Uploaded contract files (confidential - never commit)
+uploads/*
+!uploads/.gitkeep
+
+# Logs / local scratch files
+*.log
+uvicorn.pid
