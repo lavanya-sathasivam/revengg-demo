@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from datetime import datetime
@@ -47,6 +48,93 @@ def list_contracts():
                ORDER BY contract_id ASC"""
         )
         return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def save_clauses(contract_id, clauses):
+    """
+    Store the clauses of one contract, replacing any previously stored set.
+
+    `clauses` is the list of dicts produced by extract.split_clauses():
+    each item has "section_number", "clause_text" and optionally "metadata".
+    Missing metadata is stored as {} (serialized as JSON text, matching the
+    TEXT metadata column).
+
+    Duplicate safety: the clauses table has no UNIQUE constraint, so this
+    uses replace-all semantics instead - inside ONE transaction every
+    existing clause row for this contract is deleted and the new set is
+    inserted. Saving the same contract's clauses twice can therefore never
+    create duplicate rows, and the stored text always matches the latest
+    call. SQLite allows a single writer at a time, so concurrent saves
+    serialize and the final state is exactly one complete set.
+
+    A foreign key on clauses.contract_id is enforced (PRAGMA foreign_keys=ON
+    in get_conn), so an unknown contract_id makes the INSERT fail with
+    sqlite3.IntegrityError and the whole transaction is rolled back - no
+    partial rows are left behind. Any other failure rolls back as well.
+
+    Returns the number of clause rows saved (0 for an empty list, which
+    clears previously stored clauses for the contract).
+    """
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        # The DELETE below starts the transaction; inserts join the same one.
+        cur.execute("DELETE FROM clauses WHERE contract_id = ?", (contract_id,))
+        for item in clauses:
+            metadata = item.get("metadata") or {}
+            cur.execute(
+                """INSERT INTO clauses (contract_id, section_number, clause_text, metadata)
+                   VALUES (?, ?, ?, ?)""",
+                (
+                    contract_id,
+                    item["section_number"],
+                    item["clause_text"],
+                    json.dumps(metadata),
+                ),
+            )
+        conn.commit()
+        return len(clauses)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def list_clauses(contract_id):
+    """
+    Return one contract's clauses ordered by section number.
+
+    Each row is a dict with clause_id, contract_id, section_number,
+    clause_text and metadata (metadata is parsed back into a Python value;
+    rows with missing or invalid JSON keep the stored value / get {}).
+    The connection is always closed, including on errors.
+    """
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT clause_id, contract_id, section_number, clause_text, metadata
+               FROM clauses
+               WHERE contract_id = ?
+               ORDER BY CAST(section_number AS INTEGER) ASC, section_number ASC""",
+            (contract_id,),
+        )
+        results = []
+        for row in cur.fetchall():
+            clause = dict(row)
+            raw_metadata = clause.get("metadata")
+            if raw_metadata is None:
+                clause["metadata"] = {}
+            else:
+                try:
+                    clause["metadata"] = json.loads(raw_metadata)
+                except (TypeError, ValueError):
+                    pass  # keep the raw stored value if it is not valid JSON
+            results.append(clause)
+        return results
     finally:
         conn.close()
 

@@ -8,8 +8,15 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 
-from db import get_conn, get_contract, init_db, list_contracts
-from extract import extract_text
+from db import (
+    get_conn,
+    get_contract,
+    init_db,
+    list_clauses,
+    list_contracts,
+    save_clauses,
+)
+from extract import extract_text, split_clauses
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("app")
@@ -123,6 +130,40 @@ def save_contract_with_trace(
         conn.close()
 
 
+def mark_clause_failure(contract_id: int, details: str) -> None:
+    """
+    Best-effort correction when clause persistence fails after the contract
+    row was already committed as 'extracted'.
+
+    Contract storage and clause storage are two separate transactions, so we
+    cannot make them atomic without changing db.py. Instead of leaving a
+    misleading 'extracted' status, update the contract's processing_status to
+    'clause_persistence_failed' and append a trace row. This is best effort:
+    if it fails too, we log and continue so the original error is preserved.
+    """
+    try:
+        conn = get_conn()
+        try:
+            cur = conn.cursor()
+            now = datetime.now(timezone.utc).isoformat()
+            cur.execute(
+                "UPDATE contracts SET processing_status = ? WHERE contract_id = ?",
+                ("clause_persistence_failed", contract_id),
+            )
+            cur.execute(
+                """INSERT INTO traces (contract_id, action, details, timestamp)
+                   VALUES (?, ?, ?, ?)""",
+                (contract_id, "clause_extraction", details, now),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        logger.exception(
+            "Could not record clause-persistence failure for contract %s", contract_id
+        )
+
+
 @app.get("/health")
 def health() -> dict:
     """Simple health check to confirm the API is running."""
@@ -134,9 +175,11 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
     """
     Accept a PDF contract, extract its text, and store both in SQLite.
 
-    On success: stores status 'extracted' + trace, returns contract_id.
+    On success: stores status 'extracted' + trace, splits the text into
+    clauses and stores those too, then returns contract_id and clause count.
     On extraction failure (e.g. scanned/empty PDF): stores status
     'extraction_failed' + trace, then returns HTTP 422 with a clear message.
+    Clauses are only ever saved after a successful extraction.
     """
     content_length = request.headers.get("content-length")
     if content_length and content_length.isdigit() and int(content_length) > MAX_UPLOAD_SIZE + 1024:
@@ -151,6 +194,7 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         text = extract_text(saved_path)
     except (FileNotFoundError, ValueError) as exc:
         # Extraction failed: record the failure, then tell the client clearly.
+        # No clauses are saved on this path.
         try:
             save_contract_with_trace(
                 filename=original_name,
@@ -181,12 +225,49 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
     except Exception:
         raise HTTPException(status_code=500, detail="Could not save the contract record.")
 
+    # Split the extracted text into clauses. split_clauses never invents
+    # sections: it returns [] when no reliable sequence is found, and an
+    # empty list is stored as "no clauses" rather than fabricated content.
+    clauses = split_clauses(text)
+
+    try:
+        saved_clause_count = save_clauses(contract_id, clauses)
+    except Exception:
+        # Contract row was already committed as 'extracted', so flip its
+        # status and log a trace instead of returning a misleading success.
+        logger.exception("Failed to persist clauses for contract %s", contract_id)
+        mark_clause_failure(
+            contract_id,
+            f"Stored {len(text)} characters but failed to save clauses for {original_name}.",
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Contract text was stored, but its clauses could not be saved. "
+                f"The contract (id={contract_id}) is marked 'clause_persistence_failed'."
+            ),
+        )
+
+    if saved_clause_count == 0:
+        logger.warning(
+            "No clauses detected for contract %s (%s); contract kept as 'extracted'.",
+            contract_id,
+            original_name,
+        )
+        clause_status = "no_clauses_detected"
+        message = "Contract uploaded and text extracted, but no numbered clauses were detected."
+    else:
+        clause_status = "ok"
+        message = "Contract uploaded, text extracted, and clauses stored successfully."
+
     return {
-        "message": "Contract uploaded and text extracted successfully.",
+        "message": message,
         "contract_id": contract_id,
         "filename": original_name,
         "status": "extracted",
         "extracted_characters": len(text),
+        "clauses_saved": saved_clause_count,
+        "clause_split_status": clause_status,
     }
 
 
@@ -203,3 +284,17 @@ def get_contract_route(contract_id: int) -> dict:
     if contract is None:
         raise HTTPException(status_code=404, detail="Contract not found")
     return contract
+
+
+@app.get("/contracts/{contract_id}/clauses")
+def get_contract_clauses_route(contract_id: int) -> dict:
+    """
+    Return the stored clauses for one contract, ordered by section number.
+
+    Returns 404 for an unknown contract, and an empty list (not an error)
+    for a valid contract that has no stored clauses.
+    """
+    contract = get_contract(contract_id)
+    if contract is None:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    return {"contract_id": contract_id, "clauses": list_clauses(contract_id)}
