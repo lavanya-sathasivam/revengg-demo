@@ -21,6 +21,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
+# The test suite must never call a real API, whatever .env says. This has to
+# be set BEFORE llm.py is imported, because llm.py loads .env on import.
+os.environ["LLM_PROVIDER"] = "mock"
+
 import db          # noqa: E402  (Person A's module - only for redirecting the db path)
 import adapter     # noqa: E402
 import clauses     # noqa: E402

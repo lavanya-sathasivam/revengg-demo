@@ -1,8 +1,50 @@
 {
   "_about": "Hand-annotated ground truth for Contract A and Contract B. Person B's seed set AND test set. If the system disagrees with this file, the system is wrong (or this file needs a discussion, not an edit).",
+  "_annotation_provenance": {
+    "original_keys": "expected_types, expected_numbers, expected_dependencies, expected_references, expected_impact, expected_counterfactual, expected_doubt_codes were annotated by Person B while building branch B (see docs/handoff-b.md). They are unchanged.",
+    "extended_keys": "expected_clause_numbers, expected_types_full, expected_number_sets and the extra entries under expected_impact / expected_doubt_codes were annotated by Person B on 2026-10-20 by READING data/contracts/contract_a.txt and contract_b.txt directly, clause by clause, BEFORE looking at what the system produces. They were NOT copied from the system's output - that would make the evaluation circular and worthless.",
+    "taxonomy_note": "The clause vocabulary is frozen at 18 types (clauses.CLAUSE_TYPES). Two consequences used in the labels: (a) a SCHEDULE is 'other' - it is a document, not an operative clause; (b) 'definition' means 'defines a term' (a '\"Term\" means ...' clause), so interpretation rules that define nothing (2.1-2.3) are 'other'. Where a clause could plausibly sit in two types, the label follows what the clause DOES, and the reasoning is written in _label_notes.",
+    "honest_caveat": "The two synthetic contracts were written by the team, so the annotation is internally consistent but not externally validated. Precision/recall figures here measure self-consistency and rule coverage, NOT accuracy on real contracts. Say so in the report."
+  },
+  "_label_notes": {
+    "6.1": "Taxes. The 18-type vocabulary has no tax type, so a pure tax clause is 'other'. It must NOT be 'payment' just because the word 'Invoice' appears in it.",
+    "8.2": "Interest, not 'fee': it creates a separate interest obligation at 12% per annum.",
+    "8.3": "Reasonableness / not-a-penalty clause. It sits in the late-payment regime, so it joins the 'fee' family; but it imposes nothing, so it must not create a 'pay late charges' obligation node.",
+    "9.2": "Service Credits: a credit against Charges, so 'fee' family; it creates a RIGHT to credits, not an obligation to pay late charges.",
+    "17.4": "Survival clause: it merely lists which clauses survive. Mentions 'termination' but creates no termination right, so 'other'.",
+    "12": "Section heading 'TERM AND TERMINATION'. Its sub-clauses 12.1-12.3 are all termination rights, so the section is typed 'termination'.",
+    "8": "Section heading 'LATE PAYMENT' - the late charges/interest regime, so 'fee'.",
+    "6": "Section heading 'TAXES' - 'other'.",
+    "7": "Section heading 'PAYMENT' - 'payment'.",
+    "4": "Section heading 'TERM' - 'term'.",
+    "3.2": "Service Levels Compliance: it makes the Service Levels an obligation, so 'sla'.",
+    "12.2": "Insolvency: it is a termination right, so 'termination'.",
+    "2.2": "Singular and Plural: an interpretation rule that defines no term, so 'other'.",
+    "2.3": "Reference to Clauses: an interpretation rule that defines no term, so 'other'."
+  },
   "contract_a": {
     "title": "Supplier Service Agreement",
     "expected_clause_count": 59,
+    "expected_clause_numbers": [
+      "1", "1.1", "1.2", "1.3", "1.4", "1.5",
+      "2", "2.1", "2.2", "2.3", "2.4",
+      "3", "3.1", "3.2", "3.3",
+      "4", "4.1", "4.2",
+      "5", "5.1", "5.2",
+      "6", "6.1",
+      "7", "7.1", "7.2", "7.3",
+      "8", "8.1", "8.2", "8.3",
+      "9", "9.1", "9.2",
+      "10", "10.1", "10.2",
+      "11", "11.1",
+      "12", "12.1", "12.2", "12.3",
+      "13", "13.1",
+      "14", "14.1",
+      "15", "15.1",
+      "16", "16.1", "16.2",
+      "17", "17.1", "17.2", "17.3", "17.4",
+      "SCHEDULE A", "SCHEDULE B"
+    ],
     "expected_types": {
       "2.4": "definition",
       "7.2": "payment",
@@ -18,6 +60,67 @@
       "16.2": "dispute",
       "17.1": "other",
       "17.2": "confidentiality"
+    },
+    "expected_types_full": {
+      "1": "definition",
+      "1.1": "definition",
+      "1.2": "definition",
+      "1.3": "definition",
+      "1.4": "definition",
+      "1.5": "definition",
+      "2": "other",
+      "2.1": "other",
+      "2.2": "other",
+      "2.3": "other",
+      "2.4": "definition",
+      "3": "other",
+      "3.1": "other",
+      "3.2": "sla",
+      "3.3": "other",
+      "4": "term",
+      "4.1": "term",
+      "4.2": "term",
+      "5": "payment",
+      "5.1": "payment",
+      "5.2": "payment",
+      "6": "other",
+      "6.1": "other",
+      "7": "payment",
+      "7.1": "payment",
+      "7.2": "payment",
+      "7.3": "payment",
+      "8": "fee",
+      "8.1": "fee",
+      "8.2": "interest",
+      "8.3": "fee",
+      "9": "sla",
+      "9.1": "sla",
+      "9.2": "fee",
+      "10": "default",
+      "10.1": "default",
+      "10.2": "cure",
+      "11": "indemnity",
+      "11.1": "indemnity",
+      "12": "termination",
+      "12.1": "termination",
+      "12.2": "termination",
+      "12.3": "termination",
+      "13": "limitation",
+      "13.1": "limitation",
+      "14": "notice",
+      "14.1": "notice",
+      "15": "force_majeure",
+      "15.1": "force_majeure",
+      "16": "governing_law",
+      "16.1": "governing_law",
+      "16.2": "dispute",
+      "17": "other",
+      "17.1": "other",
+      "17.2": "confidentiality",
+      "17.3": "other",
+      "17.4": "other",
+      "SCHEDULE A": "other",
+      "SCHEDULE B": "other"
     },
     "expected_numbers": {
       "2.4": {
@@ -35,6 +138,28 @@
       "14.1": {
         "days": 7
       }
+    },
+    "expected_number_sets": {
+      "2.4": [{"value": 30, "unit": "days"}],
+      "4.1": [{"value": 12, "unit": "months"}],
+      "4.2": [{"value": 12, "unit": "months"}],
+      "5.2": [{"value": 12, "unit": "months"}, {"value": 30, "unit": "days"}, {"value": 8, "unit": "%"}],
+      "7.2": [{"value": 30, "unit": "days"}],
+      "7.3": [{"value": 10, "unit": "days"}],
+      "8.1": [{"value": 1.5, "unit": "%"}],
+      "8.2": [{"value": 12, "unit": "%"}],
+      "9.1": [{"value": 99, "unit": "%"}],
+      "10.2": [{"value": 15, "unit": "days"}],
+      "12.1": [{"value": 30, "unit": "days"}],
+      "12.3": [{"value": 30, "unit": "days"}],
+      "13.1": [{"value": 12, "unit": "months"}],
+      "14.1": [{"value": 7, "unit": "days"}],
+      "16.2": [{"value": 30, "unit": "days"}],
+      "SCHEDULE B": [{"value": 99, "unit": "%"}, {"value": 5, "unit": "%"}, {"value": 25, "unit": "%"}]
+    },
+    "expected_amounts_not_extracted": {
+      "_note": "The general number parser (clauses.find_numbers) only understands days/months/years/%, so a rupee amount is not a clause NUMBER anywhere in the output. There is a dedicated amount parser (clauses.find_amounts) used by the service-credit counterfactual, but it is not part of the clause-number inventory.",
+      "SCHEDULE A": [{"value": 450000, "unit": "INR per month"}]
     },
     "expected_dependencies": [
       [
@@ -60,8 +185,21 @@
       [
         "12.3",
         "10.1"
+      ],
+      [
+        "9.2",
+        "7"
+      ],
+      [
+        "9.2",
+        "9.1"
       ]
     ],
+    "expected_dependency_notes": {
+      "9.2 -> 7": "Clause 9.2 applies the service credit 'against the Charges payable under Clause 7'. A fee/credit clause that operates on money payable under the payment clause DEPENDS on it, so this is a hard dependency, not a mere reference. This edge only appears once the top-level anchor '7. PAYMENT' is correctly typed as a payment clause.",
+      "9.2 -> 9.1": "Clause 9.1 says 'Failure to achieve the Service Levels entitles the Customer to the service credits set out in Clause 9.2'. The REFERENCE runs 9.1 -> 9.2, but the legal DEPENDENCY runs the other way: the service credits depend on the service level. This is the one type pair in the relation table where the referring clause is not the dependent, so it is listed in the inverse rules.",
+      "not_included": "A reference is not a dependency: 7.2 -> 2.4 (a definition) is an interpretation target and becomes a DOUBT, not damage."
+    },
     "expected_references": [
       [
         "7.2",
@@ -70,8 +208,74 @@
       [
         "12.3",
         "14.1"
+      ],
+      [
+        "1.3",
+        "7.1"
+      ],
+      [
+        "1.5",
+        "9.1"
+      ],
+      [
+        "3.2",
+        "9.1"
+      ],
+      [
+        "3.3",
+        "17.1"
+      ],
+      [
+        "4.2",
+        "14.1"
+      ],
+      [
+        "5.2",
+        "14.1"
+      ],
+      [
+        "7.3",
+        "7.2"
+      ],
+      [
+        "8.2",
+        "8.1"
+      ],
+      [
+        "8.3",
+        "8.1"
+      ],
+      [
+        "8.3",
+        "8.2"
+      ],
+      [
+        "11.1",
+        "17.2"
+      ],
+      [
+        "12.1",
+        "14.1"
+      ],
+      [
+        "17.4",
+        "11"
+      ],
+      [
+        "17.4",
+        "13"
+      ],
+      [
+        "17.4",
+        "16"
       ]
     ],
+    "expected_reference_notes": {
+      "_about": "A 'references' edge is an explicit 'Clause N' mention that is NOT a hard dependency. The first two entries were the original hand annotation; the other seventeen were added on 2026-10-20 after reading every cross-reference in the contract text. A reference is an interpretation target - it becomes a DOUBT, not damage - so the set matters: it says which clauses merely point at which.",
+      "9.2 -> 7": "Clause 9.2 credits against 'the Charges payable under Clause 7'. Clause 7 is the top-level section anchor. This is a DEPENDENCY, not a reference - see expected_dependencies.",
+      "17.4 -> 11/13/16": "Clause 17.4 lists the clauses that survive: Clause 11, Clause 13 and Clause 16.",
+      "not_included": "Self-references (e.g. 17.4 -> 17.4) are excluded. Clauses that depend_on rather than merely reference (8.1 -> 7.2, 10.2 -> 7.2, 10.1 -> 8.1, 10.1 -> 10.2, 12.3 -> 10.1) appear in expected_dependencies, not here."
+    },
     "expected_impact": {
       "7.2": {
         "direct": [
@@ -89,7 +293,76 @@
           "10.1",
           "12.3"
         ]
+      },
+      "8.1": {
+        "direct": [
+          "10.1"
+        ],
+        "indirect": [
+          "12.3"
+        ],
+        "chain": [
+          "8.1",
+          "10.1",
+          "12.3"
+        ]
+      },
+      "10.1": {
+        "direct": [
+          "12.3"
+        ],
+        "indirect": [],
+        "chain": [
+          "10.1",
+          "12.3"
+        ]
+      },
+      "10.2": {
+        "direct": [
+          "10.1"
+        ],
+        "indirect": [
+          "12.3"
+        ],
+        "chain": [
+          "10.2",
+          "10.1",
+          "12.3"
+        ]
+      },
+      "9.1": {
+        "direct": [
+          "9.2"
+        ],
+        "indirect": [],
+        "chain": [
+          "9.1",
+          "9.2"
+        ]
+      },
+      "7": {
+        "direct": [
+          "9.2"
+        ],
+        "indirect": [],
+        "chain": [
+          "7",
+          "9.2"
+        ]
+      },
+      "9.2": {
+        "direct": [],
+        "indirect": [],
+        "chain": [
+          "9.2"
+        ]
       }
+    },
+    "expected_impact_notes": {
+      "8.1": "10.1 (Default) depends on the late charges clause, and 12.3 (Termination) depends on 10.1.",
+      "10.1": "Only 12.3 depends on the default clause.",
+      "10.2": "10.1 depends on the cure period; 12.3 depends on 10.1.",
+      "9.1": "Clause 9.2 (Service Credits) depends on the Service Levels, so lowering the SLA hits the credit clause. The reference runs 9.1 -> 9.2 but the legal dependency runs the other way round, which is why this type pair is in the inverse rules."
     },
     "expected_counterfactual": {
       "7.2": {
@@ -101,23 +374,123 @@
         "notice_days_unchanged": 7
       }
     },
+    "expected_counterfactual_sla": {
+      "9.1": {
+        "old": 99,
+        "new": 98,
+        "rows": [
+          {
+            "metric": "Service level availability (Clause 9.1)",
+            "old": "99%",
+            "new": "98%",
+            "changed": true
+          },
+          {
+            "metric": "Service credit threshold (Schedule B, as drafted)",
+            "old": "99%",
+            "new": "99%",
+            "changed": false
+          },
+          {
+            "metric": "Service credit threshold (Schedule B, if conformed to the amendment)",
+            "old": "99%",
+            "new": "98%",
+            "changed": true
+          },
+          {
+            "metric": "Service credit per full percentage point below the threshold (Schedule B)",
+            "old": "5% of monthly Charges",
+            "new": "5% of monthly Charges",
+            "changed": false
+          },
+          {
+            "metric": "First service credit earned (Schedule B)",
+            "old": "INR 22,500 at 98% availability",
+            "new": "INR 22,500 at 97% availability",
+            "changed": true
+          },
+          {
+            "metric": "Maximum monthly service credit (Schedule B)",
+            "old": "INR 1,12,500",
+            "new": "INR 1,12,500",
+            "changed": false
+          },
+          {
+            "metric": "Monthly Charges base (Schedule A)",
+            "old": "INR 4,50,000",
+            "new": "INR 4,50,000",
+            "changed": false
+          }
+        ],
+        "notes": [
+          "Schedule B says 'Service credits for availability below 99%: 5% of the monthly Charges for each full percentage point below 99%, capped at 25% of the monthly Charges'.",
+          "Schedule A says 'Charges: INR 4,50,000 per month'.",
+          "The point of the SLA counterfactual: the VALUE of a credit does not move, but the BAND in which the Customer earns one does. As drafted (threshold still 99%) the amendment has no effect at all on the credits - the schedule must be conformed. Once conformed to 98%, the Customer earns nothing between 98% and 99% availability, and the first credit (5% of INR 4,50,000 = INR 22,500) is only earned at 97% availability instead of 98%."
+        ]
+      }
+    },
     "expected_doubt_codes": [
       "definition_collision",
       "cross_ref_mismatch",
       "unchanged_dependent_param",
+      "notice_vs_cure",
       "amendment_form",
       "scope_of_change"
-    ]
+    ],
+    "expected_doubt_codes_sla": [
+      "sla_schedule_mismatch",
+      "amendment_form"
+    ],
+    "expected_doubt_notes": {
+      "notice_vs_cure": "12.3 (Termination) is in the impact chain and 14.1 (Notices) supplies the notice mechanics, so the shortened payment window must be flagged against the 7-day deemed-service rule.",
+      "undefined_term": "NOT expected: the only quoted term in 7.2 is \"Payment Period\", and 7.2 itself defines it.",
+      "definition_drift": "NOT a doubt code: definition_drift is emitted by the intra-contract conflict checker (clash_check), not by detect_doubts."
+    }
   },
   "contract_b": {
     "title": "Customer Services Agreement",
     "expected_clause_count": 22,
+    "expected_clause_numbers": [
+      "1", "1.1", "1.2", "1.3",
+      "2", "2.1", "2.2",
+      "3", "3.1",
+      "4", "4.1",
+      "5", "5.1", "5.2",
+      "6", "6.1",
+      "7", "7.1",
+      "8", "8.1", "8.2",
+      "SCHEDULE A"
+    ],
     "expected_types": {
       "1.2": "definition",
       "5.2": "payment",
       "6.1": "fee",
       "2.2": "sla",
       "7.1": "notice"
+    },
+    "expected_types_full": {
+      "1": "definition",
+      "1.1": "definition",
+      "1.2": "definition",
+      "1.3": "definition",
+      "2": "other",
+      "2.1": "other",
+      "2.2": "sla",
+      "3": "term",
+      "3.1": "term",
+      "4": "payment",
+      "4.1": "payment",
+      "5": "payment",
+      "5.1": "payment",
+      "5.2": "payment",
+      "6": "fee",
+      "6.1": "fee",
+      "7": "notice",
+      "7.1": "notice",
+      "8": "governing_law",
+      "8.1": "governing_law",
+      "8.2": "dispute",
+      "SCHEDULE A": "other"
     },
     "expected_numbers": {
       "1.2": {
@@ -130,11 +503,62 @@
         "pct": 99.5
       }
     },
+    "expected_number_sets": {
+      "1.2": [{"value": 30, "unit": "days"}],
+      "2.2": [{"value": 99.5, "unit": "%"}],
+      "3.1": [{"value": 24, "unit": "months"}],
+      "5.2": [{"value": 45, "unit": "days"}],
+      "6.1": [{"value": 1, "unit": "%"}],
+      "7.1": [{"value": 7, "unit": "days"}]
+    },
+    "expected_amounts_not_extracted": {
+      "_note": "Same gap as Contract A: 'INR 7,80,000 per month' is not extracted by the number parser.",
+      "SCHEDULE A": [{"value": 780000, "unit": "INR per month"}]
+    },
     "expected_definition_drift": {
       "definition_clause": "1.2",
       "using_clause": "5.2",
       "definition_value": 30,
       "using_value": 45
+    },
+    "expected_dependencies": [
+      [
+        "6.1",
+        "5.2"
+      ]
+    ],
+    "expected_references": [
+      [
+        "5.2",
+        "1.2"
+      ],
+      [
+        "1.1",
+        "5.1"
+      ]
+    ],
+    "expected_impact": {
+      "5.2": {
+        "direct": [
+          "6.1"
+        ],
+        "indirect": [],
+        "chain": [
+          "5.2",
+          "6.1"
+        ]
+      },
+      "1.2": {
+        "direct": [],
+        "indirect": [],
+        "chain": [
+          "1.2"
+        ]
+      }
+    },
+    "expected_impact_notes": {
+      "5.2": "6.1 (Late Charges) depends on the payment period, so shortening Clause 5.2 starts the late-charge clock earlier.",
+      "1.2": "Nothing depends on the definition. 5.2 REFERENCES it, and a reference is an interpretation target - it becomes a doubt (the definition drift), not an impact."
     }
   },
   "cross_contract": {
@@ -149,6 +573,9 @@
     "expected_mismatch_metrics": [
       "Payment period (days)",
       "Service level availability (%)"
-    ]
+    ],
+    "expected_mismatch_notes": {
+      "Cure period (days)": "NOT expected as a mismatch: Contract B has no cure clause at all, so there is nothing to differ. The comparator must not report a mismatch for a metric one side does not state."
+    }
   }
 }

@@ -49,20 +49,49 @@ TYPE_KEYWORDS = {
                  "interest"],
     "default": ["in default", "event of default", "shall be in default", "default"],
     "cure": ["cure period", "cure that failure", "cure the failure", "to cure"],
-    "termination": ["terminate this agreement", "right to terminate", "termination"],
+    # NOTE: a bare 'termination' is NOT a keyword. Clause 17.4 says 'shall
+    # survive termination' - it mentions termination but grants no
+    # termination right. A termination clause has to actually terminate.
+    "termination": ["terminate this agreement", "right to terminate",
+                    "termination of this agreement", "termination for",
+                    "termination upon"],
     "sla": ["service level", "availability", "uptime", "service credit"],
     "limitation": ["limitation of liability", "in no event", "aggregate liability"],
-    "indemnity": ["indemnif", "hold harmless"],
+    "indemnity": ["indemnity", "indemnify", "hold harmless"],
     "force_majeure": ["force majeure", "beyond its reasonable control"],
     "governing_law": ["governed by the laws", "governing law", "laws of india"],
     "dispute": ["arbitration", "arbitral", "dispute resolution", "tribunal"],
     "warranty": ["warrant", "representation"],
     "confidentiality": ["confidential", "non-disclosure", "proprietary information"],
-    "definition": ["shall mean", "means", "definition", "interpretation"],
+    # NOTE: 'interpretation' is not a keyword. 'definition' means 'defines a
+    # term'. Clause 2.1 ('Interpretation of Headings') defines no term.
+    "definition": ["shall mean", "means", "definition"],
     "term": ["initial term", "renewal term", "term of this agreement", "renews automatically"],
-    "payment": ["payment period", "payment due date", "payable", "invoice", "charges"],
+    "payment": ["payment period", "payment due date", "payable", "invoice", "charge"],
     "notice": ["notices", "deemed served", "notice shall be", "written notice"],
 }
+
+# HEADING-ONLY cues.
+#
+# A heading NAMES the subject of a clause; the body merely mentions things.
+# So 'payment' is a safe cue for a heading ('7. PAYMENT') but not for body
+# text, where the word 'payment' appears in half the contract.
+# These are checked ONLY against the heading, in the same priority order.
+HEADING_CUES = {
+    "payment": ["payment"],
+    "fee": ["late payment"],
+    "term": ["term"],
+    "termination": ["termination"],
+}
+
+# A heading that names a subject the frozen 18-type vocabulary has no type
+# for. A tax clause is 'other' - it is not a payment clause just because it
+# mentions an Invoice.
+TAX_HEADING_RE = re.compile(r"^(tax|taxes|gst|vat)$", re.IGNORECASE)
+
+# A schedule is a document that happens to contain obligations, not an
+# operative clause of the agreement.
+SCHEDULE_ONLY_RE = re.compile(r"^SCHEDULE\b", re.IGNORECASE)
 
 # '7.2 Payment Period. The Customer shall pay...'  (a SUB-clause: needs a dot)
 SUB_CLAUSE_RE = re.compile(r"^\s*(\d+(?:\.\d+){1,3})\.?\s+(\S.*)$")
@@ -212,39 +241,113 @@ def split_clauses(text):
 
 
 # ---------------------------------------------------------------------------
+# keyword matching
+# ---------------------------------------------------------------------------
+# Keywords are matched with WORD BOUNDARIES and a light suffix tolerance.
+#
+# Why: without boundaries, 'term' also matches 'termination', and 'charge'
+# also matches 'charged'. That makes it impossible to add a precise cue like
+# the bare word 'payment' to the heading rules - it would fire on every
+# clause that merely mentions payment.
+def _suffix_forms(word):
+    """'charge' -> charge, charges, charging, charged. 'penalty' -> penalty,
+    penalties, ..."""
+    forms = {word}
+    if word.endswith("y") and len(word) > 1:
+        forms.add(word[:-1] + "ies")
+    else:
+        forms.add(word + "s")
+    if word.endswith("e"):
+        forms.add(word[:-1] + "ing")
+        forms.add(word + "d")
+    else:
+        forms.add(word + "ing")
+        forms.add(word + "ed")
+    return sorted(forms)
+
+
+_KEYWORD_CACHE = {}
+
+
+def _keyword_re(keyword):
+    """Compile one keyword phrase into a word-boundary regex."""
+    if keyword not in _KEYWORD_CACHE:
+        words = keyword.split()
+        parts = [re.escape(w) for w in words[:-1]]
+        parts.append("(?:%s)" % "|".join(re.escape(f) for f in _suffix_forms(words[-1])))
+        _KEYWORD_CACHE[keyword] = re.compile(
+            r"\b" + r"\s+".join(parts) + r"\b", re.IGNORECASE)
+    return _KEYWORD_CACHE[keyword]
+
+
+def _has_keyword(text, ctype, table):
+    """Does this text contain any keyword of this clause type?"""
+    for kw in table.get(ctype, []):
+        if _keyword_re(kw).search(text):
+            return True
+    return False
+
+
+def _states_a_level(text):
+    """Does this clause commit to a MEASURABLE service level?
+
+    Clause 3.2 says 'in accordance with the Service Levels' - it points at
+    the SLAs but states none. Typing it 'sla' puts the obligation in the
+    wrong clause; the SLA clause is 9.1, which states 99%.
+    """
+    low = (text or "").lower()
+    return ("%" in low) or ("availability" in low) or ("uptime" in low)
+
+
+# ---------------------------------------------------------------------------
 # classification
 # ---------------------------------------------------------------------------
 def classify_type(text, heading=""):
     """Assign one clause type.
 
-    Rule 1: if the HEADING names the type, trust the heading. A clause headed
-            'Termination for Non-Payment' is a termination clause even though
-            its body also mentions the word 'default'.
-    Rule 2: otherwise fall back to keyword priority over heading + body.
+    Rule 1: if the HEADING names the subject, trust the heading. A clause
+            headed 'Termination for Non-Payment' is a termination clause even
+            though its body also mentions the word 'default'.
+    Rule 1b: a heading that names a subject the vocabulary has no type for
+            (a tax clause) is 'other'.
+    Rule 2: otherwise fall back to keyword priority over the body.
 
     Deterministic on purpose: a lawyer reviewing the system must be able to
     see WHY a clause was typed the way it was.
     """
     h = (heading or "").strip()
+    body = text or ""
 
+    # '"Payment Due Date" means ...' - a quoted heading is a definition.
     if h.startswith('"'):
         return "definition"
 
+    # A schedule is a document, not an operative clause.
+    if SCHEDULE_ONLY_RE.match(body.strip()):
+        return "other"
+
+    # Rule 1: the heading.
     if h and len(h) <= 60:
         for ctype in TYPE_PRIORITY:
             if ctype == "other":
                 break
-            for kw in TYPE_KEYWORDS.get(ctype, []):
-                if kw in h.lower():
-                    return ctype
+            if _has_keyword(h, ctype, TYPE_KEYWORDS) \
+                    or _has_keyword(h, ctype, HEADING_CUES):
+                return ctype
 
-    low = ("%s %s" % (h, text)).lower()
+        # Rule 1b: the heading names something we have no type for.
+        if TAX_HEADING_RE.match(h):
+            return "other"
+
+    # Rule 2: the body.
     for ctype in TYPE_PRIORITY:
         if ctype == "other":
             break
-        for kw in TYPE_KEYWORDS.get(ctype, []):
-            if kw in low:
-                return ctype
+        if _has_keyword(body, ctype, TYPE_KEYWORDS):
+            if ctype == "sla" and not _states_a_level(body):
+                continue
+            return ctype
+
     return "other"
 
 
@@ -294,9 +397,69 @@ def find_within_days(text):
     return int(m.group(1))
 
 
+# A whole-word 'dispute'. Substring matching would also match 'undisputed',
+# which appears in every payment clause.
+DISPUTE_RE = re.compile(r"\bdisput(?:e|es|ed|ing)\b", re.IGNORECASE)
+
+
+def mentions_dispute(text):
+    """Does this clause actually talk about a dispute?
+
+    'each undisputed Invoice' does NOT count. Clause 7.2 has no
+    dispute-notice obligation; only Clause 7.3 does.
+    """
+    return bool(DISPUTE_RE.search(text or ""))
+
+
 def find_quoted_terms(text):
     """Capitalised terms in double quotes, e.g. 'Payment Due Date'."""
     return re.findall(r'"([^"]{3,60})"', text)
+
+
+# 'INR 4,50,000 per month' - money. The number parser above only understands
+# days / months / years / %, so rupee amounts need their own rule.
+AMOUNT_RE = re.compile(r"(?:INR|Rs\.?|₹)\s*([\d,]+(?:\.\d+)?)", re.IGNORECASE)
+
+# 'Service credits for availability below 99%: 5% of the monthly Charges for
+#  each full percentage point below 99%, capped at 25% of the monthly Charges.'
+CREDIT_THRESHOLD_RE = re.compile(r"below\s+(\d+(?:\.\d+)?)\s*%", re.IGNORECASE)
+CREDIT_RATE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*%\s+of the monthly charges",
+                             re.IGNORECASE)
+CREDIT_CAP_RE = re.compile(r"capped at\s+(\d+(?:\.\d+)?)\s*%", re.IGNORECASE)
+
+
+def find_amounts(text):
+    """Rupee amounts stated in the text, as numbers. 'INR 4,50,000' -> 450000."""
+    out = []
+    for m in AMOUNT_RE.finditer(text or ""):
+        digits = m.group(1).replace(",", "")
+        try:
+            value = float(digits)
+        except ValueError:
+            continue
+        out.append(int(value) if value == int(value) else value)
+    return out
+
+
+def parse_service_credit_schedule(text):
+    """Read the service-credit mechanics out of a schedule.
+
+    Returns {'threshold_pct', 'rate_pct', 'cap_pct'} or None. None means
+    'we could not read it' - which is honest, and must never be guessed into
+    a number.
+    """
+    if not text:
+        return None
+    threshold = CREDIT_THRESHOLD_RE.search(text)
+    rate = CREDIT_RATE_RE.search(text)
+    cap = CREDIT_CAP_RE.search(text)
+    if not (threshold and rate and cap):
+        return None
+    return {
+        "threshold_pct": float(threshold.group(1)),
+        "rate_pct": float(rate.group(1)),
+        "cap_pct": float(cap.group(1)),
+    }
 
 
 def defined_terms_by_clause(text):

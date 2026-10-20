@@ -6,6 +6,107 @@ what branch B adds or needs from A.
 
 ---
 
+## 0. NEW (2026-10-20): what changed on `b-graph` since the last handoff
+
+Read this part first if you have not pulled `b-graph` today.
+
+### 0.1 The evaluation exists now
+
+`tools/evaluate.py` scores the engine against `data/ground_truth.json`.
+This is the "Results" chapter of the report.
+
+```powershell
+py -3.11 tools/evaluate.py                                   # print the tables
+py -3.11 tools/evaluate.py --out docs/evaluation_report.md   # regenerate the report
+```
+
+`docs/evaluation_report.md` is the generated report (committed).
+`data/ground_truth.json` was extended: it now holds a hand-written label for
+**every** clause in both contracts (type), the extracted numbers, the full
+set of cross-references, and the impact sets for 9 change scenarios — not
+just the handful the old tests asserted.
+
+The report states its own limits: these numbers are self-consistency against
+hand annotations on two synthetic contracts, not accuracy on real contracts.
+Please do not quote them as accuracy.
+
+### 0.2 Four real defects were found and fixed
+
+The evaluation harness caught things the demo did not:
+
+| defect | why it mattered |
+|---|---|
+| `notice_vs_cure` never fired | the doubt rule read the heading-only anchor "14. NOTICES" instead of Clause 14.1, found no day count and skipped the doubt **silently** |
+| 15 clause-type errors | keyword matching was substring-based, so `term` matched `termination` |
+| a bogus obligation node | Clause 8.3 ("... are not a penalty") created a "pay late charges" obligation — a false statement about the contract |
+| a bogus deadline node | Clause 7.2 got a "notify the Supplier of a dispute within 30 days" deadline, because `"disput" in text` matches "**undisputed** Invoice" |
+
+If you rely on a clause type or a node, re-run the evaluation after pulling.
+
+### 0.3 Behaviour changes C must know about
+
+The **API response shape is unchanged** — same keys, same nesting. But some
+values changed:
+
+| what | before | now |
+|---|---|---|
+| clause types | substring keyword matching | word-boundary matching + heading cues, so `7. PAYMENT` is a payment clause and `Survival` is not a termination clause |
+| doubt codes | 7 | **9** (`definition_drift` and `sla_schedule_mismatch` added) |
+| counterfactual for a non-payment, non-SLA change | misleading "Payment deadline ... 30 days -> 98 days" rows | **no rows**, plus a note saying the arithmetic is not modelled — the UI must handle empty `counterfactual.rows` and show `counterfactual.notes` |
+| element node details | one template per clause type | per-clause details (Clause 7.1 is an invoicing duty, Clause 7.3 is a duty to pay the undisputed balance) |
+| SLA impact | changing 9.1 reported **no** impact | Clause 9.2 (Service Credits) is now correctly impacted, via a new inverse rule |
+| new demo | — | `py -3.11 cli.py --contract 1 --change 9.1:99:98` — the service-credit counterfactual |
+
+**Please show `counterfactual.notes` in the screen.** When a change type has
+no modelled arithmetic, the note is the honest answer, and it is the
+difference between "the system says it does not know" and "the system is
+broken".
+
+### 0.4 The LLM path can now be exercised without a key
+
+`tools/llm_probe.py` shows exactly what the model is asked and what it
+answered:
+
+```powershell
+py -3.11 tools/llm_probe.py --contract 1 --clause 3.3
+py -3.11 tools/llm_probe.py --contract 1 --clause 3.3 --rebuild
+```
+
+With `LLM_PROVIDER=mock` it says the LLM is not configured and exits cleanly
+— which is the point: **the core demo needs no key**. The LLM branch of the
+graph builder is now covered by tests (`tests/test_evaluate.py`), so it
+cannot rot unnoticed. When you add a real key to `.env`, run the probe with
+`--rebuild` to see which edges the model contributes.
+
+### 0.5 README repair
+
+`README.md` was double-encoded (UTF-8 bytes read as cp1252), so it rendered
+as `—` and `→` everywhere. I repaired the encoding and updated the stale
+facts (test count, doubt families, the counterfactual's scope). The diff
+looks large; it is one mechanical repair plus the content lines. If you have
+edited the README, take ours and re-apply your lines.
+
+### 0.6 The patent note exists — and the disclosure rules now apply to all of us
+
+`docs/invention_note.md` is the invention note for the patent agent. It
+describes the one narrow mechanism worth claiming, the novelty argument
+against Kira / Luminance / Harvey / CoCounsel, the §3(k) analysis and a claim
+sketch.
+
+**Until the provisional is filed: no public repo, no demo video, no talk,
+paper or blog post describing the mechanism, and no showing the demo to
+anyone outside the three of us.** The note has a disclosure log — if anyone
+discloses anything, it gets a row. A disclosure before filing can destroy
+novelty, and the whole project is worthless if that happens.
+
+One question in the note needs an honest answer from all three of us:
+**inventorship**. Under Indian practice the inventors are the natural persons
+who contributed to the inventive step. Please settle a written account of who
+designed the relation table, who designed the traversal, who designed the
+doubt rules and who built the evaluation **before** filing.
+
+---
+
 ## 1. What branch B ADDS (new files, A does not need to touch them)
 
 | file | what it is |
@@ -20,6 +121,11 @@ what branch B adds or needs from A.
 | `cli.py` | terminal demo of the impact engine |
 | `seed.py` | loads the two synthetic contracts into `demo.db` |
 | `tests/test_graph.py` | 39 tests for the relationship model and the API |
+| `tests/test_evaluate.py` | 53 tests for the evaluator, the rules it locked in, and the LLM path |
+| `tools/evaluate.py` | scores the engine against `data/ground_truth.json` |
+| `tools/llm_probe.py` | exercises the LLM path (works with no key) |
+| `docs/evaluation_report.md` | the generated evaluation report |
+| `docs/invention_note.md` | the patent invention note (CONFIDENTIAL, pre-filing) |
 | `data/contracts/contract_a.txt`, `contract_b.txt` | synthetic Indian commercial contracts |
 | `data/ground_truth.json` | hand-annotated truth set (seed AND test set) |
 
