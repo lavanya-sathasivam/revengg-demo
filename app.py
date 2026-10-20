@@ -17,7 +17,8 @@ from db import (
     list_contracts,
     save_clauses,
 )
-from extract import extract_text, split_clauses
+import clauses as clause_tools
+from extract import extract_text
 from reasoning import explain_with_retrieval
 
 logging.basicConfig(level=logging.INFO)
@@ -262,7 +263,7 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
     # Split the extracted text into clauses. split_clauses never invents
     # sections: it returns [] when no reliable sequence is found, and an
     # empty list is stored as "no clauses" rather than fabricated content.
-    clauses = split_clauses(text)
+    clauses = clause_tools.split_clauses(text, preserve_text=True)
 
     try:
         saved_clause_count = save_clauses(contract_id, clauses)

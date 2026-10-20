@@ -184,7 +184,7 @@ def _split_hierarchy(section_text):
     return blocks
 
 
-def split_clauses(text):
+def split_clauses(text, preserve_text=False):
     """Fine-grained clause list, ready for db.save_clauses().
 
     Returns a list of:
@@ -193,6 +193,10 @@ def split_clauses(text):
     Top-level section detection is delegated to extract.split_clauses()
     (Person A's tested PDF-aware splitter). We then subdivide each section
     into its numbered sub-clauses.
+
+    With preserve_text=True, each row keeps its original source slice,
+    including clause numbering, and text before the first nested clause stays
+    with its parent section. This mode is used by the PDF upload path.
 
     Returns [] if the top-level structure cannot be detected - we never
     invent structure.
@@ -207,26 +211,61 @@ def split_clauses(text):
         body = section["clause_text"]
         first_line = body.splitlines()[0] if body.splitlines() else ""
 
-        # the section anchor itself (heading only - its sub-clauses carry the text)
+        # In the demo ingestion mode, the section anchor is heading-only and
+        # its sub-clauses carry the operative text. Upload mode retains the
+        # parent prefix as its own source slice so no unnumbered text is lost.
         anchor_heading = _clean_heading(
             re.sub(r"^\s*\d+(\.\d+)*\.?\s*", "", first_line).strip()
         ) or first_line.strip()[:70]
+        if preserve_text:
+            lines = body.splitlines(keepends=True)
+            starts = []
+            offset = 0
+            for line in lines:
+                starts.append(offset)
+                offset += len(line)
+            child_starts = []
+            for line_index, line in enumerate(lines):
+                if len(line.rstrip("\r\n").rstrip()) > 400:
+                    continue
+                match = SUB_CLAUSE_RE.match(line.rstrip("\r\n"))
+                if match:
+                    child_starts.append((line_index, match))
+            parent_end = starts[child_starts[0][0]] if child_starts else len(body)
+            parent_text = body[:parent_end]
+        else:
+            child_starts = []
+            parent_text = first_line.strip()
         out.append({
             "section_number": sec_no,
-            "clause_text": first_line.strip(),
+            "clause_text": parent_text,
             "metadata": {"heading": anchor_heading, "level": 0,
                          "source": "section"},
         })
 
-        for sub in _split_hierarchy(body):
-            if not sub["section_number"]:
-                continue
-            out.append({
-                "section_number": sub["section_number"],
-                "clause_text": sub["text"],
-                "metadata": {"heading": sub["heading"], "level": 1,
-                             "source": "sub_clause"},
-            })
+        if preserve_text:
+            for position, (line_index, match) in enumerate(child_starts):
+                start = starts[line_index]
+                end = (starts[child_starts[position + 1][0]]
+                       if position + 1 < len(child_starts) else len(body))
+                clause_number = match.group(1).rstrip(".")
+                clause_body = match.group(2).strip()
+                out.append({
+                    "section_number": clause_number,
+                    "clause_text": body[start:end],
+                    "metadata": {"heading": _clean_heading(clause_body),
+                                 "level": 1, "source": "sub_clause"},
+                })
+        else:
+            for sub in _split_hierarchy(body):
+                if not sub["section_number"]:
+                    continue
+                out.append({
+                    "section_number": sub["section_number"],
+                    "clause_text": sub["text"],
+                    "metadata": {"heading": sub["heading"], "level": 1,
+                                 "source": "sub_clause"},
+                })
 
     # de-duplicate section numbers, keeping the first occurrence
     seen = set()

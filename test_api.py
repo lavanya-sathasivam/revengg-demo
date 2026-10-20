@@ -68,6 +68,20 @@ NO_SECTIONS_PDF = make_pdf_bytes(
     ["THIS DOCUMENT HAS NO NUMBERED SECTIONS AT ALL"]
 )
 
+HIERARCHICAL_PDF = make_pdf_bytes(
+    [
+        "1. FIRST. First section.",
+        "2. SECOND. Second section.",
+        "3. THIRD. Third section.",
+        "4. FOURTH. Fourth section.",
+        "5. FIFTH. Fifth section.",
+        "6. SIXTH. Sixth section.",
+        "7. PAYMENT. Parent text before the first nested clause.",
+        "7.2 Payment Period. Pay within thirty days.",
+        "7.3 Late Fee. Pay interest on overdue sums.",
+    ]
+)
+
 
 class ApiTestCase(unittest.TestCase):
     def setUp(self):
@@ -121,6 +135,28 @@ class UploadFlowTests(ApiTestCase):
         self.assertEqual(
             [c["section_number"] for c in clauses], ["1", "2", "3", "4"]
         )
+
+    def test_upload_persists_nested_clauses_and_preserves_source_text(self):
+        response = self._upload(HIERARCHICAL_PDF)
+        clauses = db.list_clauses(response["contract_id"])
+        by_number = {clause["section_number"]: clause for clause in clauses}
+
+        self.assertIn("7", by_number)
+        self.assertIn("7.2", by_number)
+        self.assertIn("7.3", by_number)
+        self.assertIn("Parent text before the first nested clause.",
+                      by_number["7"]["clause_text"])
+        self.assertIn("7.2 Payment Period.", by_number["7.2"]["clause_text"])
+        self.assertIn("Pay within thirty days.", by_number["7.2"]["clause_text"])
+        self.assertEqual(by_number["7.2"]["metadata"]["heading"],
+                         "Payment Period")
+        self.assertEqual(by_number["7.2"]["metadata"]["level"], 1)
+
+        returned = app.get_contract_clauses_route(response["contract_id"])
+        returned_by_number = {
+            clause["section_number"]: clause for clause in returned["clauses"]
+        }
+        self.assertIn("7.2", returned_by_number["7.2"]["clause_text"])
 
     def test_clauses_endpoint_returns_sections_in_order(self):
         upload = self._upload(SECTIONS_PDF)
