@@ -74,12 +74,22 @@ py -3.11 -m unittest discover -s tests -v
 ```powershell
 py -3.11 seed.py
 py -3.11 -m uvicorn server:app --reload
-open http://127.0.0.1:8000/docs     # interactive API docs - try it live
-open http://127.0.0.1:8000/          # landing page with example calls
+open http://127.0.0.1:8000/              # the impact-analysis view
+open http://127.0.0.1:8000/explain        # the clause explainer (legal retrieval + reasoning)
+open http://127.0.0.1:8000/docs          # interactive API docs - try it live
+```
+
+The landing page reads its state from the URL, so any analysis is a link you
+can share or screenshot:
+
+```
+http://127.0.0.1:8000/?contract=1&clause=7.2&old=30&new=15    # the headline
+http://127.0.0.1:8000/?contract=1&clause=9.1&old=99&new=98    # the SLA counterfactual
 ```
 
 `server.py` imports Person A's `app.py` and mounts Person B's `api_b.py`
-router — **neither A's nor C's file is modified**.
+router — **neither A's nor C's file is modified** (except for the one route
+that serves the second page).
 
 | endpoint | what it returns |
 |---|---|
