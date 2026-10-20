@@ -69,6 +69,21 @@ REFERENCE_ONLY_RULES = [
     ("cure", "definition"),
 ]
 
+# The relation table above assumes the REFERRING clause is the dependent: a
+# default clause that mentions the late-fee clause depends on it, so the
+# edge is (referrer -> referenced).
+#
+# That assumption is wrong for one pair in this corpus. Clause 9.1 says
+# 'Failure to achieve the Service Levels entitles the Customer to the service
+# credits set out in Clause 9.2' - but it is the SERVICE CREDITS that depend
+# on the service level, not the service level that depends on the credits.
+# These pairs are listed separately and the edge is emitted the other way
+# round, so 'depends_on' stays dependent-first and the impact of the SLA is
+# the credit clause.
+INVERSE_DEPENDENCY_RULES = [
+    ("sla", "fee"),
+]
+
 EXTRACT_PROMPT = """
 You extract legal structure from ONE clause of an Indian commercial service agreement.
 Return STRICT JSON only. No prose. No markdown fence.
@@ -134,16 +149,44 @@ def _deterministic_nodes(clause):
     out = []
 
     if ctype == "payment":
-        out.append(("payment", "pay the amount stated in each undisputed Invoice"))
+        # The node is a legal statement about the contract, so it has to be
+        # true OF THIS CLAUSE. One generic 'pay the amount stated in each
+        # undisputed Invoice' template would be false for Clause 7.1 (which
+        # imposes an invoicing duty, not a payment duty) and for Clause 7.3
+        # (which lets the Customer WITHHOLD the disputed part).
+        low = text.lower()
+        if clause_tools.mentions_dispute(text):
+            out.append(("payment", "pay the undisputed balance of any disputed Invoice"))
+        elif "issue" in low and "invoice" in low:
+            out.append(("obligation", "issue an Invoice for the Services"))
+        elif "charge" in low:
+            out.append(("payment", "pay the Charges"))
+        else:
+            out.append(("payment", "pay the amount stated in each undisputed Invoice"))
+
         within = clause_tools.find_within_days(text)
-        if within and "invoice" in text.lower():
-            if "disput" in text.lower():
+        if within and "invoice" in low:
+            # Careful: a plain substring test for 'disput' also matches
+            # 'undisputed', which is in EVERY payment clause - it would give
+            # Clause 7.2 a deadline saying 'notify the Supplier of a dispute
+            # within 30 days'. A dispute-notice deadline only belongs to a
+            # clause that actually speaks about a dispute.
+            if clause_tools.mentions_dispute(text):
                 out.append(("deadline", "notify the Supplier of a dispute within %d days"
                             % within))
             else:
                 out.append(("deadline", "pay within %d days of the Invoice date" % within))
     elif ctype == "fee":
-        out.append(("obligation", "pay late charges on any overdue Invoice"))
+        # A clause in the late-payment family does not necessarily IMPOSE a
+        # charge. Clause 8.3 ('... are not a penalty') creates no obligation,
+        # and Clause 9.2 (Service Credits) creates a RIGHT, not a duty to pay
+        # late charges. Creating the wrong node here would put a false
+        # statement about the contract into the impact report.
+        low = text.lower()
+        if "late charge" in low or "late fee" in low:
+            out.append(("obligation", "pay late charges on any overdue Invoice"))
+        elif "service credit" in low:
+            out.append(("right", "claim service credits for the Service Levels not met"))
     elif ctype == "interest":
         out.append(("obligation", "pay interest on any amount paid late"))
     elif ctype == "default":
@@ -177,14 +220,22 @@ def _deterministic_nodes(clause):
 # ---------------------------------------------------------------------------
 # 3. build the whole graph
 # ---------------------------------------------------------------------------
-def build_graph(contract_id, use_llm=True):
+def build_graph(contract_id, use_llm=True, llm_limit=None, llm_target=None):
     """Build nodes and edges for a contract. Idempotent: rebuilds from scratch.
+
+    use_llm     - allow the LLM to fill gaps the relation table left.
+    llm_limit   - maximum number of LLM calls (None = no limit). A real key
+                  on a 59-clause contract means one call per undecided
+                  clause, so a limit keeps the live demo quick and cheap.
+    llm_target  - only ask the LLM about this one clause. Useful to show
+                  exactly what the model would contribute.
 
     Returns a summary dict with counts.
     """
     raw_clauses = adapter.list_clauses(contract_id)
     if not raw_clauses:
-        return {"clauses": 0, "nodes": 0, "edges": 0, "llm_fills": 0}
+        return {"clauses": 0, "nodes": 0, "edges": 0, "llm_fills": 0,
+                "llm_calls": 0}
 
     enriched = []
     for row in raw_clauses:
@@ -208,6 +259,7 @@ def build_graph(contract_id, use_llm=True):
     node_count = 0
     edge_count = 0
     llm_fills = 0
+    llm_calls = 0
 
     # pass 1: one node per clause, so every edge can point at a real node
     clause_node = {}
@@ -252,13 +304,21 @@ def build_graph(contract_id, use_llm=True):
                                     "depends_on")
                 rule_dep_made = True
                 edge_count += 1
+            elif (ctype, rtype) in INVERSE_DEPENDENCY_RULES:
+                # the REFERENCED clause is the dependent here
+                adapter.insert_edge(contract_id, clause_node[ref], clause_node[sec],
+                                    "depends_on")
+                rule_dep_made = True
+                edge_count += 1
             else:
                 adapter.insert_edge(contract_id, clause_node[sec], clause_node[ref],
                                     "references")
                 edge_count += 1
 
         # the LLM only fills gaps the rule table left
-        if use_llm and not rule_dep_made:
+        if use_llm and not rule_dep_made and _llm_allowed(sec, llm_target,
+                                                           llm_calls, llm_limit):
+            llm_calls += 1
             payload = llm.ask_json(
                 EXTRACT_PROMPT.format(sec_no=sec, ctype=ctype, text=text[:4000])
             )
@@ -282,7 +342,16 @@ def build_graph(contract_id, use_llm=True):
                         edge_count += 1
 
     return {"clauses": len(enriched), "nodes": node_count, "edges": edge_count,
-            "llm_fills": llm_fills}
+            "llm_fills": llm_fills, "llm_calls": llm_calls}
+
+
+def _llm_allowed(sec, llm_target, calls, llm_limit):
+    """Should the LLM be asked about this clause?"""
+    if llm_target is not None and sec != llm_target:
+        return False
+    if llm_limit is not None and calls >= llm_limit:
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------

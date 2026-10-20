@@ -1,0 +1,875 @@
+{
+  "generated_at": "2026-10-20T15:35:15",
+  "contracts": {
+    "contract_a": {
+      "label": "Contract A",
+      "segmentation": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 59,
+          "fp": 0,
+          "fn": 0
+        },
+        "count_expected": 59,
+        "count_actual": 59,
+        "count_ok": true,
+        "missing": [],
+        "extra": []
+      },
+      "types": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 59,
+          "fp": 0,
+          "fn": 0
+        },
+        "per_class": {
+          "confidentiality": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "cure": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "default": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "definition": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 7,
+            "fp": 0,
+            "fn": 0
+          },
+          "dispute": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "fee": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          },
+          "force_majeure": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "governing_law": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "indemnity": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "interest": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "limitation": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "notice": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "other": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 15,
+            "fp": 0,
+            "fn": 0
+          },
+          "payment": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 7,
+            "fp": 0,
+            "fn": 0
+          },
+          "sla": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "term": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "termination": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        "macro_f1": 1.0,
+        "annotated": 59,
+        "errors": []
+      },
+      "numbers": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 20,
+          "fp": 0,
+          "fn": 0
+        },
+        "annotated_clauses": 16,
+        "errors": []
+      },
+      "dependencies": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 8,
+          "fp": 0,
+          "fn": 0
+        },
+        "missing": [],
+        "extra": []
+      },
+      "references": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 17,
+          "fp": 0,
+          "fn": 0
+        },
+        "missing": [],
+        "extra": []
+      },
+      "impact": [
+        {
+          "clause": "10.1",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "10.1",
+            "12.3"
+          ],
+          "chain_expected": [
+            "10.1",
+            "12.3"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        },
+        {
+          "clause": "10.2",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "10.2",
+            "10.1",
+            "12.3"
+          ],
+          "chain_expected": [
+            "10.2",
+            "10.1",
+            "12.3"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        },
+        {
+          "clause": "7",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "7",
+            "9.2"
+          ],
+          "chain_expected": [
+            "7",
+            "9.2"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        },
+        {
+          "clause": "7.2",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "7.2",
+            "8.1",
+            "10.1",
+            "12.3"
+          ],
+          "chain_expected": [
+            "7.2",
+            "8.1",
+            "10.1",
+            "12.3"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        },
+        {
+          "clause": "8.1",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "8.1",
+            "10.1",
+            "12.3"
+          ],
+          "chain_expected": [
+            "8.1",
+            "10.1",
+            "12.3"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        },
+        {
+          "clause": "9.1",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "9.1",
+            "9.2"
+          ],
+          "chain_expected": [
+            "9.1",
+            "9.2"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        },
+        {
+          "clause": "9.2",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "9.2"
+          ],
+          "chain_expected": [
+            "9.2"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        }
+      ],
+      "counterfactual": [
+        {
+          "clause": "7.2",
+          "checks": [
+            {
+              "check": "default trigger old",
+              "expected": "day 45",
+              "actual": "day 45",
+              "ok": true
+            },
+            {
+              "check": "default trigger new",
+              "expected": "day 30",
+              "actual": "day 30",
+              "ok": true
+            },
+            {
+              "check": "cure period unchanged",
+              "expected": "15 days, unchanged",
+              "actual": "15 days",
+              "ok": true
+            },
+            {
+              "check": "notice period unchanged",
+              "expected": "7 days, unchanged",
+              "actual": "7 days",
+              "ok": true
+            }
+          ],
+          "all_ok": true
+        }
+      ],
+      "counterfactual_sla": [
+        {
+          "clause": "9.1",
+          "checks": [
+            {
+              "check": "Service level availability (Clause 9.1)",
+              "expected": "99% -> 98%",
+              "actual": "99% -> 98%",
+              "ok": true
+            },
+            {
+              "check": "Service credit threshold (Schedule B, as drafted)",
+              "expected": "99% -> 99% (unchanged)",
+              "actual": "99% -> 99% (unchanged)",
+              "ok": true
+            },
+            {
+              "check": "Service credit threshold (Schedule B, if conformed to the amendment)",
+              "expected": "99% -> 98%",
+              "actual": "99% -> 98%",
+              "ok": true
+            },
+            {
+              "check": "Service credit per full percentage point below the threshold (Schedule B)",
+              "expected": "5% of monthly Charges -> 5% of monthly Charges (unchanged)",
+              "actual": "5% of monthly Charges -> 5% of monthly Charges (unchanged)",
+              "ok": true
+            },
+            {
+              "check": "First service credit earned (Schedule B)",
+              "expected": "INR 22,500 at 98% availability -> INR 22,500 at 97% availability",
+              "actual": "INR 22,500 at 98% availability -> INR 22,500 at 97% availability",
+              "ok": true
+            },
+            {
+              "check": "Maximum monthly service credit (Schedule B)",
+              "expected": "INR 1,12,500 -> INR 1,12,500 (unchanged)",
+              "actual": "INR 1,12,500 -> INR 1,12,500 (unchanged)",
+              "ok": true
+            },
+            {
+              "check": "Monthly Charges base (Schedule A)",
+              "expected": "INR 4,50,000 -> INR 4,50,000 (unchanged)",
+              "actual": "INR 4,50,000 -> INR 4,50,000 (unchanged)",
+              "ok": true
+            }
+          ],
+          "all_ok": true,
+          "notes": []
+        }
+      ],
+      "doubts": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 6,
+          "fp": 0,
+          "fn": 0
+        },
+        "codes": [
+          "amendment_form",
+          "cross_ref_mismatch",
+          "definition_collision",
+          "notice_vs_cure",
+          "scope_of_change",
+          "unchanged_dependent_param"
+        ],
+        "expected": [
+          "amendment_form",
+          "cross_ref_mismatch",
+          "definition_collision",
+          "notice_vs_cure",
+          "scope_of_change",
+          "unchanged_dependent_param"
+        ],
+        "missing": [],
+        "extra": [],
+        "evidence_complete": true,
+        "count": 6,
+        "sla": {
+          "clause": "9.1",
+          "metric": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "codes": [
+            "amendment_form",
+            "sla_schedule_mismatch"
+          ],
+          "expected": [
+            "amendment_form",
+            "sla_schedule_mismatch"
+          ],
+          "missing": [],
+          "extra": []
+        }
+      },
+      "conflicts": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0
+        },
+        "values_ok": true,
+        "actual": []
+      },
+      "node_grounding": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 3,
+          "fp": 0,
+          "fn": 0
+        },
+        "checked": 3,
+        "errors": []
+      }
+    },
+    "contract_b": {
+      "label": "Contract B",
+      "segmentation": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 22,
+          "fp": 0,
+          "fn": 0
+        },
+        "count_expected": 22,
+        "count_actual": 22,
+        "count_ok": true,
+        "missing": [],
+        "extra": []
+      },
+      "types": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 22,
+          "fp": 0,
+          "fn": 0
+        },
+        "per_class": {
+          "definition": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 4,
+            "fp": 0,
+            "fn": 0
+          },
+          "dispute": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "fee": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "governing_law": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "notice": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          },
+          "other": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 3,
+            "fp": 0,
+            "fn": 0
+          },
+          "payment": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 5,
+            "fp": 0,
+            "fn": 0
+          },
+          "sla": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "term": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 2,
+            "fp": 0,
+            "fn": 0
+          }
+        },
+        "macro_f1": 1.0,
+        "annotated": 22,
+        "errors": []
+      },
+      "numbers": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 6,
+          "fp": 0,
+          "fn": 0
+        },
+        "annotated_clauses": 6,
+        "errors": []
+      },
+      "dependencies": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "missing": [],
+        "extra": []
+      },
+      "references": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "missing": [],
+        "extra": []
+      },
+      "impact": [
+        {
+          "clause": "1.2",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "1.2"
+          ],
+          "chain_expected": [
+            "1.2"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        },
+        {
+          "clause": "5.2",
+          "direct": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 1,
+            "fp": 0,
+            "fn": 0
+          },
+          "indirect": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0
+          },
+          "chain_ok": true,
+          "chain_actual": [
+            "5.2",
+            "6.1"
+          ],
+          "chain_expected": [
+            "5.2",
+            "6.1"
+          ],
+          "direct_order_ok": true,
+          "direct_missing": [],
+          "direct_extra": [],
+          "indirect_missing": [],
+          "indirect_extra": []
+        }
+      ],
+      "counterfactual": [],
+      "counterfactual_sla": [],
+      "doubts": {
+        "metric": null,
+        "codes": [],
+        "expected": [],
+        "missing": [],
+        "extra": [],
+        "evidence_complete": true,
+        "count": 0,
+        "sla": null
+      },
+      "conflicts": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "values_ok": true,
+        "actual": [
+          "1.2 -> 5.2"
+        ]
+      },
+      "node_grounding": {
+        "metric": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "checked": 1,
+        "errors": []
+      }
+    }
+  },
+  "cross_contract": {
+    "metric": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0
+    },
+    "values_ok": true,
+    "missing": [],
+    "extra": [],
+    "profile_a": {
+      "payment_days": 30,
+      "sla_pct": 99,
+      "cure_days": 15
+    },
+    "profile_b": {
+      "payment_days": 45,
+      "sla_pct": 99.5,
+      "cure_days": null
+    }
+  }
+}

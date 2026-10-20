@@ -1,4 +1,4 @@
-﻿"""Change impact analysis: what breaks, what it costs, and what we are unsure of.
+"""Change impact analysis: what breaks, what it costs, and what we are unsure of.
 
 Owner: Person B (branch b-graph).
 
@@ -158,26 +158,53 @@ def impact_of(contract_id, changed_sec, max_hops=3):
 # ---------------------------------------------------------------------------
 # 2. COUNTERFACTUAL
 # ---------------------------------------------------------------------------
-def counterfactual(contract_id, changed_sec, old_value, new_value):
-    """Recompute the downstream numbers with the new value.
+def _fmt_inr(value):
+    """'450000' -> 'INR 4,50,000' (Indian grouping: 4,50,000 not 450,000)."""
+    number = int(round(value))
+    digits = str(number)
+    if len(digits) <= 3:
+        return "INR %s" % digits
+    head, tail = digits[:-3], digits[-3:]
+    groups = []
+    while len(head) > 2:
+        groups.insert(0, head[-2:])
+        head = head[:-2]
+    if head:
+        groups.insert(0, head)
+    return "INR %s" % ",".join(groups + [tail])
 
-    For a payment-period change this yields:
-        payment deadline          30 days  ->  15 days
-        default can arise on      day 45   ->  day 30
-        interest accrual window   30 days  ->  15 days
-        cure period               15 days  ->  15 days  (UNCHANGED, flagged)
-    """
-    index = _clause_index(contract_id)
-    changed = index.get(changed_sec, {})
+
+def _label(sec):
+    """'Clause 9.1' for a numbered clause, 'Schedule B' for a schedule."""
+    text = str(sec)
+    if text.upper().startswith("SCHEDULE"):
+        return "Schedule %s" % text.split()[-1]
+    return "Clause %s" % text
+
+
+def _find_credit_schedule(index):
+    """The schedule that states the service-credit mechanics, or None."""
+    for sec, clause in index.items():
+        parsed = clause_tools.parse_service_credit_schedule(clause.get("text", ""))
+        if parsed:
+            return sec, parsed
+    return None, None
+
+
+def _find_charges_base(index):
+    """The monthly Charges the credits are calculated on, or None."""
+    for sec, clause in index.items():
+        text = clause.get("text", "") or ""
+        amounts = clause_tools.find_amounts(text)
+        if amounts and "charge" in text.lower():
+            return sec, amounts[0]
+    return None, None
+
+
+def _payment_counterfactual(index, changed_sec, old_value, new_value):
+    """The day arithmetic for a payment-period change."""
     rows = []
     notes = []
-
-    if changed.get("type") != "payment":
-        notes.append(
-            "The day-count recalculation below is implemented for payment-period "
-            "changes only. Clause %s is a '%s' clause, so the downstream arithmetic "
-            "for this change type has not been modelled."
-            % (changed_sec, changed.get("type")))
 
     cure_days = None
     cure_clause = None
@@ -238,6 +265,143 @@ def counterfactual(contract_id, changed_sec, old_value, new_value):
             "changed": False,
             "detail": "notice window is unchanged but the time to serve it is shorter",
         })
+
+    return rows, notes
+
+
+def _sla_counterfactual(index, changed_sec, old_value, new_value):
+    """The service-credit exposure for a service-level change.
+
+    Lowering an SLA does not change what a credit is WORTH - it changes the
+    band in which the Customer gets one at all. So the interesting numbers
+    are: the credit threshold as drafted, the threshold if the schedule is
+    conformed, the value of the first credit, and the cap.
+    """
+    rows = []
+    notes = []
+
+    rows.append({
+        "metric": "Service level availability (Clause %s)" % changed_sec,
+        "old": "%s%%" % _fmt_num(old_value),
+        "new": "%s%%" % _fmt_num(new_value),
+        "changed": True,
+    })
+
+    schedule_sec, credit = _find_credit_schedule(index)
+    charges_sec, charges = _find_charges_base(index)
+
+    if not credit:
+        notes.append("No service-credit schedule could be read from this contract, "
+                     "so the credit exposure could not be recomputed.")
+        return rows, notes
+
+    threshold = credit["threshold_pct"]
+    rate = credit["rate_pct"]
+    cap = credit["cap_pct"]
+
+    rows.append({
+        "metric": "Service credit threshold (%s, as drafted)" % _label(schedule_sec),
+        "old": "%s%%" % _fmt_num(threshold),
+        "new": "%s%%" % _fmt_num(threshold),
+        "changed": False,
+        "detail": "the schedule still measures credits 'below %s%%'. If the clause is "
+                  "amended, the schedule must be conformed - otherwise the clause and "
+                  "the schedule contradict each other." % _fmt_num(threshold),
+    })
+
+    rows.append({
+        "metric": "Service credit threshold (%s, if conformed to the amendment)"
+                   % _label(schedule_sec),
+        "old": "%s%%" % _fmt_num(threshold),
+        "new": "%s%%" % _fmt_num(new_value),
+        "changed": True,
+        "detail": "with the schedule conformed, the Customer earns no credit at all "
+                  "between %s%% and %s%% availability"
+                  % (_fmt_num(new_value), _fmt_num(threshold)),
+    })
+
+    rows.append({
+        "metric": "Service credit per full percentage point below the threshold "
+                   "(%s)" % _label(schedule_sec),
+        "old": "%s%% of monthly Charges" % _fmt_num(rate),
+        "new": "%s%% of monthly Charges" % _fmt_num(rate),
+        "changed": False,
+        "detail": "the rate itself is not changed by this amendment",
+    })
+
+    if charges is None:
+        notes.append("No monthly Charges figure could be read from this contract, so "
+                     "the credit amounts could not be computed.")
+        return rows, notes
+
+    first_credit = charges * rate / 100.0
+    max_credit = charges * cap / 100.0
+
+    rows.append({
+        "metric": "First service credit earned (%s)" % _label(schedule_sec),
+        "old": "%s at %s%% availability" % (_fmt_inr(first_credit),
+                                           _fmt_num(threshold - 1)),
+        "new": "%s at %s%% availability" % (_fmt_inr(first_credit),
+                                           _fmt_num(new_value - 1)),
+        "changed": True,
+        "detail": "a full percentage point below the threshold earns %s%% of the "
+                  "monthly Charges of %s" % (_fmt_num(rate), _fmt_inr(charges)),
+    })
+
+    rows.append({
+        "metric": "Maximum monthly service credit (%s)" % _label(schedule_sec),
+        "old": _fmt_inr(max_credit),
+        "new": _fmt_inr(max_credit),
+        "changed": False,
+        "detail": "the cap is %s%% of the monthly Charges, so the exposure does not "
+                  "move - but it takes longer to reach" % _fmt_num(cap),
+    })
+
+    rows.append({
+        "metric": "Monthly Charges base (%s)" % _label(charges_sec),
+        "old": _fmt_inr(charges),
+        "new": _fmt_inr(charges),
+        "changed": False,
+        "detail": "the credits are calculated on this base",
+    })
+
+    return rows, notes
+
+
+def counterfactual(contract_id, changed_sec, old_value, new_value):
+    """Recompute the downstream numbers with the new value.
+
+    For a payment-period change this yields:
+        payment deadline          30 days  ->  15 days
+        default can arise on      day 45   ->  day 30
+        interest accrual window   30 days  ->  15 days
+        cure period               15 days  ->  15 days  (UNCHANGED, flagged)
+
+    For a service-level change it yields the service-credit exposure instead:
+        availability threshold    99%  ->  98%
+        credit threshold          99%  ->  99%   (UNCHANGED, flagged)
+        first credit earned       INR 22,500 at 98.0% availability -> at 97.0%
+        maximum monthly credit    INR 1,12,500 (UNCHANGED)
+
+    A change of any other type has no modelled arithmetic, and says so
+    rather than inventing rows.
+    """
+    index = _clause_index(contract_id)
+    changed = index.get(changed_sec, {})
+    ctype = changed.get("type")
+
+    if ctype == "payment":
+        rows, notes = _payment_counterfactual(index, changed_sec, old_value, new_value)
+    elif ctype == "sla":
+        rows, notes = _sla_counterfactual(index, changed_sec, old_value, new_value)
+    else:
+        rows = []
+        notes = [
+            "The day-count and service-credit recalculations are implemented for "
+            "payment-period changes and service-level changes only. Clause %s is a "
+            "'%s' clause, so the downstream arithmetic for this change type has not "
+            "been modelled." % (changed_sec, ctype)
+        ]
 
     return {
         "rows": rows,
@@ -331,8 +495,12 @@ def detect_doubts(contract_id, changed_sec, old_value, new_value):
     # -- D3 notice vs the shortened window ----------------------------------
     notice_secs = [s for s, c in index.items() if c.get("type") == "notice"]
     term_secs = [s for s in impacted if index.get(s, {}).get("type") == "termination"]
-    if notice_secs and term_secs:
-        n_days = _days_in(index[notice_secs[0]])
+    # Pick the notice clause that actually STATES a period. The section
+    # anchor ('14. NOTICES') is typed 'notice' but carries only a heading,
+    # and reading the anchor first used to silence this doubt completely.
+    notice_with_days = [s for s in notice_secs if _days_in(index.get(s, {}))]
+    if notice_with_days and term_secs:
+        n_days = _days_in(index[notice_with_days[0]])
         if n_days:
             doubts.append({
                 "code": "notice_vs_cure",
@@ -341,13 +509,13 @@ def detect_doubts(contract_id, changed_sec, old_value, new_value):
                     "Termination for non-payment (Clause %s) requires notice under Clause %s, "
                     "which is deemed served only %d days after despatch. The shortened payment "
                     "period reduces the practical window for serving that notice."
-                    % (term_secs[0], notice_secs[0], n_days[0])),
+                    % (term_secs[0], notice_with_days[0], n_days[0])),
                 "evidence": [
                     _evidence(term_secs[0], index, "termination right in the impact chain"),
-                    _evidence(notice_secs[0], index, "notice mechanics"),
+                    _evidence(notice_with_days[0], index, "notice mechanics"),
                 ],
                 "review_point": "Check the notice can be served in time under Clause %s."
-                                % notice_secs[0],
+                                % notice_with_days[0],
             })
 
     # -- D4 undefined capitalised term -------------------------------------
@@ -406,6 +574,31 @@ def detect_doubts(contract_id, changed_sec, old_value, new_value):
                 "evidence": [_evidence(changed_sec, index, "scope of the question")],
                 "review_point": "Confirm whether %s need conforming changes."
                                 % ", ".join("Clause %s" % s for s in siblings[:3]),
+            })
+
+    # -- D7 service level vs the credit schedule ---------------------------
+    if changed_type == "sla":
+        schedule_sec, credit = _find_credit_schedule(index)
+        if credit and credit["threshold_pct"] != new_value:
+            doubts.append({
+                "code": "sla_schedule_mismatch",
+                "severity": "high",
+                "question": (
+                    "Clause %s now requires %s%% availability, but %s still "
+                    "provides service credits for availability below %s%%. As drafted, "
+                    "a supplier delivering %s%% availability would still earn a credit. "
+                    "The system cannot determine whether the schedule is meant to move "
+                    "with the clause."
+                    % (changed_sec, _fmt_num(new_value), _label(schedule_sec),
+                       _fmt_num(credit["threshold_pct"]),
+                       _fmt_num(credit["threshold_pct"] - 1))),
+                "evidence": [
+                    _evidence(changed_sec, index, "the clause being changed"),
+                    _evidence(schedule_sec, index, "the credit schedule it contradicts"),
+                ],
+                "review_point": "Decide whether %s is conformed at the same "
+                                "time as Clause %s."
+                                % (_label(schedule_sec), changed_sec),
             })
 
     return doubts
