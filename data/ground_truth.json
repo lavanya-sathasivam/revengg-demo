@@ -1,0 +1,154 @@
+{
+  "_about": "Hand-annotated ground truth for Contract A and Contract B. Person B's seed set AND test set. If the system disagrees with this file, the system is wrong (or this file needs a discussion, not an edit).",
+  "contract_a": {
+    "title": "Supplier Service Agreement",
+    "expected_clause_count": 59,
+    "expected_types": {
+      "2.4": "definition",
+      "7.2": "payment",
+      "7.3": "payment",
+      "8.1": "fee",
+      "8.2": "interest",
+      "9.1": "sla",
+      "10.1": "default",
+      "10.2": "cure",
+      "12.3": "termination",
+      "14.1": "notice",
+      "16.1": "governing_law",
+      "16.2": "dispute",
+      "17.1": "other",
+      "17.2": "confidentiality"
+    },
+    "expected_numbers": {
+      "2.4": {
+        "days": 30
+      },
+      "7.2": {
+        "days": 30
+      },
+      "9.1": {
+        "pct": 99
+      },
+      "10.2": {
+        "days": 15
+      },
+      "14.1": {
+        "days": 7
+      }
+    },
+    "expected_dependencies": [
+      [
+        "8.1",
+        "7.2"
+      ],
+      [
+        "8.2",
+        "7.2"
+      ],
+      [
+        "10.2",
+        "7.2"
+      ],
+      [
+        "10.1",
+        "8.1"
+      ],
+      [
+        "10.1",
+        "10.2"
+      ],
+      [
+        "12.3",
+        "10.1"
+      ]
+    ],
+    "expected_references": [
+      [
+        "7.2",
+        "2.4"
+      ],
+      [
+        "12.3",
+        "14.1"
+      ]
+    ],
+    "expected_impact": {
+      "7.2": {
+        "direct": [
+          "8.1",
+          "8.2",
+          "10.2"
+        ],
+        "indirect": [
+          "10.1",
+          "12.3"
+        ],
+        "chain": [
+          "7.2",
+          "8.1",
+          "10.1",
+          "12.3"
+        ]
+      }
+    },
+    "expected_counterfactual": {
+      "7.2": {
+        "old": 30,
+        "new": 15,
+        "default_trigger_old": "day 45",
+        "default_trigger_new": "day 30",
+        "cure_days_unchanged": 15,
+        "notice_days_unchanged": 7
+      }
+    },
+    "expected_doubt_codes": [
+      "definition_collision",
+      "cross_ref_mismatch",
+      "unchanged_dependent_param",
+      "amendment_form",
+      "scope_of_change"
+    ]
+  },
+  "contract_b": {
+    "title": "Customer Services Agreement",
+    "expected_clause_count": 22,
+    "expected_types": {
+      "1.2": "definition",
+      "5.2": "payment",
+      "6.1": "fee",
+      "2.2": "sla",
+      "7.1": "notice"
+    },
+    "expected_numbers": {
+      "1.2": {
+        "days": 30
+      },
+      "5.2": {
+        "days": 45
+      },
+      "2.2": {
+        "pct": 99.5
+      }
+    },
+    "expected_definition_drift": {
+      "definition_clause": "1.2",
+      "using_clause": "5.2",
+      "definition_value": 30,
+      "using_value": 45
+    }
+  },
+  "cross_contract": {
+    "expected_payment_days": {
+      "A": 30,
+      "B": 45
+    },
+    "expected_sla_pct": {
+      "A": 99,
+      "B": 99.5
+    },
+    "expected_mismatch_metrics": [
+      "Payment period (days)",
+      "Service level availability (%)"
+    ]
+  }
+}

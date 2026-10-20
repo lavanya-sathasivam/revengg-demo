@@ -11,13 +11,27 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
-# SQLite database (local, regenerated on run)
+# SQLite databases (local, regenerated on run)
+# app.db  - Person A's upload flow
+# demo.db - Person B's synthetic demo contracts
 app.db
+demo.db
+*.db
+data/app.db
 
 # Uploaded contract files (confidential - never commit)
 uploads/*
 !uploads/.gitkeep
 
+# Source contracts (synthetic only, but keep out of the repo anyway)
+data/contracts/*.pdf
+
 # Logs / local scratch files
 *.log
 uvicorn.pid
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
