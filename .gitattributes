@@ -1,0 +1,39 @@
+# Normalise line endings at the repository level.
+#
+# WHY THIS FILE EXISTS
+# A's machine and B's machine may have different core.autocrlf settings. If
+# git checks out the same file with different line endings on different
+# laptops, then commits that "changed nothing" appear as real diffs, and
+# merges produce conflicts in files nobody actually edited. This is the
+# single most common cause of "phantom conflicts" in a 3-person Windows team.
+#
+# The fix: tell git, once, for this repository, that these file types are
+# stored with LF in the repository and checked out with LF everywhere.
+# Then every laptop produces byte-identical files and git stops inventing
+# differences that do not exist.
+
+* text=auto eol=lf
+
+# Source code
+*.py   text eol=lf
+*.html text eol=lf
+*.css  text eol=lf
+*.js   text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
+*.sql  text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.cfg  text eol=lf
+*.ini  text eol=lf
+
+# Binary - never touched
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.db   binary
+*.sqlite binary
