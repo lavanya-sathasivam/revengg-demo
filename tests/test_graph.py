@@ -178,6 +178,51 @@ class TestRelationshipModel(GraphTestCase):
 
 
 class TestImpact(GraphTestCase):
+    def test_review_points_rank_by_severity_impact_and_evidence(self):
+        doubts = [
+            {"code": "low_direct", "severity": "low",
+             "review_point": "Low direct", "evidence": [{"id": "8.1"}]},
+            {"code": "high_indirect", "severity": "high",
+             "review_point": "High indirect", "evidence": [{"id": "10.1"}]},
+            {"code": "high_direct_broad", "severity": "high",
+             "review_point": "High direct broad",
+             "evidence": [{"id": "8.1"}, {"id": "8.2"}]},
+            {"code": "high_direct_narrow", "severity": "high",
+             "review_point": "High direct narrow", "evidence": [{"id": "8.1"}]},
+        ]
+        impact_hits = [
+            {"sec_no": "8.1", "hops": 1},
+            {"sec_no": "8.2", "hops": 1},
+            {"sec_no": "10.1", "hops": 2},
+        ]
+
+        ranked = impact._rank_review_points(doubts, impact_hits)
+
+        self.assertEqual(
+            [item["code"] for item in ranked],
+            ["high_direct_broad", "high_direct_narrow", "high_indirect", "low_direct"],
+        )
+        self.assertEqual([item["rank"] for item in ranked], [1, 2, 3, 4])
+        self.assertEqual(ranked[0]["impact_hops"], 1)
+        self.assertEqual(ranked[0]["evidence_clause_count"], 2)
+        self.assertIn("High severity", ranked[0]["priority_reason"])
+        self.assertEqual(ranked[0]["evidence"], doubts[2]["evidence"])
+
+    def test_analysis_keeps_legacy_review_points_in_ranked_order(self):
+        report = impact.analyze_change(CONTRACT_A, "7.2", 30, 15)
+        self.assertEqual(
+            report["review_points"],
+            [item["review_point"] for item in report["ranked_review_points"]],
+        )
+        self.assertEqual(
+            [item["rank"] for item in report["ranked_review_points"]],
+            list(range(1, len(report["ranked_review_points"]) + 1)),
+        )
+        doubt_by_code = {doubt["code"]: doubt for doubt in report["doubts"]}
+        for item in report["ranked_review_points"]:
+            self.assertEqual(item["severity"], doubt_by_code[item["code"]]["severity"])
+            self.assertEqual(item["evidence"], doubt_by_code[item["code"]]["evidence"])
+
     def test_direct_and_indirect(self):
         imp = impact.impact_of(CONTRACT_A, "7.2")
         expected = GT["contract_a"]["expected_impact"]["7.2"]

@@ -113,7 +113,15 @@ def get_clauses(contract_id: int):
 @router.post("/impact")
 def analyze(req: ImpactRequest):
     """The headline endpoint: what breaks if this clause changes."""
-    _contract_or_404(req.contract_id)
+    contract = _contract_or_404(req.contract_id)
+    if contract.get("processing_status") == "graph_build_failed":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Impact analysis is unavailable because graph construction "
+                f"failed for contract {req.contract_id}."
+            ),
+        )
     report = impact.analyze_change(req.contract_id, req.clause_id,
                                     req.old_value, req.new_value)
     if "error" in report:

@@ -25,7 +25,10 @@ from fastapi import HTTPException, UploadFile
 from starlette.requests import Request
 
 import app
+import adapter
+import api_b
 import db
+import graph
 
 
 def make_request(content_length=None):
@@ -82,6 +85,17 @@ HIERARCHICAL_PDF = make_pdf_bytes(
     ]
 )
 
+DEPENDENCY_PDF = make_pdf_bytes(
+    [
+        "1. PAYMENT. Payment terms follow.",
+        "1.1 Payment Period. Customer shall pay within thirty days.",
+        "2. FEES. Fee terms follow.",
+        "2.1 Late Fee. Customer shall pay a late fee on overdue amounts.",
+        "3. DEFAULT. Customer is in default if it fails to pay under Clause 1.1 "
+        "or Clause 2.1.",
+    ]
+)
+
 
 class ApiTestCase(unittest.TestCase):
     def setUp(self):
@@ -123,8 +137,11 @@ class UploadFlowTests(ApiTestCase):
     def test_successful_upload_persists_contract_and_clauses(self):
         response = self._upload(SECTIONS_PDF)
         self.assertEqual(response["status"], "extracted")
+        self.assertEqual(response["analysis_status"], "ready")
         self.assertEqual(response["clauses_saved"], 4)
         self.assertEqual(response["clause_split_status"], "ok")
+        self.assertEqual(response["graph"]["clauses"], 4)
+        self.assertIn("analysis is ready", response["message"])
 
         contract = db.get_contract(response["contract_id"])
         self.assertIsNotNone(contract)
@@ -135,6 +152,7 @@ class UploadFlowTests(ApiTestCase):
         self.assertEqual(
             [c["section_number"] for c in clauses], ["1", "2", "3", "4"]
         )
+        self.assertTrue(all(c["metadata"].get("type") for c in clauses))
 
     def test_upload_persists_nested_clauses_and_preserves_source_text(self):
         response = self._upload(HIERARCHICAL_PDF)
@@ -151,12 +169,124 @@ class UploadFlowTests(ApiTestCase):
         self.assertEqual(by_number["7.2"]["metadata"]["heading"],
                          "Payment Period")
         self.assertEqual(by_number["7.2"]["metadata"]["level"], 1)
+        self.assertEqual(by_number["7.2"]["metadata"]["type"], "payment")
 
         returned = app.get_contract_clauses_route(response["contract_id"])
         returned_by_number = {
             clause["section_number"]: clause for clause in returned["clauses"]
         }
         self.assertIn("7.2", returned_by_number["7.2"]["clause_text"])
+
+    def test_uploaded_contract_builds_graph_and_supports_impact_analysis_offline(self):
+        with mock.patch.object(graph.llm, "ask_json", side_effect=AssertionError(
+                "upload graph construction must not call an LLM")) as ask_json:
+            response = self._upload(DEPENDENCY_PDF)
+
+        cid = response["contract_id"]
+        self.assertEqual(response["analysis_status"], "ready")
+        self.assertGreater(response["graph"]["nodes"], 0)
+        ask_json.assert_not_called()
+
+        rows = {c["section_number"]: c for c in db.list_clauses(cid)}
+        self.assertEqual(rows["1.1"]["metadata"]["type"], "payment")
+        self.assertEqual(rows["2.1"]["metadata"]["type"], "fee")
+        self.assertEqual(rows["3"]["metadata"]["type"], "default")
+
+        edges = {(edge["src"], edge["dst"], edge["rel"])
+                 for edge in adapter.get_edges(cid)}
+        self.assertIn(("3", "1.1", "depends_on"), edges)
+        self.assertIn(("3", "2.1", "depends_on"), edges)
+
+        report = api_b.analyze(api_b.ImpactRequest(
+            contract_id=cid, clause_id="1.1", old_value=30, new_value=15
+        ))
+        self.assertEqual(report["changed_clause"]["sec_no"], "1.1")
+        self.assertIn("3", [hit["sec_no"] for hit in report["direct"]])
+        self.assertTrue(report["evidence"])
+
+    def test_rebuilding_uploaded_graph_does_not_duplicate_nodes_or_edges(self):
+        cid = self._upload(DEPENDENCY_PDF)["contract_id"]
+        before = graph.get_graph(cid)
+
+        stats = graph.build_graph(cid, use_llm=False)
+        after = graph.get_graph(cid)
+
+        self.assertEqual(len(after["nodes"]), len(before["nodes"]))
+        self.assertEqual(len(after["edges"]), len(before["edges"]))
+        self.assertEqual(stats["nodes"], len(before["nodes"]))
+        self.assertEqual(stats["edges"], len(before["edges"]))
+
+    def test_overlapping_clause_ids_keep_uploaded_graphs_isolated(self):
+        first = self._upload(DEPENDENCY_PDF)["contract_id"]
+        first_nodes = {node["clause_reference"] for node in adapter.get_nodes(first)}
+        first_edges = adapter.get_edges(first)
+        second = self._upload(DEPENDENCY_PDF)["contract_id"]
+
+        self.assertNotEqual(first, second)
+        self.assertEqual(
+            {node["clause_reference"] for node in adapter.get_nodes(first)},
+            first_nodes,
+        )
+        self.assertEqual(adapter.get_edges(first), first_edges)
+        second_nodes = adapter.get_nodes(second)
+        self.assertTrue(first_nodes & {node["clause_reference"] for node in second_nodes})
+        self.assertTrue(all(node["contract_id"] == second for node in second_nodes))
+
+        conn = db.get_conn()
+        try:
+            rows = conn.execute(
+                """SELECT e.contract_id, s.contract_id, t.contract_id
+                   FROM edges e JOIN nodes s ON s.node_id = e.source_node
+                   JOIN nodes t ON t.node_id = e.target_node
+                   WHERE e.contract_id IN (?, ?)""",
+                (first, second),
+            ).fetchall()
+        finally:
+            conn.close()
+        self.assertTrue(rows)
+        for edge_contract, source_contract, target_contract in rows:
+            self.assertEqual(edge_contract, source_contract)
+            self.assertEqual(edge_contract, target_contract)
+
+    def test_graph_build_failure_clears_partial_graph_and_records_failure(self):
+        original_build = graph.build_graph
+
+        def build_then_fail(contract_id, **kwargs):
+            original_build(contract_id, **kwargs)
+            raise RuntimeError("simulated graph failure")
+
+        with mock.patch.object(graph, "build_graph", side_effect=build_then_fail):
+            with self.assertRaises(HTTPException) as ctx:
+                self._upload(DEPENDENCY_PDF)
+        self.assertEqual(ctx.exception.status_code, 500)
+        self.assertIn("text and clauses were saved", ctx.exception.detail)
+        self.assertIn("analysis could not be completed", ctx.exception.detail)
+
+        contract = db.list_contracts()[0]
+        cid = contract["contract_id"]
+        self.assertEqual(contract["processing_status"], "graph_build_failed")
+        self.assertTrue(db.list_clauses(cid))
+        self.assertEqual(adapter.get_nodes(cid), [])
+        self.assertEqual(adapter.get_edges(cid), [])
+        with self.assertRaises(HTTPException) as analysis_error:
+            api_b.analyze(api_b.ImpactRequest(
+                contract_id=cid, clause_id="1.1", old_value=30, new_value=15
+            ))
+        self.assertEqual(analysis_error.exception.status_code, 409)
+        self.assertIn("Impact analysis is unavailable",
+                      analysis_error.exception.detail)
+
+        conn = db.get_conn()
+        try:
+            trace = conn.execute(
+                """SELECT action, details FROM traces
+                   WHERE contract_id = ? ORDER BY trace_id DESC LIMIT 1""",
+                (cid,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(trace["action"], "graph_construction")
+        self.assertIn("graph construction failed", trace["details"])
 
     def test_clauses_endpoint_returns_sections_in_order(self):
         upload = self._upload(SECTIONS_PDF)
@@ -173,6 +303,8 @@ class UploadFlowTests(ApiTestCase):
         self.assertEqual(response["status"], "extracted")
         self.assertEqual(response["clauses_saved"], 0)
         self.assertEqual(response["clause_split_status"], "no_clauses_detected")
+        self.assertEqual(response["analysis_status"], "unavailable")
+        self.assertIn("analysis is unavailable", response["message"])
 
         # No clauses invented; endpoint returns an empty list, not an error.
         self.assertEqual(db.list_clauses(response["contract_id"]), [])

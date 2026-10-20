@@ -178,7 +178,7 @@ class TestImpactContractIsStable(IntegrationTestCase):
         for key in ("changed_clause", "direct", "indirect", "chain",
                     "obligations", "conditions", "consequences", "deadlines",
                     "counterfactual", "doubts", "conflicts", "evidence",
-                    "review_points", "summary"):
+                    "review_points", "ranked_review_points", "summary"):
             self.assertIn(key, report)
 
     def test_every_doubt_is_evidence_linked(self):
@@ -235,6 +235,30 @@ class TestTheUiServesTheEngine(IntegrationTestCase):
         self.assertIn("Analyze change", body)
         self.assertIn("/impact", body)          # it calls the impact engine
         self.assertIn("Uncertainty", body)      # it renders the doubts
+        self.assertIn("ranked_review_points", body)
+        self.assertIn("priority_reason", body)
+
+    def test_the_impact_page_uploads_and_selects_the_returned_contract(self):
+        page = self._client().get("/")
+        self.assertEqual(page.status_code, 200)
+        body = page.text
+        self.assertIn('id="upload-form"', body)
+        self.assertIn('id="upload-file"', body)
+        self.assertIn('fetch("/upload"', body)
+        self.assertIn("loadContracts(payload.contract_id)", body)
+        self.assertIn('fetch("/clauses/" + encodeURIComponent(cid)', body)
+        self.assertIn("contract_id: parseInt(requestedContractId, 10)", body)
+        self.assertIn('id="clause-preview-text"', body)
+        self.assertIn("No numbered clauses were detected", body)
+        self.assertIn("ask an administrator to rebuild this contract's graph", body)
+        self.assertIn("Results from another contract were cleared.", body)
+
+    def test_clause_explainer_carries_selected_contract_to_impact_page(self):
+        html = open(os.path.join(ROOT, "templates", "explain.html"),
+                    encoding="utf-8").read()
+        self.assertIn('id="impact-analysis-link"', html)
+        self.assertIn('"/?contract=" + encodeURIComponent(String(selectedContractId))',
+                      html)
 
     def test_the_clause_explainer_is_still_reachable(self):
         """Person C's screen is preserved, not replaced."""
@@ -255,7 +279,8 @@ class TestTheUiServesTheEngine(IntegrationTestCase):
         for key in ("changed_clause", "direct", "indirect", "chain",
                     "obligations", "conditions", "consequences", "deadlines",
                     "rights", "definitions", "counterfactual", "doubts",
-                    "evidence", "review_points", "summary"):
+                    "evidence", "review_points", "ranked_review_points",
+                    "summary"):
             self.assertIn(key, report, "the page renders '%s'" % key)
 
 

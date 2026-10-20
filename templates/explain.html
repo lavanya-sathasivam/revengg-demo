@@ -332,7 +332,7 @@
       authorities. They are informational only and are not legal advice.
     </p>
     <p class="notice">
-      <a href="/">&larr; Impact analysis</a> &nbsp;&middot;&nbsp;
+      <a id="impact-analysis-link" href="/">&larr; Impact analysis</a> &nbsp;&middot;&nbsp;
       This page explains a single clause; the impact analysis answers what
       breaks if a clause <em>changes</em>.
     </p>
@@ -507,6 +507,7 @@
   var uploadForm = document.querySelector(".upload-block");
   var fileInput = document.getElementById("contract-file");
   var uploadButton = uploadForm ? uploadForm.querySelector('button[type="submit"]') : null;
+  var impactAnalysisLink = document.getElementById("impact-analysis-link");
 
   // Selection state shared with the explanation step.
   var selectedContractId = null;
@@ -541,6 +542,13 @@
     fillPlaceholder(contractsPlaceholder, title, detail);
   }
 
+  function syncImpactLink() {
+    if (!impactAnalysisLink) return;
+    impactAnalysisLink.href = selectedContractId === null || selectedContractId === undefined
+      ? "/"
+      : "/?contract=" + encodeURIComponent(String(selectedContractId));
+  }
+
   function formatTimestamp(value) {
     if (!value || typeof value !== "string") return "timestamp unavailable";
     var parsed = new Date(value);
@@ -556,6 +564,7 @@
 
   function selectContract(li, contractId) {
     selectedContractId = contractId;
+    syncImpactLink();
     if (contractsList) {
       Array.prototype.forEach.call(contractsList.children, function (child) {
         child.classList.toggle("is-selected", child === li);
@@ -1076,6 +1085,7 @@
 
           if (payload && payload.contract_id !== undefined) {
             selectedContractId = payload.contract_id;
+            syncImpactLink();
           }
           if (fileInput) fileInput.value = "";
 
@@ -1089,7 +1099,18 @@
           });
         })
         .catch(function (error) {
-          setStatus(contractsStatus, error.message, "error");
+          var detail = error.message;
+          var match = detail.match(/contract\s*\(id=(\d+)\)/i);
+          if (!match) {
+            setStatus(contractsStatus, detail, "error");
+            return;
+          }
+          selectedContractId = Number(match[1]);
+          return loadContracts().then(function () {
+            syncImpactLink();
+            setStatus(contractsStatus, detail, "error");
+            loadClauses(selectedContractId);
+          });
         })
         .then(function () {
           if (uploadButton) {

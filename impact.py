@@ -604,6 +604,69 @@ def detect_doubts(contract_id, changed_sec, old_value, new_value):
     return doubts
 
 
+def _rank_review_points(doubts, impact_hits):
+    """Order review points by existing severity and clause-linked evidence.
+
+    Severity is the primary factor. Ties prefer evidence from clauses closer
+    to the changed clause, then a broader set of distinct evidence clauses;
+    original doubt order is the final stable tie-breaker.
+    """
+    severity_order = {"high": 0, "medium": 1, "low": 2}
+    hops_by_clause = {hit["sec_no"]: hit["hops"] for hit in impact_hits}
+    ranked = []
+    for original_order, doubt in enumerate(doubts):
+        evidence = doubt.get("evidence") or []
+        evidence_ids = list(dict.fromkeys(
+            item.get("id") for item in evidence if item.get("id")
+        ))
+        matching_hops = [hops_by_clause[sec] for sec in evidence_ids
+                         if sec in hops_by_clause]
+        nearest_hop = min(matching_hops) if matching_hops else None
+        severity = doubt.get("severity", "low")
+        severity_rank = severity_order.get(severity, severity_order["low"])
+        ranked.append({
+            "_sort_key": (
+                severity_rank,
+                nearest_hop if nearest_hop is not None else float("inf"),
+                -len(evidence_ids),
+                original_order,
+            ),
+            "_original_order": original_order,
+            "code": doubt.get("code", ""),
+            "severity": severity,
+            "review_point": doubt.get("review_point", ""),
+            "evidence": evidence,
+            "impact_hops": nearest_hop,
+            "evidence_clause_count": len(evidence_ids),
+        })
+
+    ranked.sort(key=lambda item: item["_sort_key"])
+    result = []
+    for position, item in enumerate(ranked, start=1):
+        hops = item["impact_hops"]
+        if hops == 1:
+            impact_basis = "directly impacted clause evidence"
+        elif hops is not None:
+            impact_basis = "impact evidence at %d hops" % hops
+        else:
+            impact_basis = "no impacted clause in the evidence"
+        result.append({
+            "rank": position,
+            "code": item["code"],
+            "severity": item["severity"],
+            "review_point": item["review_point"],
+            "evidence": item["evidence"],
+            "impact_hops": hops,
+            "evidence_clause_count": item["evidence_clause_count"],
+            "priority_reason": (
+                "%s severity; %s; %d evidence clause(s)."
+                % (item["severity"].capitalize(), impact_basis,
+                   item["evidence_clause_count"])
+            ),
+        })
+    return result
+
+
 # ---------------------------------------------------------------------------
 # 4. CONFLICTS inside one contract (thin feature: conflict detection)
 # ---------------------------------------------------------------------------
@@ -726,7 +789,8 @@ def analyze_change(contract_id, changed_sec, old_value, new_value):
         evidence.append(_evidence(h["sec_no"], index,
                                   "impacted at hop %d" % h["hops"]))
 
-    review_points = [d["review_point"] for d in doubts]
+    ranked_review_points = _rank_review_points(doubts, imp["all"])
+    review_points = [item["review_point"] for item in ranked_review_points]
 
     return {
         "changed_clause": {
@@ -752,6 +816,7 @@ def analyze_change(contract_id, changed_sec, old_value, new_value):
         "conflicts": clashes,
         "evidence": evidence,
         "review_points": review_points,
+        "ranked_review_points": ranked_review_points,
         "summary": (
             "Changing Clause %s from %s to %s affects %d clause(s) directly and "
             "%d indirectly. It touches %d obligation(s) and %d condition(s). "

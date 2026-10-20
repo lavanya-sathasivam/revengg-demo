@@ -78,6 +78,14 @@
   #contract { width: 210px; }
   #clause { width: 280px; }
   #oldv, #newv { width: 84px; }
+  .uploadrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+  .uploadrow input[type="file"] { max-width: min(420px, 100%); font: inherit; font-size: .88rem; }
+  .uploadrow label { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 650; }
+  .uploadfield { display: flex; flex-direction: column; gap: 5px; }
+  .upload-status { margin: 9px 0 0; font-size: .88rem; }
+  .upload-status.error { color: #8f2020; }
+  .upload-status.success { color: var(--changed); }
+  .upload-status.warning { color: var(--warn); }
   .btnrow { display: flex; gap: 8px; }
   .arrow { color: var(--muted); padding-bottom: 9px; font-weight: 600; }
   button {
@@ -173,6 +181,10 @@
 
   .ledger { font-family: var(--mono); font-size: .82rem; color: var(--muted);
             padding: 12px 18px; border-top: 1px solid var(--border); background: var(--surface-2); }
+  .clause-preview { margin-top: -8px; }
+  .clause-preview .body { max-height: 260px; overflow: auto; }
+  .clause-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0;
+                        font: .9rem/1.55 var(--mono); color: var(--text); }
   footer { color: var(--muted); font-size: .82rem; text-align: center; padding-top: 10px; }
   code { font-family: var(--mono); font-size: .88em; background: #eef1f5; padding: 1px 5px; border-radius: 4px; }
 </style>
@@ -218,7 +230,24 @@
         </div>
       </div>
     </div>
+    <form id="upload-form" class="uploadrow" aria-label="Upload a PDF contract">
+      <div class="uploadfield">
+        <label for="upload-file">Add a contract</label>
+        <input id="upload-file" name="file" type="file" accept="application/pdf,.pdf" />
+      </div>
+      <button class="primary" id="upload-button" type="submit">Upload PDF</button>
+      <span class="small muted">PDF only, up to 10 MB. Text-based PDFs work best.</span>
+    </form>
+    <p id="upload-status" class="upload-status" role="status" aria-live="polite" hidden></p>
   </div>
+
+  <section id="clause-preview-panel" class="panel clause-preview" aria-labelledby="clause-preview-title" hidden>
+    <h2 id="clause-preview-title">Selected clause</h2>
+    <div class="body">
+      <div id="clause-preview-meta" class="muted small"></div>
+      <pre id="clause-preview-text"></pre>
+    </div>
+  </section>
 
   <div id="msg"></div>
   <main id="out">
@@ -240,7 +269,8 @@
   </main>
 
   <footer>
-    Synthetic contracts, for demonstration only. The output is decision support,
+    Synthetic contracts are for demonstration; uploaded contracts are analyzed
+    from extracted text. The output is decision support,
     not legal advice &mdash; the review points are yours to decide.
   </footer>
 </div>
@@ -257,8 +287,19 @@
   var inNew = document.getElementById("newv");
   var btnGo = document.getElementById("go");
   var btnExample = document.getElementById("example");
+  var uploadForm = document.getElementById("upload-form");
+  var uploadFile = document.getElementById("upload-file");
+  var uploadButton = document.getElementById("upload-button");
+  var uploadStatus = document.getElementById("upload-status");
+  var clausePreviewPanel = document.getElementById("clause-preview-panel");
+  var clausePreviewMeta = document.getElementById("clause-preview-meta");
+  var clausePreviewText = document.getElementById("clause-preview-text");
 
   var clauseMap = {};   // sec_no -> {heading, type}
+  var contractStatusById = {};
+  var selectedContractStatus = "";
+  var clauseLoadVersion = 0;
+  var analysisRequestVersion = 0;
 
   function el(tag, cls, html) {
     var n = document.createElement(tag);
@@ -275,47 +316,133 @@
     msg.appendChild(el("div", "banner" + (kind ? " " + kind : ""), esc(text)));
   }
   function clearMsg() { msg.innerHTML = ""; }
+  function setUploadStatus(text, kind) {
+    uploadStatus.textContent = text || "";
+    uploadStatus.className = "upload-status" + (kind ? " " + kind : "");
+    uploadStatus.hidden = !text;
+  }
+
+  function renderClausePreview() {
+    var clause = clauseMap[selClause.value];
+    if (!clause) {
+      clausePreviewPanel.hidden = true;
+      clausePreviewMeta.textContent = "";
+      clausePreviewText.textContent = "";
+      return;
+    }
+    var level = Number(clause.level) || 0;
+    clausePreviewMeta.textContent = [
+      clause.type || "other",
+      level > 0 ? "Nested clause" : "Section",
+    ].join(" · ");
+    clausePreviewText.textContent = clause.text || "No clause text stored.";
+    clausePreviewPanel.hidden = false;
+  }
+
+  function clearAnalysis() {
+    analysisRequestVersion += 1;
+    out.innerHTML = "";
+    clearMsg();
+  }
 
   // ---------------------------------------------------------------- loading
-  function loadContracts() {
+  function loadContracts(selectContractId) {
     return fetch("/contracts", { headers: { "Accept": "application/json" } })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error("Could not load contracts (HTTP " + r.status + ").");
+        return r.json();
+      })
       .then(function (rows) {
+        if (!Array.isArray(rows)) throw new Error("Unexpected response from /contracts.");
         selContract.innerHTML = "";
+        contractStatusById = {};
         rows.forEach(function (c) {
           var o = el("option");
           o.value = c.contract_id;
-          o.textContent = c.contract_id + " — " + c.filename;
+          o.textContent = c.contract_id + " — " + c.filename +
+            (c.processing_status === "graph_build_failed" ? " (analysis unavailable)" : "");
           selContract.appendChild(o);
+          contractStatusById[String(c.contract_id)] = c.processing_status || "";
         });
-        return loadClauses();
+        if (selectContractId !== undefined && selectContractId !== null) {
+          selContract.value = String(selectContractId);
+          if (selContract.value !== String(selectContractId)) {
+            throw new Error("The uploaded contract was not found in the contract list.");
+          }
+        }
+        selectedContractStatus = contractStatusById[selContract.value] || "";
+        return loadClauses().then(function () {
+          if (!rows.length) {
+            banner("No contracts are stored yet. Upload a text-based PDF to begin.", "");
+          }
+        });
       })
-      .catch(function () {
-        banner("Could not load the contracts. Is the server running? Try: py -3.11 -m uvicorn server:app --reload", "error");
+      .catch(function (error) {
+        selContract.innerHTML = "";
+        selectedContractStatus = "";
+        loadClauses();
+        banner(error.message + " Is the server running? Try: py -3.11 -m uvicorn server:app --reload", "error");
       });
   }
 
   function loadClauses() {
     var cid = selContract.value;
-    return fetch("/clauses/" + cid, { headers: { "Accept": "application/json" } })
-      .then(function (r) { return r.json(); })
+    var version = ++clauseLoadVersion;
+    clearMsg();
+    selectedContractStatus = contractStatusById[cid] || "";
+    clauseMap = {};
+    selClause.innerHTML = "";
+    renderClausePreview();
+    btnGo.disabled = true;
+    btnExample.disabled = true;
+    if (!cid) return Promise.resolve();
+    return fetch("/clauses/" + encodeURIComponent(cid), { headers: { "Accept": "application/json" } })
+      .then(function (r) {
+        if (!r.ok) throw new Error("Could not load clauses (HTTP " + r.status + ").");
+        return r.json();
+      })
       .then(function (data) {
+        if (version !== clauseLoadVersion || cid !== selContract.value) return;
+        if (String(data.contract_id) !== String(cid) || !Array.isArray(data.clauses)) {
+          throw new Error("The clause response did not match the selected contract.");
+        }
         clauseMap = {};
         selClause.innerHTML = "";
         (data.clauses || []).forEach(function (c) {
           clauseMap[c.clause_id] = c;
           var o = el("option");
           o.value = c.clause_id;
-          o.textContent = c.clause_id + (c.heading ? " — " + c.heading : "");
+          o.textContent = (Number(c.level) > 0 ? "↳ " : "") + c.clause_id +
+            (c.heading ? " — " + c.heading : "");
           selClause.appendChild(o);
         });
         if (selClause.options.length) {
           selClause.value = "7.2";
           if (!selClause.value) selClause.selectedIndex = 0;
+          btnGo.disabled = selectedContractStatus === "graph_build_failed";
+          btnExample.disabled = selectedContractStatus === "graph_build_failed";
+          renderClausePreview();
+          if (selectedContractStatus === "graph_build_failed") {
+            banner("The PDF and clauses were saved, but graph construction failed. Re-uploading would create a duplicate; ask an administrator to rebuild this contract's graph.", "error");
+          }
+        } else if (selectedContractStatus === "graph_build_failed") {
+          banner("The PDF and clauses were saved, but graph construction failed. Re-uploading would create a duplicate; ask an administrator to rebuild this contract's graph.", "error");
+        } else if (selectedContractStatus === "extraction_failed") {
+          banner("Text extraction failed for this contract. Upload a text-based PDF to analyze it.", "error");
+        } else if (selectedContractStatus === "clause_persistence_failed") {
+          banner("The PDF text was saved, but clause storage failed. Ask an administrator to retry clause processing; re-uploading would create a duplicate.", "error");
+        } else {
+          banner("No numbered clauses were detected for this contract. Check the PDF text and section numbering before analysis.", "");
         }
       })
-      .catch(function () {
-        banner("Could not load the clauses of contract " + cid + ".", "error");
+      .catch(function (error) {
+        if (version !== clauseLoadVersion || cid !== selContract.value) return;
+        clauseMap = {};
+        selClause.innerHTML = "";
+        renderClausePreview();
+        btnGo.disabled = true;
+        btnExample.disabled = true;
+        banner(error.message + " Results from another contract were cleared.", "error");
       });
   }
 
@@ -494,13 +621,27 @@
     out.appendChild(dp);
 
     // review points
-    if (r.review_points && r.review_points.length) {
+    var rankedPoints = r.ranked_review_points || (r.review_points || []).map(function (p, i) {
+      return { rank: i + 1, review_point: p };
+    });
+    if (rankedPoints.length) {
       var rp = panel("What the lawyer has to decide", function (body) {
         var ul = el("ul", "clean");
-        r.review_points.forEach(function (p) {
+        rankedPoints.forEach(function (p) {
           var li = el("li", "review");
           li.appendChild(el("span", "box", "\u2610"));
-          li.appendChild(el("span", null, esc(p)));
+          var content = el("span", null);
+          var label = "#" + p.rank + " ";
+          if (p.severity) label += p.severity.toUpperCase() + " · ";
+          content.appendChild(document.createTextNode(label + (p.review_point || "")));
+          if (p.priority_reason) {
+            content.appendChild(el("div", "muted small", p.priority_reason));
+          }
+          (p.evidence || []).forEach(function (e) {
+            content.appendChild(el("div", "muted small",
+              "Evidence: Clause " + e.id + " · " + e.why));
+          });
+          li.appendChild(content);
           ul.appendChild(li);
         });
         body.appendChild(ul);
@@ -521,13 +662,24 @@
 
   // ---------------------------------------------------------------- actions
   function analyze() {
+    var requestedContractId = selContract.value;
+    var requestedClauseId = selClause.value;
+    if (!requestedContractId || !requestedClauseId || !clauseMap[requestedClauseId]) {
+      banner("Select a contract with a stored clause before running impact analysis.", "error");
+      return;
+    }
+    if (selectedContractStatus === "graph_build_failed") {
+      banner("Impact analysis is unavailable because graph construction failed for this contract.", "error");
+      return;
+    }
+    var requestVersion = ++analysisRequestVersion;
     clearMsg();
     syncUrl();
     btnGo.disabled = true;
     btnGo.textContent = "Analyzing…";
     var payload = {
-      contract_id: parseInt(selContract.value, 10),
-      clause_id: selClause.value,
+      contract_id: parseInt(requestedContractId, 10),
+      clause_id: requestedClauseId,
       old_value: parseInt(inOld.value, 10),
       new_value: parseInt(inNew.value, 10)
     };
@@ -539,20 +691,31 @@
       .then(function (r) {
         if (!r.ok) {
           return r.json().then(function (b) {
-            throw new Error(b.detail || ("request failed (" + r.status + ")"));
+            var error = new Error(b.detail || ("request failed (" + r.status + ")"));
+            error.status = r.status;
+            throw error;
           });
         }
         return r.json();
       })
-      .then(render)
+      .then(function (report) {
+        if (requestVersion !== analysisRequestVersion ||
+            requestedContractId !== selContract.value ||
+            requestedClauseId !== selClause.value) return;
+        render(report);
+      })
       .catch(function (e) {
+        if (requestVersion !== analysisRequestVersion ||
+            requestedContractId !== selContract.value ||
+            requestedClauseId !== selClause.value) return;
         out.innerHTML = "";
-        banner(
-          e.message + " — if this says the route does not exist, start the demo " +
-          "with 'py -3.11 -m uvicorn server:app --reload', which mounts the " +
-          "impact engine as well as the UI.", "error");
+        var hint = e.status === 404
+          ? " Start the demo with 'py -3.11 -m uvicorn server:app --reload' to mount the impact API."
+          : "";
+        banner(e.message + hint, "error");
       })
       .finally(function () {
+        if (requestVersion !== analysisRequestVersion) return;
         btnGo.disabled = false;
         btnGo.textContent = "Analyze change";
       });
@@ -560,11 +723,14 @@
 
   function useExample() {
     clearMsg();
-    fetch("/demo/" + selContract.value + "/suggest")
+    var requestedContractId = selContract.value;
+    fetch("/demo/" + encodeURIComponent(requestedContractId) + "/suggest")
       .then(function (r) { return r.json(); })
       .then(function (d) {
+        if (requestedContractId !== selContract.value) return;
         if (d.error) { banner(d.error, "error"); return; }
         selClause.value = d.request.clause_id;
+        renderClausePreview();
         inOld.value = d.request.old_value;
         inNew.value = d.request.new_value;
         analyze();
@@ -574,11 +740,82 @@
       });
   }
 
-  selContract.addEventListener("change", loadClauses);
+  if (btnGo) btnGo.disabled = true;
+  if (btnExample) btnExample.disabled = true;
+  selContract.addEventListener("change", function () {
+    clearAnalysis();
+    loadClauses();
+  });
+  selClause.addEventListener("change", function () {
+    clearAnalysis();
+    renderClausePreview();
+  });
   btnGo.addEventListener("click", analyze);
   btnExample.addEventListener("click", useExample);
   document.addEventListener("keydown", function (ev) {
-    if (ev.key === "Enter" && ev.target.tagName !== "BUTTON") analyze();
+    if (ev.key === "Enter" && ev.target.tagName !== "BUTTON" && ev.target.form !== uploadForm) analyze();
+  });
+
+  uploadForm.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var file = uploadFile.files && uploadFile.files[0];
+    if (!file) {
+      setUploadStatus("Choose a PDF file before uploading.", "error");
+      return;
+    }
+    if (!/\.pdf$/i.test(file.name || "")) {
+      setUploadStatus("Only PDF files are accepted.", "error");
+      return;
+    }
+
+    var formData = new FormData();
+    formData.append("file", file, file.name);
+    clearAnalysis();
+    setUploadStatus("Uploading and analyzing " + file.name + "…", "");
+    uploadButton.disabled = true;
+    uploadButton.textContent = "Processing…";
+
+    fetch("/upload", {
+      method: "POST",
+      body: formData,
+      headers: { "Accept": "application/json" }
+    })
+      .then(function (response) {
+        return response.json().catch(function () { return null; }).then(function (payload) {
+          if (!response.ok) {
+            var detail = payload && payload.detail
+              ? String(payload.detail)
+              : "Upload failed (HTTP " + response.status + ").";
+            var error = new Error(detail);
+            var match = detail.match(/contract\s*\(id=(\d+)\)/i);
+            if (match) error.contractId = match[1];
+            error.status = response.status;
+            throw error;
+          }
+          return payload;
+        });
+      })
+      .then(function (payload) {
+        if (!payload || payload.contract_id === undefined) {
+          throw new Error("Upload completed without a contract ID; reload the contract list before continuing.");
+        }
+        uploadFile.value = "";
+        var isReady = payload.analysis_status === "ready";
+        setUploadStatus(
+          String(payload.message || "Upload complete.") +
+            " Stored clauses: " + String(payload.clauses_saved || 0) + ".",
+          isReady ? "success" : "warning"
+        );
+        return loadContracts(payload.contract_id);
+      })
+      .catch(function (error) {
+        setUploadStatus(error.message, "error");
+        if (error.contractId) return loadContracts(error.contractId);
+      })
+      .then(function () {
+        uploadButton.disabled = false;
+        uploadButton.textContent = "Upload PDF";
+      });
   });
 
   // A shareable link: /?contract=1&clause=7.2&old=30&new=15 loads the form

@@ -17,8 +17,10 @@ from db import (
     list_contracts,
     save_clauses,
 )
+import adapter
 import clauses as clause_tools
 from extract import extract_text
+import graph
 from reasoning import explain_with_retrieval
 
 logging.basicConfig(level=logging.INFO)
@@ -172,6 +174,44 @@ def mark_clause_failure(contract_id: int, details: str) -> None:
         )
 
 
+def mark_graph_failure(contract_id: int, details: str) -> bool:
+    """Clear a partial graph and record that contract analysis did not finish.
+
+    Graph writes currently commit incrementally. Clearing this contract's
+    graph is therefore best-effort recovery, not a transaction spanning the
+    whole build. The status and trace are recorded together where possible.
+    """
+    try:
+        adapter.clear_graph(contract_id)
+    except Exception:
+        logger.exception("Could not clear partial graph for contract %s", contract_id)
+
+    recorded = False
+    try:
+        conn = get_conn()
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE contracts SET processing_status = ? WHERE contract_id = ?",
+                ("graph_build_failed", contract_id),
+            )
+            cur.execute(
+                """INSERT INTO traces (contract_id, action, details, timestamp)
+                   VALUES (?, ?, ?, ?)""",
+                (contract_id, "graph_construction", details, now),
+            )
+            conn.commit()
+            recorded = True
+        finally:
+            conn.close()
+    except Exception:
+        logger.exception(
+            "Could not record graph-build failure for contract %s", contract_id
+        )
+    return recorded
+
+
 def _normalize_section_number(value) -> str:
     """Normalize a section number for exact comparison.
 
@@ -211,7 +251,8 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
     Accept a PDF contract, extract its text, and store both in SQLite.
 
     On success: stores status 'extracted' + trace, splits the text into
-    clauses and stores those too, then returns contract_id and clause count.
+    clauses, classifies them, builds the contract graph, and returns its ID
+    and processing summary.
     On extraction failure (e.g. scanned/empty PDF): stores status
     'extraction_failed' + trace, then returns HTTP 422 with a clear message.
     Clauses are only ever saved after a successful extraction.
@@ -264,6 +305,12 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
     # sections: it returns [] when no reliable sequence is found, and an
     # empty list is stored as "no clauses" rather than fabricated content.
     clauses = clause_tools.split_clauses(text, preserve_text=True)
+    for clause in clauses:
+        metadata = dict(clause.get("metadata") or {})
+        metadata["type"] = clause_tools.classify_type(
+            clause.get("clause_text") or "", metadata.get("heading", "")
+        )
+        clause["metadata"] = metadata
 
     try:
         saved_clause_count = save_clauses(contract_id, clauses)
@@ -283,6 +330,28 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
             ),
         )
 
+    try:
+        graph_stats = graph.build_graph(contract_id, use_llm=False)
+    except Exception as exc:
+        logger.exception("Failed to build graph for contract %s", contract_id)
+        failure_recorded = mark_graph_failure(
+            contract_id,
+            f"Stored {len(text)} characters and {saved_clause_count} clauses, "
+            f"but graph construction failed for {original_name}: {exc}",
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Contract text and clauses were saved, but analysis could not "
+                f"be completed. The contract (id={contract_id}) "
+                + (
+                    "is marked 'graph_build_failed'."
+                    if failure_recorded
+                    else "could not be marked 'graph_build_failed'."
+                )
+            ),
+        )
+
     if saved_clause_count == 0:
         logger.warning(
             "No clauses detected for contract %s (%s); contract kept as 'extracted'.",
@@ -290,10 +359,16 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
             original_name,
         )
         clause_status = "no_clauses_detected"
-        message = "Contract uploaded and text extracted, but no numbered clauses were detected."
+        message = (
+            "Contract uploaded and text extracted, but no numbered clauses "
+            "were detected; analysis is unavailable."
+        )
     else:
         clause_status = "ok"
-        message = "Contract uploaded, text extracted, and clauses stored successfully."
+        message = (
+            "Contract uploaded, clauses classified and stored, and analysis "
+            "is ready."
+        )
 
     return {
         "message": message,
@@ -303,6 +378,8 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         "extracted_characters": len(text),
         "clauses_saved": saved_clause_count,
         "clause_split_status": clause_status,
+        "analysis_status": "ready" if saved_clause_count else "unavailable",
+        "graph": graph_stats,
     }
 
 
