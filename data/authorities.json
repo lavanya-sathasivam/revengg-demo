@@ -1,0 +1,134 @@
+{
+  "schema_version": "1.0",
+  "jurisdiction_default": "India",
+  "authorities": [
+    {
+      "id": "ica_1872_s2h",
+      "title": "Definition of contract",
+      "authority_type": "statute_section",
+      "citation": "Section 2(h), Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_only",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "contract",
+        "agreement",
+        "enforceable",
+        "enforceable by law",
+        "definition"
+      ],
+      "summary": "Defines 'contract' as an agreement enforceable by law.",
+      "applicable_topics": [
+        "formation",
+        "definitions"
+      ]
+    },
+    {
+      "id": "ica_1872_s10",
+      "title": "The Indian Contract Act, 1872",
+      "authority_type": "statute_section",
+      "citation": "Section 10, Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_only",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "agreement",
+        "enforceable",
+        "enforceable as contract",
+        "lawful",
+        "consideration",
+        "competent",
+        "free consent",
+        "not expressly declared void"
+      ],
+      "summary": "States the conditions under which an agreement is enforceable as a contract.",
+      "applicable_topics": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ica_1872_s56",
+      "title": "The Indian Contract Act, 1872",
+      "authority_type": "statute_section",
+      "citation": "Section 56, Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_only",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "frustration",
+        "impossible",
+        "impossibility",
+        "subsequent impossibility",
+        "performance",
+        "contract",
+        "discharge"
+      ],
+      "summary": "Deals with agreements to do acts impossible in themselves and with contracts becoming impossible or unlawful to perform.",
+      "applicable_topics": [
+        "frustration",
+        "discharge"
+      ]
+    },
+    {
+      "id": "ica_1872_s73",
+      "title": "The Indian Contract Act, 1872",
+      "authority_type": "statute_section",
+      "citation": "Section 73, Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_and_additional_government_reference",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "additional_source_name": "Income Tax India",
+      "additional_source_url": "https://www.incometaxindia.gov.in/w/section-73-104",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "compensation",
+        "breach",
+        "breach of contract",
+        "loss",
+        "damage",
+        "remedy",
+        "damages"
+      ],
+      "summary": "Provides for compensation for loss or damage caused by breach of contract.",
+      "applicable_topics": [
+        "breach",
+        "remedy"
+      ]
+    },
+    {
+      "id": "satyabrata_v_mugneeram_1954",
+      "title": "Satyabrata Ghose v. Mugneeram Bangur & Co.",
+      "authority_type": "court_judgment",
+      "citation": "AIR 1954 SC 44",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "frustration",
+        "impossible",
+        "impossibility",
+        "section 56",
+        "contract",
+        "discharge"
+      ],
+      "summary": "Reported Indian Supreme Court decision often cited in relation to frustration/impossibility under Indian contract law. No verifiably confirmed official source URL identified in this review.",
+      "applicable_topics": [
+        "frustration",
+        "discharge"
+      ]
+    }
+  ]
+}
