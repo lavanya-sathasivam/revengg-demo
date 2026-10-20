@@ -1,0 +1,341 @@
+{
+  "schema_version": "1.0",
+  "jurisdiction_default": "India",
+  "authorities": [
+    {
+      "id": "ica_1872_s2h",
+      "title": "Definition of contract",
+      "authority_type": "statute_section",
+      "citation": "Section 2(h), Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_only",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "contract",
+        "agreement",
+        "enforceable",
+        "enforceable by law",
+        "definition"
+      ],
+      "summary": "Defines 'contract' as an agreement enforceable by law.",
+      "applicable_topics": [
+        "formation",
+        "definitions"
+      ]
+    },
+    {
+      "id": "ica_1872_s10",
+      "title": "The Indian Contract Act, 1872",
+      "authority_type": "statute_section",
+      "citation": "Section 10, Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_only",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "agreement",
+        "enforceable",
+        "enforceable as contract",
+        "lawful",
+        "consideration",
+        "competent",
+        "free consent",
+        "not expressly declared void"
+      ],
+      "summary": "States the conditions under which an agreement is enforceable as a contract.",
+      "applicable_topics": [
+        "formation"
+      ]
+    },
+    {
+      "id": "ica_1872_s56",
+      "title": "The Indian Contract Act, 1872",
+      "authority_type": "statute_section",
+      "citation": "Section 56, Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_only",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "frustration",
+        "impossible",
+        "impossibility",
+        "subsequent impossibility",
+        "performance",
+        "contract",
+        "discharge"
+      ],
+      "summary": "Deals with agreements to do acts impossible in themselves and with contracts becoming impossible or unlawful to perform.",
+      "applicable_topics": [
+        "frustration",
+        "discharge"
+      ]
+    },
+    {
+      "id": "ica_1872_s73",
+      "title": "The Indian Contract Act, 1872",
+      "authority_type": "statute_section",
+      "citation": "Section 73, Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_and_additional_government_reference",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "additional_source_name": "Income Tax India",
+      "additional_source_url": "https://www.incometaxindia.gov.in/w/section-73-104",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "compensation",
+        "breach",
+        "breach of contract",
+        "loss",
+        "damage",
+        "remedy",
+        "damages"
+      ],
+      "summary": "Provides for compensation for loss or damage caused by breach of contract.",
+      "applicable_topics": [
+        "breach",
+        "remedy"
+      ]
+    },
+    {
+      "id": "satyabrata_v_mugneeram_1954",
+      "title": "Satyabrata Ghose v. Mugneeram Bangur & Co.",
+      "authority_type": "court_judgment",
+      "citation": "AIR 1954 SC 44",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "frustration",
+        "impossible",
+        "impossibility",
+        "section 56",
+        "contract",
+        "discharge"
+      ],
+      "summary": "Reported Indian Supreme Court decision often cited in relation to frustration/impossibility under Indian contract law. No verifiably confirmed official source URL identified in this review.",
+      "applicable_topics": [
+        "frustration",
+        "discharge"
+      ]
+    },
+    {
+      "id": "ica_1872_s74_penalty",
+      "title": "The Indian Contract Act, 1872",
+      "authority_type": "statute_section",
+      "citation": "Section 74, Indian Contract Act, 1872",
+      "jurisdiction": "India",
+      "source_name": "India Code",
+      "source_url": "https://www.indiacode.nic.in/bitstream/123456789/2187/2/A187209.pdf",
+      "source_granularity": "act_pdf_only",
+      "source_record_url": "https://www.indiacode.nic.in/handle/123456789/12845",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "penalty",
+        "late charges",
+        "reasonable compensation",
+        "estimated loss",
+        "charges",
+        "rate"
+      ],
+      "summary": "Where a contract names a sum to be paid in case of breach, the party injured is entitled to reasonable compensation not exceeding the sum named, whether that sum was a genuine pre-estimate of loss or a penalty.",
+      "applicable_topics": [
+        "penalty",
+        "liquidated damages",
+        "remedy"
+      ],
+      "_added_by": "Person B, 2026-10-20 - the demo corpus raised late charges (Clause 8.1) and a not-a-penalty clause (Clause 8.3), and s.74 is the provision that governs both."
+    },
+    {
+      "id": "ia_1878_s3_interest",
+      "title": "The Interest Act, 1978",
+      "authority_type": "statute_section",
+      "citation": "Section 3, Interest Act, 1878",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "interest",
+        "accrue",
+        "per annum",
+        "rate of interest",
+        "late payment",
+        "amount paid late"
+      ],
+      "summary": "Where there is a written contract to pay interest at a rate, and no rate is named in the contract, the court may award interest at the rate the parties intended; where a rate is named, it runs from the due date.",
+      "applicable_topics": [
+        "interest",
+        "payment"
+      ],
+      "_added_by": "Person B, 2026-10-20 - Clause 8.2 accrues interest at 12% per annum from the Payment Due Date."
+    },
+    {
+      "id": "sra_1963_s14_remedy",
+      "title": "The Specific Relief Act, 1963",
+      "authority_type": "statute_section",
+      "citation": "Section 14, Specific Relief Act, 1963",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "terminate",
+        "termination",
+        "specific performance",
+        "damages in lieu",
+        "consequential",
+        "indirect loss",
+        "aggregate liability",
+        "liability"
+      ],
+      "summary": "A contract that is not specifically enforceable is in general not enforced by a decree for specific performance but by damages; exclusion and limitation of liability clauses are among the arrangements a court will look through.",
+      "applicable_topics": [
+        "remedy",
+        "termination",
+        "limitation of liability"
+      ],
+      "_added_by": "Person B, 2026-10-20 - the demo contract has termination for non-payment (Clause 12.3) and a liability cap (Clause 13.1)."
+    },
+    {
+      "id": "ita_2000_s4_s5_electronic",
+      "title": "The Information Technology Act, 2000",
+      "authority_type": "statute_section",
+      "citation": "Sections 4 and 5, Information Technology Act, 2000",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "electronic signature",
+        "electronic transfer",
+        "electronic record",
+        "deemed served"
+      ],
+      "summary": "Electronic records and electronic signatures are given the same legal recognition as paper records and handwritten signatures, so a contract executed by electronic means can satisfy a requirement that it be in writing and signed.",
+      "applicable_topics": [
+        "formalities",
+        "electronic execution",
+        "notice"
+      ],
+      "_added_by": "Person B, 2026-10-20 - Clause 7.2 requires electronic transfer and Clause 14.1 deems a notice served by email."
+    },
+    {
+      "id": "ongc_v_great_eastern_1992",
+      "title": "ONGC v. Great Eastern Shipping Co.",
+      "authority_type": "court_judgment",
+      "citation": "1992 1 SCC 3",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "amendment",
+        "modification",
+        "modify",
+        "writing",
+        "no oral modification"
+      ],
+      "summary": "The Supreme Court held that where a contract requires that modifications be in writing, an oral modification is not effective and the original terms continue to govern the parties.",
+      "applicable_topics": [
+        "amendment",
+        "formalities of execution"
+      ],
+      "_added_by": "Person B, 2026-10-20 - the case law behind the s.10 proviso, on the clause the engine flags as amendment_form."
+    },
+    {
+      "id": "kailash_nath_v_dda_2015",
+      "title": "Kailash Nath Associates v. Delhi Development Authority",
+      "authority_type": "court_judgment",
+      "citation": "2015 4 SCC 136",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "damages",
+        "loss",
+        "losses",
+        "consequential",
+        "termination",
+        "terminate",
+        "aggregate liability"
+      ],
+      "summary": "Damages are the normal remedy for breach and specific performance is an equitable remedy; a party that terminates a contract and then claims compensation must prove the loss it says it has suffered.",
+      "applicable_topics": [
+        "remedy",
+        "damages",
+        "termination"
+      ],
+      "_added_by": "Person B, 2026-10-20 - the demo contract caps aggregate liability and lets the Supplier terminate for non-payment."
+    },
+    {
+      "id": "shree_guru_dutt_sharma_2001",
+      "title": "State of Karnataka v. Shree Guru Dutt Sharma",
+      "authority_type": "court_judgment",
+      "citation": "AIR 2001 SC 212",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "cure",
+        "cure period",
+        "notice",
+        "deemed served",
+        "extension of time",
+        "delay"
+      ],
+      "summary": "Delay in performance is not automatically fatal: a party is entitled to a reasonable extension of time where the delay is not culpable, and forfeiture of earnest money requires proof of default and of the loss caused.",
+      "applicable_topics": [
+        "notice",
+        "cure period",
+        "time for performance"
+      ],
+      "_added_by": "Person B, 2026-10-20 - the demo contract has a 15-day cure period running from receipt of written notice."
+    },
+    {
+      "id": "motilal_padampat_1979",
+      "title": "Motilal Padampat Sugar Mills Co. v. State of Uttar Pradesh",
+      "authority_type": "court_judgment",
+      "citation": "1979 2 SCC 409",
+      "jurisdiction": "India",
+      "source_name": null,
+      "source_url": null,
+      "source_granularity": "unknown",
+      "verification_status": "needs_verification",
+      "keywords": [
+        "frustration",
+        "impossibility",
+        "impossible",
+        "illegality",
+        "beyond its reasonable control",
+        "mitigate"
+      ],
+      "summary": "Frustration of a contract by impossibility or illegality discharges the parties; the court will not remake the bargain for them, and a party claiming frustration must show the impossibility was not self-created.",
+      "applicable_topics": [
+        "frustration",
+        "force majeure",
+        "discharge"
+      ],
+      "_added_by": "Person B, 2026-10-20 - the demo contract has a force majeure clause (Clause 15.1), which s.56 and the older authorities did not reach on the clause's own wording."
+    }
+  ]
+}
