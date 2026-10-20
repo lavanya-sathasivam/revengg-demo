@@ -215,5 +215,49 @@ class TestImpactContractIsStable(IntegrationTestCase):
                              "adapter" % name)
 
 
+class TestTheUiServesTheEngine(IntegrationTestCase):
+    """The landing page must show the impact analysis, not just the API.
+
+    The screen used to be a single-clause explainer that never called the
+    impact engine, so the project's flagship output was invisible in the
+    browser. These tests keep the page and the engine tied together.
+    """
+
+    def _client(self):
+        from fastapi.testclient import TestClient
+        import app as a_app          # Person A's FastAPI app
+        return TestClient(a_app.app)
+
+    def test_the_landing_page_is_the_impact_view(self):
+        page = self._client().get("/")
+        self.assertEqual(page.status_code, 200)
+        body = page.text
+        self.assertIn("Analyze change", body)
+        self.assertIn("/impact", body)          # it calls the impact engine
+        self.assertIn("Uncertainty", body)      # it renders the doubts
+
+    def test_the_clause_explainer_is_still_reachable(self):
+        """Person C's screen is preserved, not replaced."""
+        page = self._client().get("/explain")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Contract Intelligence Demo", page.text)
+
+    def test_the_page_exposes_shareable_parameters(self):
+        """?clause=7.2&old=30&new=15 must load and run the analysis."""
+        html = open(os.path.join(ROOT, "templates", "index.html"),
+                    encoding="utf-8").read()
+        self.assertIn("clause", html)
+        self.assertIn("URLSearchParams", html)
+
+    def test_the_page_and_the_engine_agree_on_the_keys(self):
+        """Every field the page renders must exist in the engine's payload."""
+        report = impact.analyze_change(CONTRACT_A, "7.2", 30, 15)
+        for key in ("changed_clause", "direct", "indirect", "chain",
+                    "obligations", "conditions", "consequences", "deadlines",
+                    "rights", "definitions", "counterfactual", "doubts",
+                    "evidence", "review_points", "summary"):
+            self.assertIn(key, report, "the page renders '%s'" % key)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -24,14 +24,30 @@ and use `http://127.0.0.1:8001/docs`.
 | # | command | what it shows | one line to say |
 |---|---------|---------------|-----------------|
 | 1 | `py -3.11 seed.py` | one command builds the DB, loads two synthetic Indian commercial contracts and **compiles each into a typed graph** | *"One command. No Docker, no server, no API key. 59 clauses, 95 nodes, 63 typed edges for Contract A."* |
-| 2 | `py -3.11 cli.py --contract 1 --change 7.2:30:15` | **the headline**: change the payment period 30 → 15 days | *"Clause 7.2 says pay within 30 days. Change it to 15. Here is what that touches, what it means in days, what we are not sure about, and the clause text behind every claim."* |
-| 3 | `py -3.11 cli.py --contract 1 --graph` | the relationship model itself | *"This is the structure the answer comes from — not retrieved text, a typed graph with a direction rule."* |
-| 4 | `py -3.11 -m uvicorn server:app --reload` → `http://127.0.0.1:8000/docs` | the HTTP API | *"Same engine over HTTP. POST /impact returns all twelve spec items. This is the surface the screen is built on."* |
+| 2 | `py -3.11 -m uvicorn server:app --reload` → **http://127.0.0.1:8000/** | **the impact view** — the flagship output, on one page | *"This is the whole answer on one screen: what breaks, what it means in days, and what we refuse to conclude."* |
+| 3 | `py -3.11 cli.py --contract 1 --change 7.2:30:15` | the same analysis in the terminal | *"The browser and the terminal run the same engine — no second implementation."* |
+| 4 | `py -3.11 cli.py --contract 1 --graph` | the relationship model itself | *"This is the structure the answer comes from — not retrieved text, a typed graph with a direction rule."* |
 | 5 | `py -3.11 tools/evaluate.py` | **the measurements** | *"We did not just build it, we measured it, against a hand-annotated ground truth."* |
 | 6 | `py -3.11 cli.py --contract 1 --change 9.1:99:98` | the SLA counterfactual | *"The same machinery on a percentage change: the value of a service credit does not move, but the band in which you earn one does."* |
 
-**If you only get three minutes: steps 2, 5, 2 again.** The headline, the
-evidence that it is right, the headline again while they look at the doubts.
+**Shareable links for the browser demo** — the impact view reads its state from
+the URL, so you can point at an exact analysis:
+
+| what | link |
+|---|---|
+| the headline | `http://127.0.0.1:8000/?contract=1&clause=7.2&old=30&new=15` |
+| the SLA one | `http://127.0.0.1:8000/?contract=1&clause=9.1&old=99&new=98` |
+| the clause explainer (C's half) | `http://127.0.0.1:8000/explain` |
+| the API | `http://127.0.0.1:8000/docs` |
+
+**If you only get three minutes: step 2, step 5, step 2 again.** The impact
+view, the evidence that it is right, then back to the impact view while they
+read the doubt cards.
+
+**The two pages are different questions.** `/` answers *"what breaks if this
+clause changes"* (the engine). `/explain` answers *"what does this one clause
+mean, and which statutes touch it"* (the retrieval + reasoning layer). Show
+both if there is time; the impact view is the one that carries the claim.
 
 ---
 

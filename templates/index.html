@@ -1,1102 +1,629 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contract Intelligence Demo</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contract Impact Analysis</title>
 <style>
   :root {
-    --bg: #f5f7fa;
+    --bg: #f4f6f9;
     --surface: #ffffff;
-    --border: #d9e0e8;
-    --text: #1f2933;
-    --muted: #5f6b7a;
-    --accent: #24507a;
+    --surface-2: #fbfcfd;
+    --border: #dde3ea;
+    --border-strong: #c6d0db;
+    --text: #16202b;
+    --muted: #64748b;
+    --accent: #1f4e79;
     --accent-soft: #eaf1f8;
-    --warn-bg: #fff8e6;
-    --warn-border: #e6c97a;
-    --ok: #1f6b46;
-    --radius: 8px;
+    --changed: #1c6b4a;
+    --changed-soft: #e8f5ee;
+    --warn: #8a6100;
+    --warn-soft: #fdf5e3;
+    --warn-border: #e8cf8e;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(22,32,43,.06), 0 4px 14px rgba(22,32,43,.05);
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
   }
-
   * { box-sizing: border-box; }
-
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
-    padding: 24px 16px 48px;
     background: var(--bg);
     color: var(--text);
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-    font-size: 15px;
-    line-height: 1.5;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 72px; }
 
-  .page {
-    max-width: 1280px;
-    margin: 0 auto;
+  /* ---------- header ---------- */
+  header.masthead { padding: 30px 0 18px; }
+  .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 1.65rem; font-weight: 650; letter-spacing: -.01em; }
+  .tagline { color: var(--muted); font-size: .95rem; }
+  .tabs { margin-top: 12px; display: flex; gap: 8px; }
+  .tab {
+    display: inline-block; padding: 6px 14px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); text-decoration: none; font-size: .88rem; font-weight: 550;
   }
+  .tab:hover { border-color: var(--border-strong); color: var(--text); }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  /* ---------- Header ---------- */
-  header.site-header {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px 24px;
-    margin-bottom: 16px;
+  /* ---------- the query bar ---------- */
+  .querybar {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(244,246,249,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border); padding: 14px 0 16px; margin-bottom: 22px;
   }
-
-  header.site-header h1 {
-    margin: 0 0 6px;
-    font-size: 1.5rem;
-    letter-spacing: 0.2px;
+  .queryrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.actions { justify-content: flex-end; }
+  .field.actions button { margin-bottom: 0; }
+  .field label {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); font-weight: 650;
   }
-
-  .notice {
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.9rem;
+  select, input[type="number"], input[type="text"] {
+    font: inherit; font-size: .94rem; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 8px; padding: 8px 10px; min-height: 38px;
+    text-overflow: ellipsis;
   }
-
-  .disclaimer-banner {
-    margin-top: 14px;
-    padding: 10px 14px;
-    background: var(--warn-bg);
-    border: 1px solid var(--warn-border);
-    border-radius: var(--radius);
-    font-size: 0.88rem;
-    color: #5c4a12;
+  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* A <select> sizes itself to its longest option, so the widths are fixed
+     here - otherwise one long clause heading pushes the whole bar off the
+     screen. */
+  #contract { width: 210px; }
+  #clause { width: 280px; }
+  #oldv, #newv { width: 84px; }
+  .btnrow { display: flex; gap: 8px; }
+  .arrow { color: var(--muted); padding-bottom: 9px; font-weight: 600; }
+  button {
+    font: inherit; font-size: .94rem; font-weight: 600; cursor: pointer;
+    border-radius: 8px; padding: 9px 18px; min-height: 38px; border: 1px solid transparent;
   }
+  button.primary { background: var(--accent); color: #fff; }
+  button.primary:hover { background: #17405f; }
+  button.ghost { background: var(--surface); border-color: var(--border-strong); color: var(--text); }
+  button.ghost:hover { background: var(--accent-soft); border-color: var(--accent); }
+  button:disabled { opacity: .55; cursor: progress; }
 
-  /* ---------- Layout ---------- */
-  .layout {
-    display: grid;
-    grid-template-columns: minmax(240px, 1fr) minmax(260px, 1.2fr) minmax(320px, 1.8fr);
-    gap: 16px;
-    align-items: start;
-  }
-
+  /* ---------- panels ---------- */
   .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    margin-bottom: 18px; overflow: hidden;
   }
-
-  .panel h2 {
-    margin: 0 0 4px;
-    font-size: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--accent);
+  .panel > h2 {
+    margin: 0; padding: 13px 18px; font-size: .78rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .09em; color: var(--muted);
+    border-bottom: 1px solid var(--border); background: var(--surface-2);
   }
+  .panel .body { padding: 16px 18px; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .buckets { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 20px; }
+  @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
 
-  .panel .panel-hint {
-    margin: 0 0 14px;
-    font-size: 0.82rem;
-    color: var(--muted);
+  .clausehead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .secno {
+    font-family: var(--mono); font-size: .84rem; font-weight: 700;
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 6px; padding: 2px 8px;
   }
+  .heading { font-weight: 600; }
+  .muted { color: var(--muted); }
+  .small { font-size: .87rem; }
 
-  /* ---------- Upload control ---------- */
-  .upload-block {
-    border: 1px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 16px;
-    background: #fbfcfd;
+  ul.clean { list-style: none; margin: 0; padding: 0; }
+  ul.clean li { padding: 9px 0; border-bottom: 1px dashed var(--border); }
+  ul.clean li:last-child { border-bottom: 0; padding-bottom: 0; }
+  ul.clean li:first-child { padding-top: 0; }
+
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .pill {
+    font-family: var(--mono); font-size: .85rem; font-weight: 650;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 4px 13px; background: var(--surface-2);
   }
+  .pill.start { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chainarrow { color: var(--muted); }
 
-  .upload-block label {
-    display: block;
-    font-size: 0.82rem;
-    font-weight: 600;
-    margin-bottom: 8px;
+  table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+  th {
+    text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); font-weight: 700; padding: 0 10px 8px 0; border-bottom: 1px solid var(--border);
   }
-
-  .upload-block input[type="file"] {
-    display: block;
-    width: 100%;
-    margin-bottom: 10px;
-    font-size: 0.82rem;
-  }
-
-  .upload-block button {
-    padding: 7px 14px;
-    font-size: 0.85rem;
-    border: 1px solid var(--accent);
-    background: var(--accent);
-    color: #fff;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .upload-block button:hover { background: #1c3f61; }
-
-  .upload-note {
-    margin: 8px 0 0;
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-
-  /* ---------- Placeholder lists ---------- */
-  .placeholder {
-    border: 1px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 18px 14px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.85rem;
-    background: #fbfcfd;
-  }
-
-  .placeholder strong { display: block; margin-bottom: 4px; color: var(--muted); }
-
-  .item-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .item-list li {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 12px;
-    background: #fbfcfd;
-    font-size: 0.85rem;
-  }
-
-  .item-list li .item-meta {
-    display: block;
-    color: var(--muted);
-    font-size: 0.75rem;
-    margin-top: 4px;
-  }
-
-  .item-list li .item-title {
-    display: block;
-    font-weight: 600;
-  }
-
-  .item-list li[role="button"] { cursor: pointer; }
-
-  .item-list li[role="button"]:hover { border-color: var(--accent); }
-
-  .item-list li.is-selected {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-
-  /* Status / progress line for list loading and uploads. */
-  .status-line {
-    margin: 10px 0 0;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: #f4f7fa;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-
-  .status-line.is-error {
-    background: #fdecec;
-    border-color: #e7b4b4;
-    color: #8a2020;
-  }
-
-  .status-line.is-success {
-    background: #e9f5ee;
-    border-color: #bfe0ce;
-    color: var(--ok);
-  }
-
-  .upload-block button:disabled {
-    opacity: 0.65;
-    cursor: default;
-  }
-
-  /* ---------- Explanation panel ---------- */
-  .explanation-section + .explanation-section {
-    margin-top: 18px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-  }
-
-  .explanation-section h3 {
-    margin: 0 0 8px;
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--muted);
-  }
-
-  .summary-text {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-
-  .authority-card {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px;
-    background: #fbfcfd;
-    margin-bottom: 8px;
-  }
-
-  .authority-card .authority-title {
-    display: block;
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-
-  .authority-card .authority-citation {
-    display: block;
-    color: var(--muted);
-    font-size: 0.8rem;
-    margin: 3px 0 8px;
-  }
-
-  .badge-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
+  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.metric { font-weight: 600; }
+  td.old { color: var(--muted); white-space: nowrap; }
+  td.new { white-space: nowrap; font-weight: 600; }
   .badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    border: 1px solid var(--border);
-    background: #f1f4f8;
-    color: var(--muted);
+    display: inline-block; font-size: .68rem; font-weight: 750; letter-spacing: .06em;
+    text-transform: uppercase; border-radius: 5px; padding: 2px 7px; white-space: nowrap;
   }
+  .badge.changed { background: var(--changed-soft); color: var(--changed); }
+  .badge.same { background: #eef1f5; color: var(--muted); }
+  .detail { color: var(--muted); font-size: .84rem; margin-top: 3px; }
 
-  .badge.badge-type { background: var(--accent-soft); color: var(--accent); border-color: #c6d8ea; }
-
-  /* Deliberately muted: retrieved records are not verified. */
-  .badge.badge-unverified { background: #fdf3e3; color: #8a5a10; border-color: #ecd3a4; }
-  .badge.badge-verified { background: #e7f4ed; color: var(--ok); border-color: #bfe0ce; }
-
-  .warning-box {
-    background: var(--warn-bg);
-    border: 1px solid var(--warn-border);
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin: 0;
-    padding-left: 30px;
-    font-size: 0.83rem;
-    color: #5c4a12;
+  .doubt { border-left: 4px solid var(--warn-border); background: var(--warn-soft);
+           border-radius: 8px; padding: 13px 15px; margin-bottom: 12px; }
+  .doubt:last-child { margin-bottom: 0; }
+  .doubt .q { font-weight: 600; margin: 7px 0 9px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-family: var(--mono); font-size: .76rem; background: #fff;
+    border: 1px solid var(--warn-border); color: #6b4e08; border-radius: 5px; padding: 1px 7px;
   }
+  .review { display: flex; gap: 10px; align-items: baseline; }
+  .review .box { color: var(--accent); font-weight: 700; }
 
-  .warning-box li + li { margin-top: 6px; }
+  .empty { text-align: center; padding: 34px 20px 40px; }
+  .empty h2 { margin: 0 0 6px; font-size: 1.1rem; }
+  .empty p { margin: 0 auto 16px; color: var(--muted); max-width: 640px; }
 
-  .final-disclaimer {
-    margin-top: 20px;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--accent);
-    border-radius: 6px;
-    background: #f7fafd;
-    font-size: 0.8rem;
-    color: var(--muted);
+  .banner {
+    border-radius: 8px; padding: 11px 14px; margin-bottom: 16px; font-size: .9rem;
+    background: var(--warn-soft); border: 1px solid var(--warn-border); color: #6b4e08;
   }
+  .banner.error { background: #fdecec; border-color: #e9b0b0; color: #8f2020; }
+  .banner.ok { background: var(--changed-soft); border-color: #b9dcc9; color: var(--changed); }
 
-  .final-disclaimer strong { color: var(--text); }
-
-  /* ---------- Responsive ---------- */
-  @media (max-width: 1024px) {
-    .layout { grid-template-columns: 1fr 1fr; }
-    .panel-explanation { grid-column: 1 / -1; }
-  }
-
-  @media (max-width: 680px) {
-    body { padding: 16px 10px 32px; font-size: 14px; }
-    .layout { grid-template-columns: 1fr; }
-    .panel-explanation { grid-column: auto; }
-    header.site-header { padding: 16px; }
-  }
+  .ledger { font-family: var(--mono); font-size: .82rem; color: var(--muted);
+            padding: 12px 18px; border-top: 1px solid var(--border); background: var(--surface-2); }
+  footer { color: var(--muted); font-size: .82rem; text-align: center; padding-top: 10px; }
+  code { font-family: var(--mono); font-size: .88em; background: #eef1f5; padding: 1px 5px; border-radius: 4px; }
 </style>
 </head>
 <body>
-<div class="page">
+<div class="wrap">
 
-  <header class="site-header">
-    <h1>Contract Intelligence Demo</h1>
-    <p class="notice">
-      Explanations are generated from deterministic keyword matching against Indian contract law
-      authorities. They are informational only and are not legal advice.
-    </p>
-    <div class="disclaimer-banner">
-      <strong>Important:</strong> This demo does not assess whether a contract is valid, invalid,
-      enforceable, breached, or unlawful. Always consult a qualified legal professional.
+  <header class="masthead">
+    <div class="brand">
+      <h1>Contract Impact Analysis</h1>
+      <span class="tagline">change a clause &rarr; see what breaks, in days, and what we cannot determine</span>
     </div>
+    <nav class="tabs">
+      <a class="tab active" href="/">Impact analysis</a>
+      <a class="tab" href="/explain">Clause explainer</a>
+      <a class="tab" href="/docs">API</a>
+    </nav>
   </header>
 
-  <main class="layout">
-
-    <!-- ================= Contracts panel ================= -->
-    <section class="panel panel-contracts" aria-labelledby="contracts-heading">
-      <h2 id="contracts-heading">Contracts</h2>
-      <p class="panel-hint">Uploaded contracts stored in the local database.</p>
-
-      <form class="upload-block" aria-label="Upload a PDF contract">
-        <label for="contract-file">Upload PDF contract</label>
-        <input id="contract-file" name="file" type="file" accept="application/pdf,.pdf">
-        <button type="submit">Upload</button>
-        <p class="upload-note">PDF only, up to 10 MB. Text-based PDFs work best.</p>
-      </form>
-
-      <!-- Upload / list status and progress messages -->
-      <p id="contracts-status" class="status-line" role="status" aria-live="polite" hidden></p>
-
-      <!-- Placeholder shown until contracts are loaded -->
-      <div id="contracts-placeholder" class="placeholder" role="status">
-        <strong>No contracts loaded</strong>
-        Upload a PDF contract to begin, or wait for the list to load.
+  <div class="querybar">
+    <div class="queryrow">
+      <div class="field">
+        <label for="contract">Contract</label>
+        <select id="contract"></select>
       </div>
-
-      <!-- Populated later by the UI script -->
-      <ul id="contracts-list" class="item-list" hidden></ul>
-    </section>
-
-    <!-- ================= Clauses panel ================= -->
-    <section class="panel panel-clauses" aria-labelledby="clauses-heading">
-      <h2 id="clauses-heading">Clauses</h2>
-      <p class="panel-hint">Stored clauses for the selected contract.</p>
-
-      <div id="clauses-placeholder" class="placeholder" role="status">
-        <strong>No contract selected</strong>
-        Select a contract to view its numbered clauses.
+      <div class="field">
+        <label for="clause">Clause</label>
+        <select id="clause"></select>
       </div>
-
-      <!-- Loading state placeholder -->
-      <div id="clauses-loading" class="placeholder" role="status" hidden>
-        <strong>Loading clauses</strong>
-        Fetching stored clauses for the selected contract.
+      <div class="field">
+        <label for="oldv">Old value</label>
+        <input id="oldv" type="number" value="30" />
       </div>
-
-      <!-- Populated later by the UI script -->
-      <ul id="clauses-list" class="item-list" hidden></ul>
-
-      <!-- Empty state for contracts with no detected clauses -->
-      <div id="clauses-empty" class="placeholder" role="status" hidden>
-        <strong>No clauses detected</strong>
-        This contract has no stored numbered clauses, so no explanation is available.
+      <div class="arrow">&rarr;</div>
+      <div class="field">
+        <label for="newv">New value</label>
+        <input id="newv" type="number" value="15" />
       </div>
-
-      <!-- Clause list / fetch status messages -->
-      <p id="clauses-status" class="status-line" role="status" aria-live="polite" hidden></p>
-    </section>
-
-    <!-- ================= Explanation panel ================= -->
-    <section class="panel panel-explanation" aria-labelledby="explanation-heading">
-      <h2 id="explanation-heading">Explanation</h2>
-      <p class="panel-hint">Select a clause to see its explanation and related authorities.</p>
-
-      <div id="explanation-placeholder" class="placeholder" role="status">
-        <strong>No clause selected</strong>
-        Choose a clause from the middle panel to request an explanation.
+      <div class="field actions">
+        <div class="btnrow">
+          <button class="primary" id="go">Analyze change</button>
+          <button class="ghost" id="example">Use the example</button>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <!-- Explanation fetch errors / notices -->
-      <p id="explanation-status" class="status-line" role="status" aria-live="polite" hidden></p>
-
-      <!-- Loading state placeholder -->
-      <div id="explanation-loading" class="placeholder" role="status" hidden>
-        <strong>Generating explanation</strong>
-        Matching keywords and preparing authority notes.
-      </div>
-
-      <!-- Populated later by the UI script -->
-      <div id="explanation-content" hidden>
-
-        <div class="explanation-section">
-          <h3>Summary</h3>
-          <p id="explanation-summary" class="summary-text">No summary available.</p>
-        </div>
-
-        <div class="explanation-section">
-          <h3>Key points</h3>
-          <ul id="explanation-key-points" class="warning-box">
-            <li>Key points will appear here.</li>
-          </ul>
-        </div>
-
-        <div class="explanation-section">
-          <h3>Relevant authorities</h3>
-          <div id="explanation-authorities">
-            <div class="authority-card">
-              <span class="authority-title">Authority title</span>
-              <span class="authority-citation">Citation placeholder</span>
-              <div class="badge-row">
-                <span class="badge badge-type">Authority type</span>
-                <span class="badge badge-unverified">Retrieved — not verified</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="explanation-section">
-          <h3>Matched evidence</h3>
-          <ul id="explanation-evidence" class="warning-box">
-            <li>Matched keywords will appear here.</li>
-          </ul>
-        </div>
-
-        <div class="explanation-section">
-          <h3>Topics for human review</h3>
-          <ul id="explanation-topics" class="warning-box">
-            <li>Possible topics for human review will appear here.</li>
-          </ul>
-        </div>
-
-        <div class="explanation-section">
-          <h3>Uncertainties and missing information</h3>
-          <ul id="explanation-uncertainties" class="warning-box">
-            <li>Uncertainty notes will appear here.</li>
-          </ul>
-        </div>
-
-        <div class="final-disclaimer">
-          <strong>Disclaimer:</strong>
-          <span id="explanation-disclaimer">
-            This explanation is for informational/demo purposes only and does not constitute
-            legal advice. This is not legal advice.
-          </span>
-        </div>
-
+  <div id="msg"></div>
+  <main id="out">
+    <section class="panel">
+      <div class="body empty">
+        <h2>Ask what a change would do</h2>
+        <p>
+          Pick a clause, change its number, and the engine walks the contract's
+          dependency graph: which clauses are hit directly, which through a
+          chain, what the arithmetic becomes in days, and which questions it
+          refuses to answer. Every line points back to a clause.
+        </p>
+        <p class="small muted">
+          Try <code>Clause 7.2</code> (payment period) from 30 days to 15, or
+          <code>Clause 9.1</code> (service levels) from 99% to 98.
+        </p>
       </div>
     </section>
-
   </main>
+
+  <footer>
+    Synthetic contracts, for demonstration only. The output is decision support,
+    not legal advice &mdash; the review points are yours to decide.
+  </footer>
 </div>
 
 <script>
 (function () {
   "use strict";
 
-  var contractsList = document.getElementById("contracts-list");
-  var contractsPlaceholder = document.getElementById("contracts-placeholder");
-  var contractsStatus = document.getElementById("contracts-status");
-  var clausesList = document.getElementById("clauses-list");
-  var clausesPlaceholder = document.getElementById("clauses-placeholder");
-  var clausesLoading = document.getElementById("clauses-loading");
-  var clausesEmpty = document.getElementById("clauses-empty");
-  var clausesStatus = document.getElementById("clauses-status");
-  var explanationPlaceholder = document.getElementById("explanation-placeholder");
-  var explanationLoading = document.getElementById("explanation-loading");
-  var explanationContent = document.getElementById("explanation-content");
-  var explanationStatus = document.getElementById("explanation-status");
-  var explanationSummary = document.getElementById("explanation-summary");
-  var explanationKeyPoints = document.getElementById("explanation-key-points");
-  var explanationAuthorities = document.getElementById("explanation-authorities");
-  var explanationEvidence = document.getElementById("explanation-evidence");
-  var explanationTopics = document.getElementById("explanation-topics");
-  var explanationUncertainties = document.getElementById("explanation-uncertainties");
-  var explanationDisclaimer = document.getElementById("explanation-disclaimer");
-  var uploadForm = document.querySelector(".upload-block");
-  var fileInput = document.getElementById("contract-file");
-  var uploadButton = uploadForm ? uploadForm.querySelector('button[type="submit"]') : null;
+  var out = document.getElementById("out");
+  var msg = document.getElementById("msg");
+  var selContract = document.getElementById("contract");
+  var selClause = document.getElementById("clause");
+  var inOld = document.getElementById("oldv");
+  var inNew = document.getElementById("newv");
+  var btnGo = document.getElementById("go");
+  var btnExample = document.getElementById("example");
 
-  // Selection state shared with the explanation step.
-  var selectedContractId = null;
-  var selectedClauseId = null;        // clause_id returned by the API
-  var selectedClauseSection = null;   // section_number used by the explanation route
-  var explanationRequestId = 0;       // guards against stale, slower responses
+  var clauseMap = {};   // sec_no -> {heading, type}
 
-  /* ---------- small helpers ---------- */
-
-  function setStatus(element, message, kind) {
-    if (!element) return;
-    element.textContent = message || "";
-    element.classList.remove("is-error", "is-success");
-    if (kind === "error") element.classList.add("is-error");
-    if (kind === "success") element.classList.add("is-success");
-    element.hidden = !message;
+  function el(tag, cls, html) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html !== undefined && html !== null) n.innerHTML = html;
+    return n;
   }
-
-  function fillPlaceholder(element, title, detail) {
-    if (!element) return;
-    element.hidden = false;
-    element.textContent = "";
-    var strong = document.createElement("strong");
-    strong.textContent = title;
-    element.appendChild(strong);
-    if (detail) {
-      element.appendChild(document.createTextNode(" " + detail));
-    }
+  function esc(s) {
+    return String(s === undefined || s === null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
-
-  function showPlaceholder(title, detail) {
-    fillPlaceholder(contractsPlaceholder, title, detail);
+  function banner(text, kind) {
+    msg.innerHTML = "";
+    msg.appendChild(el("div", "banner" + (kind ? " " + kind : ""), esc(text)));
   }
+  function clearMsg() { msg.innerHTML = ""; }
 
-  function formatTimestamp(value) {
-    if (!value || typeof value !== "string") return "timestamp unavailable";
-    var parsed = new Date(value);
-    if (isNaN(parsed.getTime())) return value;
-    try {
-      return parsed.toLocaleString();
-    } catch (error) {
-      return value; // Keep the raw ISO string if the locale call fails.
-    }
-  }
-
-  /* ---------- contracts rendering ---------- */
-
-  function selectContract(li, contractId) {
-    selectedContractId = contractId;
-    if (contractsList) {
-      Array.prototype.forEach.call(contractsList.children, function (child) {
-        child.classList.toggle("is-selected", child === li);
-      });
-    }
-    loadClauses(contractId);
-  }
-
-  function renderContract(contract) {
-    var li = document.createElement("li");
-    li.setAttribute("role", "button");
-    li.tabIndex = 0;
-    li.dataset.contractId = String(contract.contract_id);
-
-    var title = document.createElement("span");
-    title.className = "item-title";
-    title.textContent = contract.filename || "Untitled contract";
-    li.appendChild(title);
-
-    var meta = document.createElement("span");
-    meta.className = "item-meta";
-    var parts = [
-      "ID: " + (contract.contract_id !== undefined && contract.contract_id !== null
-        ? contract.contract_id
-        : "unknown"),
-      "Status: " + (contract.processing_status || "unknown"),
-      "Uploaded: " + formatTimestamp(contract.upload_timestamp)
-    ];
-    meta.textContent = parts.join(" \u00b7 ");
-    li.appendChild(meta);
-
-    function activate() {
-      selectContract(li, contract.contract_id);
-    }
-    li.addEventListener("click", activate);
-    li.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        activate();
-      }
-    });
-
-    if (selectedContractId === contract.contract_id) {
-      li.classList.add("is-selected");
-    }
-    return li;
-  }
-
+  // ---------------------------------------------------------------- loading
   function loadContracts() {
-    showPlaceholder("Loading contracts", "Fetching the stored contract list.");
-    if (contractsList) {
-      contractsList.hidden = true;
-      contractsList.textContent = "";
-    }
-
     return fetch("/contracts", { headers: { "Accept": "application/json" } })
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error("Could not load contracts (HTTP " + response.status + ").");
-        }
-        return response.json();
+      .then(function (r) { return r.json(); })
+      .then(function (rows) {
+        selContract.innerHTML = "";
+        rows.forEach(function (c) {
+          var o = el("option");
+          o.value = c.contract_id;
+          o.textContent = c.contract_id + " — " + c.filename;
+          selContract.appendChild(o);
+        });
+        return loadClauses();
       })
+      .catch(function () {
+        banner("Could not load the contracts. Is the server running? Try: py -3.11 -m uvicorn server:app --reload", "error");
+      });
+  }
+
+  function loadClauses() {
+    var cid = selContract.value;
+    return fetch("/clauses/" + cid, { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (!Array.isArray(data)) {
-          throw new Error("Unexpected response format from /contracts.");
-        }
-        if (data.length === 0) {
-          showPlaceholder("No contracts yet", "Upload a PDF contract to get started.");
-          return;
-        }
-        var fragment = document.createDocumentFragment();
-        data.forEach(function (contract) {
-          if (contract && typeof contract === "object") {
-            fragment.appendChild(renderContract(contract));
-          }
+        clauseMap = {};
+        selClause.innerHTML = "";
+        (data.clauses || []).forEach(function (c) {
+          clauseMap[c.clause_id] = c;
+          var o = el("option");
+          o.value = c.clause_id;
+          o.textContent = c.clause_id + (c.heading ? " — " + c.heading : "");
+          selClause.appendChild(o);
         });
-        contractsList.appendChild(fragment);
-        contractsList.hidden = false;
-        contractsPlaceholder.hidden = true;
+        if (selClause.options.length) {
+          selClause.value = "7.2";
+          if (!selClause.value) selClause.selectedIndex = 0;
+        }
       })
-      .catch(function (error) {
-        showPlaceholder("Could not load contracts", "Check that the server is running, then reload the page.");
-        setStatus(contractsStatus, error.message, "error");
+      .catch(function () {
+        banner("Could not load the clauses of contract " + cid + ".", "error");
       });
   }
 
-  /* ---------- clauses rendering ---------- */
-
-  function truncateText(text, limit) {
-    var value = (text === null || text === undefined) ? "" : String(text);
-    value = value.replace(/\s+/g, " ").trim();
-    if (value.length <= limit) return value;
-    return value.slice(0, limit).replace(/\s+$/, "") + "\u2026";
+  // ---------------------------------------------------------------- rendering
+  function clauseLabel(sec) {
+    var c = clauseMap[sec];
+    return c && c.heading ? sec + " — " + c.heading : sec;
   }
 
-  function selectClause(li, clause) {
-    selectedClauseId = clause.clause_id !== undefined && clause.clause_id !== null
-      ? clause.clause_id
-      : null;
-    selectedClauseSection = clause.section_number !== undefined && clause.section_number !== null
-      ? clause.section_number
-      : null;
-    if (clausesList) {
-      Array.prototype.forEach.call(clausesList.children, function (child) {
-        child.classList.toggle("is-selected", child === li);
-      });
-    }
-    loadExplanation();
+  function panel(title, build) {
+    var p = el("section", "panel");
+    p.appendChild(el("h2", null, esc(title)));
+    var body = el("div", "body");
+    build(body);
+    p.appendChild(body);
+    return p;
   }
 
-  function renderClause(clause) {
-    var li = document.createElement("li");
-    li.setAttribute("role", "button");
-    li.tabIndex = 0;
-    if (clause.clause_id !== undefined && clause.clause_id !== null) {
-      li.dataset.clauseId = String(clause.clause_id);
+  function impactList(items, emptyText) {
+    if (!items || !items.length) return el("p", "muted small", esc(emptyText));
+    var ul = el("ul", "clean");
+    items.forEach(function (h) {
+      var li = el("li");
+      li.appendChild(el("span", "secno", esc(h.sec_no)));
+      li.appendChild(document.createTextNode(" "));
+      li.appendChild(el("span", "heading", esc(clauseLabel(h.sec_no).split(" — ").slice(1).join(" — "))));
+      li.appendChild(el("span", "muted small", "  hop " + h.hops));
+      ul.appendChild(li);
+    });
+    return ul;
+  }
+
+  function bucketBlock(title, items, colour) {
+    var b = el("div");
+    b.appendChild(el("h3", null, esc(title) + " <span class='muted small'>(" + (items || []).length + ")</span>"));
+    if (!items || !items.length) {
+      b.appendChild(el("p", "muted small", "none"));
+      return b;
     }
+    var ul = el("ul", "clean");
+    items.forEach(function (it) {
+      var li = el("li");
+      li.appendChild(el("span", "secno", esc(it.clause)));
+      li.appendChild(document.createTextNode(" " + it.detail));
+      ul.appendChild(li);
+    });
+    b.appendChild(ul);
+    return b;
+  }
 
-    var title = document.createElement("span");
-    title.className = "item-title";
-    var section = clause.section_number !== undefined && clause.section_number !== null
-      ? String(clause.section_number)
-      : "?";
-    title.textContent = "Clause " + section;
-    li.appendChild(title);
+  function render(r) {
+    out.innerHTML = "";
+    var c = r.changed_clause || {};
 
-    var preview = document.createElement("span");
-    preview.className = "item-meta";
-    preview.textContent = truncateText(clause.clause_text, 180) || "No clause text stored.";
-    li.appendChild(preview);
+    // the clause being changed
+    var head = panel("The change", function (body) {
+      var h = el("div", "clausehead");
+      h.appendChild(el("span", "secno", esc(c.sec_no || "?")));
+      h.appendChild(el("span", "heading", esc(c.heading || "")));
+      h.appendChild(el("span", "muted", "(" + esc(c.type || "") + ")"));
+      body.appendChild(h);
+      body.appendChild(el("p", "muted small",
+        esc(c.old_value) + " &rarr; ".replace(/&rarr;/, "\u2192") + " " + esc(c.new_value)));
+      if (c.text) {
+        var p = el("p");
+        p.style.margin = "8px 0 0";
+        p.style.fontFamily = "var(--mono)";
+        p.style.fontSize = ".82rem";
+        p.style.color = "var(--muted)";
+        p.textContent = c.text;
+        body.appendChild(p);
+      }
+      if (r.summary) body.appendChild(el("p", null, "<strong>" + esc(r.summary) + "</strong>"));
+    });
+    out.appendChild(head);
 
-    function activate() {
-      selectClause(li, clause);
-    }
-    li.addEventListener("click", activate);
-    li.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        activate();
+    // direct / indirect + chain
+    var imp = panel("Impact", function (body) {
+      var split = el("div", "split");
+      var left = el("div");
+      left.appendChild(el("h3", null, "Direct <span class='muted small'>(" + (r.direct || []).length + ")</span>"));
+      left.appendChild(impactList(r.direct, "nothing is hit directly"));
+      var right = el("div");
+      right.appendChild(el("h3", null, "Indirect <span class='muted small'>(" + (r.indirect || []).length + ")</span>"));
+      right.appendChild(impactList(r.indirect, "nothing is hit through a chain"));
+      split.appendChild(left);
+      split.appendChild(right);
+      body.appendChild(split);
+      if (r.chain && r.chain.length) {
+        body.appendChild(el("h3", null, "Causal chain"));
+        var chain = el("div", "chain");
+        r.chain.forEach(function (sec, i) {
+          if (i) chain.appendChild(el("span", "chainarrow", "\u2192"));
+          chain.appendChild(el("span", "pill" + (i === 0 ? " start" : ""), esc(sec)));
+        });
+        body.appendChild(chain);
       }
     });
-    return li;
-  }
+    out.appendChild(imp);
 
-  function loadClauses(contractId) {
-    // A new contract invalidates any previously selected clause.
-    selectedClauseId = null;
-    selectedClauseSection = null;
-    resetExplanation(
-      "No clause selected",
-      "Select a clause from the middle panel to request an explanation."
-    );
-    setStatus(clausesStatus, "", null);
-
-    if (clausesList) {
-      clausesList.hidden = true;
-      clausesList.textContent = "";
-    }
-    if (clausesEmpty) clausesEmpty.hidden = true;
-    if (clausesPlaceholder) clausesPlaceholder.hidden = true;
-    if (clausesLoading) clausesLoading.hidden = false;
-
-    var url = "/contracts/" + encodeURIComponent(String(contractId)) + "/clauses";
-
-    return fetch(url, { headers: { "Accept": "application/json" } })
-      .then(function (response) {
-        return response.json()
-          .catch(function () { return null; })
-          .then(function (payload) {
-            if (!response.ok) {
-              var detail = payload && payload.detail
-                ? String(payload.detail)
-                : "Could not load clauses (HTTP " + response.status + ").";
-              throw new Error(detail);
-            }
-            return payload;
-          });
-      })
-      .then(function (payload) {
-        if (clausesLoading) clausesLoading.hidden = true;
-        if (!payload || !Array.isArray(payload.clauses)) {
-          throw new Error("Unexpected response format from the clauses endpoint.");
-        }
-        if (payload.clauses.length === 0) {
-          fillPlaceholder(
-            clausesEmpty,
-            "No clauses detected",
-            "This contract has no stored numbered clauses, so no explanation is available."
-          );
-          return;
-        }
-        var fragment = document.createDocumentFragment();
-        payload.clauses.forEach(function (clause) {
-          if (clause && typeof clause === "object") {
-            fragment.appendChild(renderClause(clause));
-          }
-        });
-        if (!fragment.childNodes.length) {
-          fillPlaceholder(
-            clausesEmpty,
-            "No clauses detected",
-            "This contract has no stored numbered clauses, so no explanation is available."
-          );
-          return;
-        }
-        clausesList.appendChild(fragment);
-        clausesList.hidden = false;
-      })
-      .catch(function (error) {
-        if (clausesLoading) clausesLoading.hidden = true;
-        if (clausesEmpty) clausesEmpty.hidden = true;
-        setStatus(clausesStatus, error.message, "error");
+    // legal meaning - only the buckets that have something in them
+    var meaning = panel("What is affected, in legal terms", function (body) {
+      var grid = el("div", "buckets");
+      var shown = 0;
+      [["Obligations", r.obligations], ["Conditions", r.conditions],
+       ["Consequences", r.consequences], ["Deadlines", r.deadlines],
+       ["Rights", r.rights], ["Definitions", r.definitions]].forEach(function (pair) {
+        if (!pair[1] || !pair[1].length) return;   // an empty bucket is noise
+        grid.appendChild(bucketBlock(pair[0], pair[1]));
+        shown += 1;
       });
-  }
-
-  /* ---------- explanation rendering ---------- */
-
-  function clearElement(element) {
-    if (element) element.textContent = "";
-  }
-
-  function resetExplanation(messageTitle, messageDetail) {
-    // Invalidate any in-flight request so its result is ignored.
-    explanationRequestId += 1;
-    if (explanationLoading) explanationLoading.hidden = true;
-    if (explanationContent) explanationContent.hidden = true;
-    if (explanationStatus) setStatus(explanationStatus, "", null);
-    if (messageTitle) {
-      fillPlaceholder(explanationPlaceholder, messageTitle, messageDetail);
-    } else if (explanationPlaceholder) {
-      explanationPlaceholder.hidden = true;
-    }
-  }
-
-  function renderBulletList(element, items, emptyMessage) {
-    if (!element) return;
-    element.textContent = "";
-    var values = Array.isArray(items) ? items : [];
-    var rendered = 0;
-    values.forEach(function (item) {
-      var text = (item === null || item === undefined) ? "" : String(item);
-      if (!text.trim()) return;
-      var li = document.createElement("li");
-      li.textContent = text;
-      element.appendChild(li);
-      rendered += 1;
+      if (!shown) grid.appendChild(el("p", "muted small", "none"));
+      body.appendChild(grid);
     });
-    if (rendered === 0) {
-      var li = document.createElement("li");
-      li.textContent = emptyMessage;
-      element.appendChild(li);
-    }
-  }
+    out.appendChild(meaning);
 
-  function renderAuthorities(authorities, evidence) {
-    if (!explanationAuthorities) return;
-    clearElement(explanationAuthorities);
-
-    var list = Array.isArray(authorities) ? authorities : [];
-    if (list.length === 0) {
-      fillPlaceholder(
-        explanationAuthorities,
-        "No relevant authorities",
-        "Keyword matching found no authorities in the dataset for this clause."
-      );
-      return;
-    }
-
-    list.forEach(function (authority) {
-      if (!authority || typeof authority !== "object") return;
-
-      var card = document.createElement("div");
-      card.className = "authority-card";
-
-      var title = document.createElement("span");
-      title.className = "authority-title";
-      title.textContent = authority.title
-        ? String(authority.title)
-        : "Untitled authority";
-      card.appendChild(title);
-
-      var citation = document.createElement("span");
-      citation.className = "authority-citation";
-      citation.textContent = authority.citation
-        ? String(authority.citation)
-        : "Citation not provided";
-      card.appendChild(citation);
-
-      var badges = document.createElement("div");
-      badges.className = "badge-row";
-
-      var typeBadge = document.createElement("span");
-      typeBadge.className = "badge badge-type";
-      typeBadge.textContent = authority.authority_type
-        ? String(authority.authority_type).replace(/_/g, " ")
-        : "authority";
-      badges.appendChild(typeBadge);
-
-      // Only a confirmed record may be shown as Verified.
-      var verifiedBadge = document.createElement("span");
-      if (authority.is_verified === true) {
-        verifiedBadge.className = "badge badge-verified";
-        verifiedBadge.textContent = "Verified";
+    // counterfactual
+    var cf = r.counterfactual || { rows: [], notes: [] };
+    var cfPanel = panel("Old vs new", function (body) {
+      if (cf.rows && cf.rows.length) {
+        var t = el("table");
+        t.innerHTML = "<thead><tr><th>Metric</th><th>Old</th><th>New</th><th></th></tr></thead>";
+        var tb = el("tbody");
+        cf.rows.forEach(function (row) {
+          var tr = el("tr");
+          var td1 = el("td", "metric", esc(row.metric));
+          if (row.detail) {
+            var d = el("div", "detail", esc(row.detail));
+            td1.appendChild(d);
+          }
+          tr.appendChild(td1);
+          tr.appendChild(el("td", "old", esc(row.old)));
+          tr.appendChild(el("td", "new", esc(row.new)));
+          tr.appendChild(el("td", null, '<span class="badge ' + (row.changed ? "changed" : "same") + '">' +
+            (row.changed ? "changed" : "unchanged") + "</span>"));
+          tb.appendChild(tr);
+        });
+        t.appendChild(tb);
+        body.appendChild(t);
       } else {
-        verifiedBadge.className = "badge badge-unverified";
-        verifiedBadge.textContent = "Not verified";
+        body.appendChild(el("p", "muted small", "No day arithmetic is modelled for this change type."));
       }
-      badges.appendChild(verifiedBadge);
-
-      card.appendChild(badges);
-
-      if (authority.why_matched) {
-        var why = document.createElement("span");
-        why.className = "item-meta";
-        why.textContent = String(authority.why_matched);
-        card.appendChild(why);
-      }
-
-      explanationAuthorities.appendChild(card);
-    });
-
-    if (!explanationAuthorities.childNodes.length) {
-      fillPlaceholder(
-        explanationAuthorities,
-        "No relevant authorities",
-        "Keyword matching found no authorities in the dataset for this clause."
-      );
-    }
-  }
-
-  function renderEvidence(evidence, authorities) {
-    if (!explanationEvidence) return;
-    explanationEvidence.textContent = "";
-
-    var titlesById = {};
-    if (Array.isArray(authorities)) {
-      authorities.forEach(function (authority) {
-        if (authority && authority.id !== undefined && authority.id !== null) {
-          titlesById[String(authority.id)] = authority.title ? String(authority.title) : "";
-        }
+      (cf.notes || []).forEach(function (n) {
+        body.appendChild(el("p", "small muted", esc(n)));
       });
-    }
-
-    var list = Array.isArray(evidence) ? evidence : [];
-    var rendered = 0;
-    list.forEach(function (item) {
-      if (!item || typeof item !== "object") return;
-      var terms = Array.isArray(item.matched_terms)
-        ? item.matched_terms.map(function (term) { return String(term); }).join(", ")
-        : "";
-      if (!terms) return;
-
-      var label = item.authority_id !== undefined && item.authority_id !== null
-        ? String(item.authority_id)
-        : "unknown authority";
-      var title = titlesById[label] || "";
-      var li = document.createElement("li");
-      li.textContent = (title ? title + ": " : "") + "matched " + terms + ".";
-
-      if (item.normalized_snippet) {
-        var snippet = document.createElement("span");
-        snippet.className = "item-meta";
-        snippet.textContent = String(item.normalized_snippet);
-        li.appendChild(snippet);
-      }
-      explanationEvidence.appendChild(li);
-      rendered += 1;
     });
+    out.appendChild(cfPanel);
 
-    if (rendered === 0) {
-      var empty = document.createElement("li");
-      empty.textContent = "No keyword match evidence was returned for this clause.";
-      explanationEvidence.appendChild(empty);
-    }
-  }
-
-  function renderExplanation(payload) {
-    if (payload === null || typeof payload !== "object") {
-      throw new Error("Unexpected response format from the explanation endpoint.");
-    }
-
-    if (explanationSummary) {
-      explanationSummary.textContent = payload.summary
-        ? String(payload.summary)
-        : "No summary was returned.";
-    }
-    renderBulletList(explanationKeyPoints, payload.key_points, "No key points were returned.");
-    renderAuthorities(payload.relevant_authorities, payload.matched_evidence);
-    renderEvidence(payload.matched_evidence, payload.relevant_authorities);
-    renderBulletList(explanationTopics, payload.possible_legal_relevance, "No topics for human review were returned.");
-    renderBulletList(
-      explanationUncertainties,
-      payload.uncertainties_and_missing_information,
-      "No uncertainty notes were returned."
-    );
-    if (explanationDisclaimer) {
-      explanationDisclaimer.textContent = payload.disclaimer
-        ? String(payload.disclaimer)
-        : "This is not legal advice.";
-    }
-
-    if (explanationPlaceholder) explanationPlaceholder.hidden = true;
-    if (explanationLoading) explanationLoading.hidden = true;
-    if (explanationContent) explanationContent.hidden = false;
-
-    if (payload.meta && payload.meta.retrieval_error === true) {
-      setStatus(
-        explanationStatus,
-        "Retrieval failed while preparing this explanation, so no authorities could be matched.",
-        "error"
-      );
-    }
-  }
-
-  function loadExplanation() {
-    if (selectedContractId === null || selectedContractId === undefined ||
-        selectedClauseSection === null || selectedClauseSection === undefined) {
-      return;
-    }
-
-    // Each request gets an increasing id; only the newest may update the panel.
-    var requestId = explanationRequestId + 1;
-    explanationRequestId = requestId;
-
-    setStatus(explanationStatus, "", null);
-    if (explanationPlaceholder) explanationPlaceholder.hidden = true;
-    if (explanationContent) explanationContent.hidden = true;
-    if (explanationLoading) explanationLoading.hidden = false;
-
-    var url = "/contracts/" + encodeURIComponent(String(selectedContractId)) +
-      "/clauses/" + encodeURIComponent(String(selectedClauseSection)) + "/explanation";
-
-    fetch(url, { headers: { "Accept": "application/json" } })
-      .then(function (response) {
-        return response.json()
-          .catch(function () { return null; })
-          .then(function (payload) {
-            if (requestId !== explanationRequestId) return null; // stale
-            if (!response.ok) {
-              var detail = payload && payload.detail
-                ? String(payload.detail)
-                : "Could not load the explanation (HTTP " + response.status + ").";
-              throw new Error(detail);
-            }
-            return payload;
-          });
-      })
-      .then(function (payload) {
-        if (requestId !== explanationRequestId || payload === null) return;
-        renderExplanation(payload);
-      })
-      .catch(function (error) {
-        if (requestId !== explanationRequestId) return; // stale error, ignore
-        if (explanationLoading) explanationLoading.hidden = true;
-        if (explanationContent) explanationContent.hidden = true;
-        if (explanationPlaceholder) {
-          fillPlaceholder(
-            explanationPlaceholder,
-            "Could not load explanation",
-            "Select the clause again to retry."
-          );
-        }
-        setStatus(explanationStatus, error.message, "error");
-      });
-  }
-
-  /* ---------- PDF upload ---------- */
-
-  if (uploadForm) {
-    uploadForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      var file = fileInput && fileInput.files ? fileInput.files[0] : null;
-      if (!file) {
-        setStatus(contractsStatus, "Choose a PDF file before uploading.", "error");
+    // doubts
+    var dp = panel("Uncertainty — what we cannot determine", function (body) {
+      if (!r.doubts || !r.doubts.length) {
+        body.appendChild(el("p", "muted small", "No doubts were raised for this change."));
         return;
       }
-      if (!/\.pdf$/i.test(file.name || "")) {
-        setStatus(contractsStatus, "Only PDF files are accepted.", "error");
-        return;
-      }
-
-      var formData = new FormData();
-      formData.append("file", file, file.name);
-
-      setStatus(contractsStatus, "Uploading " + file.name + " \u2026", null);
-      if (uploadButton) {
-        uploadButton.disabled = true;
-        uploadButton.textContent = "Uploading\u2026";
-      }
-
-      fetch("/upload", {
-        method: "POST",
-        body: formData,
-        headers: { "Accept": "application/json" }
-      })
-        .then(function (response) {
-          return response.json()
-            .catch(function () { return null; })
-            .then(function (payload) {
-              if (!response.ok) {
-                var detail = payload && payload.detail
-                  ? String(payload.detail)
-                  : "Upload failed (HTTP " + response.status + ").";
-                throw new Error(detail);
-              }
-              return payload;
-            });
-        })
-        .then(function (payload) {
-          var message = payload && payload.message
-            ? String(payload.message)
-            : "Upload complete.";
-          var clauses = payload && payload.clauses_saved !== undefined
-            ? payload.clauses_saved
-            : "unknown";
-          var successText = message + " Clauses stored: " + clauses + ".";
-
-          if (payload && payload.contract_id !== undefined) {
-            selectedContractId = payload.contract_id;
-          }
-          if (fileInput) fileInput.value = "";
-
-          return loadContracts().then(function () {
-            // loadContracts clears the status line, so set success afterwards.
-            setStatus(contractsStatus, successText, "success");
-            // Show the new contract's clauses immediately when available.
-            if (selectedContractId !== null && selectedContractId !== undefined) {
-              loadClauses(selectedContractId);
-            }
-          });
-        })
-        .catch(function (error) {
-          setStatus(contractsStatus, error.message, "error");
-        })
-        .then(function () {
-          if (uploadButton) {
-            uploadButton.disabled = false;
-            uploadButton.textContent = "Upload";
-          }
+      r.doubts.forEach(function (d) {
+        var card = el("div", "doubt");
+        var head = el("div", "chips");
+        head.appendChild(el("span", "chip", esc(d.code)));
+        head.appendChild(el("span", "chip", esc(d.severity)));
+        card.appendChild(head);
+        card.appendChild(el("div", "q", esc(d.question)));
+        var ev = el("div", "chips");
+        (d.evidence || []).forEach(function (e) {
+          ev.appendChild(el("span", "chip", esc(e.id) + " · " + esc(e.why)));
         });
+        card.appendChild(ev);
+        if (d.review_point) {
+          var rp = el("p", "small");
+          rp.style.margin = "9px 0 0";
+          rp.innerHTML = "<strong>Decide:</strong> " + esc(d.review_point);
+          card.appendChild(rp);
+        }
+        body.appendChild(card);
+      });
+    });
+    out.appendChild(dp);
+
+    // review points
+    if (r.review_points && r.review_points.length) {
+      var rp = panel("What the lawyer has to decide", function (body) {
+        var ul = el("ul", "clean");
+        r.review_points.forEach(function (p) {
+          var li = el("li", "review");
+          li.appendChild(el("span", "box", "\u2610"));
+          li.appendChild(el("span", null, esc(p)));
+          ul.appendChild(li);
+        });
+        body.appendChild(ul);
+      });
+      out.appendChild(rp);
+    }
+
+    // evidence ledger
+    if (r.evidence && r.evidence.length) {
+      var led = el("div", "ledger");
+      var bits = r.evidence.map(function (e) {
+        return e.id + " (" + e.type + ") — " + e.why;
+      });
+      led.textContent = "evidence · " + bits.join("   |   ");
+      out.appendChild(led);
+    }
+  }
+
+  // ---------------------------------------------------------------- actions
+  function analyze() {
+    clearMsg();
+    syncUrl();
+    btnGo.disabled = true;
+    btnGo.textContent = "Analyzing…";
+    var payload = {
+      contract_id: parseInt(selContract.value, 10),
+      clause_id: selClause.value,
+      old_value: parseInt(inOld.value, 10),
+      new_value: parseInt(inNew.value, 10)
+    };
+    fetch("/impact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (b) {
+            throw new Error(b.detail || ("request failed (" + r.status + ")"));
+          });
+        }
+        return r.json();
+      })
+      .then(render)
+      .catch(function (e) {
+        out.innerHTML = "";
+        banner(
+          e.message + " — if this says the route does not exist, start the demo " +
+          "with 'py -3.11 -m uvicorn server:app --reload', which mounts the " +
+          "impact engine as well as the UI.", "error");
+      })
+      .finally(function () {
+        btnGo.disabled = false;
+        btnGo.textContent = "Analyze change";
+      });
+  }
+
+  function useExample() {
+    clearMsg();
+    fetch("/demo/" + selContract.value + "/suggest")
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) { banner(d.error, "error"); return; }
+        selClause.value = d.request.clause_id;
+        inOld.value = d.request.old_value;
+        inNew.value = d.request.new_value;
+        analyze();
+      })
+      .catch(function () {
+        banner("Could not load the example change.", "error");
+      });
+  }
+
+  selContract.addEventListener("change", loadClauses);
+  btnGo.addEventListener("click", analyze);
+  btnExample.addEventListener("click", useExample);
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter" && ev.target.tagName !== "BUTTON") analyze();
+  });
+
+  // A shareable link: /?contract=1&clause=7.2&old=30&new=15 loads the form
+  // and runs the analysis straight away.
+  function applyUrl() {
+    var q = new URLSearchParams(window.location.search);
+    var cid = q.get("contract");
+    var sec = q.get("clause");
+    var oldv = q.get("old");
+    var newv = q.get("new");
+    return {
+      contract: cid ? parseInt(cid, 10) : null,
+      clause: sec,
+      old: oldv !== null ? parseInt(oldv, 10) : null,
+      neu: newv !== null ? parseInt(newv, 10) : null
+    };
+  }
+
+  function syncUrl() {
+    var q = new URLSearchParams();
+    q.set("contract", selContract.value);
+    q.set("clause", selClause.value);
+    q.set("old", inOld.value);
+    q.set("new", inNew.value);
+    history.replaceState(null, "", "?" + q.toString());
+  }
+
+  function start() {
+    var want = applyUrl();
+    loadContracts().then(function () {
+      if (want.contract) {
+        selContract.value = String(want.contract);
+        return loadClauses().then(function () { return true; });
+      }
+      return true;
+    }).then(function () {
+      if (want.clause && clauseMap[want.clause]) selClause.value = want.clause;
+      if (want.old !== null && want.old !== undefined && !isNaN(want.old)) inOld.value = want.old;
+      if (want.neu !== null && want.neu !== undefined && !isNaN(want.neu)) inNew.value = want.neu;
+      syncUrl();
+      if (want.clause) analyze();
     });
   }
 
-  // Initial load.
-  loadContracts();
+  start();
 })();
 </script>
 </body>

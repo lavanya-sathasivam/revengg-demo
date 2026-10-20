@@ -27,6 +27,9 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 TEMPLATES_DIR = BASE_DIR / "templates"
 INDEX_HTML = TEMPLATES_DIR / "index.html"
+# Person C's clause-explainer UI, kept as its own page. The landing page is
+# now the impact-analysis view (templates/index.html).
+EXPLAIN_HTML = TEMPLATES_DIR / "explain.html"
 
 # Reasonable upload size limit (10 MB)
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024
@@ -185,6 +188,14 @@ def index() -> FileResponse:
     if not INDEX_HTML.is_file():
         raise HTTPException(status_code=404, detail="UI template not found")
     return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/explain", include_in_schema=False)
+def explain_page() -> FileResponse:
+    """Serve Person C's clause-explainer UI from templates/explain.html."""
+    if not EXPLAIN_HTML.is_file():
+        raise HTTPException(status_code=404, detail="UI template not found")
+    return FileResponse(EXPLAIN_HTML, media_type="text/html")
 
 
 @app.get("/health")
