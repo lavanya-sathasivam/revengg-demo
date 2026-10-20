@@ -214,6 +214,10 @@ model, not from string matching on the clause text.
 | `tools/evaluate.py` | **B** | scores the engine against the ground truth |
 | `tools/llm_probe.py` | **B** | exercises the LLM path (works with no key) |
 | `tests/test_evaluate.py` | **B** | tests for the evaluator and the rules it locked in |
+| `docs/architecture_walkthrough.md` | **B** | **how to explain the technical parts — read this one** |
+| `docs/demo_runbook.md` | **B** | the demo, step by step, with the likely questions |
+| `docs/evaluation_report.md` | **B** | the generated evaluation report (the Results chapter) |
+| `docs/invention_note.md` | **B** | the patent invention note (confidential, pre-filing) |
 
 **Never edit another person's file.** If you need a schema change, ask A; if
 you need a new field from B, ask B. `adapter.py` is why a schema change does
