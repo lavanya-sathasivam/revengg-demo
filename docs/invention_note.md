@@ -615,6 +615,23 @@ a doubt rule instead; the requirement that an element node is created only
 where the clause imposes the corresponding obligation, condition, right or
 deadline.
 
+### 7.1 Suggested drawings
+
+Six figures, all derivable from the mechanism, for the agent to draw:
+
+| fig | title | what it shows |
+|---|---|---|
+| **1** | Compilation of a contract into a typed graph | flow: contract text → clause segmentation → clause typing (closed vocabulary) → element nodes → typed edges → graph; annotate the branch where an explicit cross-reference meets the relation table |
+| **2** | The typed relation table and the edge direction | the 12 type pairs; the dependent-first storage convention; the separate inverse-pair list, with 9.1/9.2 as the worked example of a pair whose direction is decided rather than assumed |
+| **3** | Reverse-dependency traversal with hop classification | the graph of the worked embodiment, arcs labelled with hop distance; the direct / indirect split shaded |
+| **4** | Counterfactual recomputation and the changed/unchanged distinction | the 7.2 payment case as a table, with the two *unchanged* rows highlighted and the day arithmetic shown (30 + 15 = 45 → 15 + 15 = 30) |
+| **5** | Doubt generation and evidence linkage | a flow from a traversal result + extracted numbers + recomputed values into doubt rules, and out into a doubt record with code, severity, question, evidence links (clause id + quoted text) and review point |
+| **6** | Worked embodiment end to end | the 7.2 → 15-day output in the form it is presented to a lawyer, annotated with the four sections that correspond to claims 1(c)–1(f) |
+
+Nothing in the drawings needs a model to be present: the claimed mechanism is
+entirely deterministic, and that is the point the drawings should make
+visually.
+
 ---
 
 ## 8. Evidence available for the examiner / agent
