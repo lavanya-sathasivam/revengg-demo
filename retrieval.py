@@ -79,6 +79,13 @@ def normalize_text(text: Union[str, None]) -> str:
     - Convert to lowercase
     - Collapse repeated whitespace
     - Strip leading/trailing whitespace
+    - Strip sentence punctuation from the end of a word, so that the LAST
+      word of a clause is still matchable. Without this, '... is not a
+      penalty.' tokenises to 'penalty.' and never matches the keyword
+      'penalty', because a token containing punctuation is matched as a
+      substring. Tokens that contain a digit are left alone: '1.' and '2(h)'
+      are section references, and stripping their punctuation would turn
+      them into bare numbers that spuriously match citation text.
 
     Args:
         text: Input text to normalize (may be None).
@@ -90,7 +97,14 @@ def normalize_text(text: Union[str, None]) -> str:
         return ""
     # Collapse repeated whitespace (spaces, tabs, newlines)
     normalized = re.sub(r"\s+", " ", text).lower().strip()
-    return normalized
+    tokens = []
+    for token in normalized.split(" "):
+        if token and not any(ch.isdigit() for ch in token):
+            stripped = token.rstrip(".,;:!?")
+            if stripped:
+                token = stripped
+        tokens.append(token)
+    return " ".join(tokens)
 
 
 def load_authorities(path: Union[Path, str, None] = None) -> List[dict]:

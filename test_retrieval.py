@@ -76,7 +76,11 @@ class RetrievalLoadTests(unittest.TestCase):
         # Should load from data/authorities.json relative to retrieval.py
         auths = retrieval.load_authorities()
         self.assertIsInstance(auths, list)
-        self.assertEqual(len(auths), 5)
+        # The corpus is meant to grow, so this asserts a floor rather than an
+        # exact count. The exact count moved from 5 to 13 when the demo
+        # contracts' own topics (late charges, force majeure, termination,
+        # written amendments) were given their authorities.
+        self.assertGreaterEqual(len(auths), 5)
         ids = [a["id"] for a in auths]
         self.assertIn("ica_1872_s2h", ids)
         self.assertIn("ica_1872_s10", ids)
