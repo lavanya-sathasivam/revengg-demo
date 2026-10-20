@@ -100,10 +100,10 @@ which clause made it hesitate.
 > the output is byte-for-byte reproducible.*
 
 **"What is the weakest part?"**
-> *The doubt engine is eight-to-nine rule families, not a general
-> defeasible-reasoning system. And clauses typed "other" create no node, so
-> a duty stated outside the typed families — Clause 3.1's "reasonable skill
-> and care" — is not surfaced as an obligation. Both are in the report.*
+> *The doubt engine is nine rule families, not a general defeasible-reasoning
+> system. And clauses typed "other" create no node, so a duty stated outside
+> the typed families — Clause 3.1's "reasonable skill and care" — is not
+> surfaced as an obligation. Both are in the report.*
 
 **"What would you do next?"**
 > *Rupee amounts in the general number parser; nodes for "other"-typed

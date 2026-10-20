@@ -608,7 +608,7 @@ arithmetic module; a doubt-rule module; and an output module.
 computing device, cause the device to carry out the method of claim 1.
 
 **Possible dependent claims:** the closed vocabulary of 18 clause types as
-listed; the relation table as listed; the eight doubt codes as listed; the
+listed; the relation table as listed; the nine doubt codes as listed; the
 distinction that a cross-reference to a definition clause is stored as a
 reference edge and is therefore excluded from the impacted set and handled by
 a doubt rule instead; the requirement that an element node is created only
