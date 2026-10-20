@@ -13,11 +13,22 @@ __pycache__/
 
 # SQLite database (local, regenerated on run)
 app.db
+*.db
+data/app.db
 
 # Uploaded contract files (confidential - never commit)
 uploads/*
 !uploads/.gitkeep
 
+# Source contracts (synthetic only, but keep out of the repo anyway)
+data/contracts/*.pdf
+
 # Logs / local scratch files
 *.log
 uvicorn.pid
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

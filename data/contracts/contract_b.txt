@@ -1,0 +1,58 @@
+CUSTOMER SERVICES AGREEMENT
+
+(SYNTHETIC TRAINING DOCUMENT - NOT A REAL CONTRACT.
+Prepared for a reverse-engineering academic project. Party names are fictional.)
+
+THIS AGREEMENT is made on 1 April 2026
+
+BETWEEN
+
+(1) MERIDIAN FACILITY SERVICES LLP, a limited liability partnership registered under the Limited Liability Partnership Act, 2008, having its registered office at 4B Residency Road, Bengaluru 560025 (the "Supplier"); and
+
+(2) NORTHWIND HEALTHCARE PRIVATE LIMITED, a company incorporated under the Companies Act, 2013, having its registered office at 9 Hospital Road, Chennai 600002 (the "Customer").
+
+1. DEFINITIONS
+
+1.1 "Invoice" means a valid invoice issued by the Supplier in accordance with Clause 5.1.
+
+1.2 "Payment Due Date" means, in respect of any Invoice, the date falling 30 (thirty) days after the date of that Invoice.
+
+1.3 "Services" means the housekeeping and patient-support services described in Schedule A.
+
+2. SCOPE OF SERVICES
+
+2.1 Services. The Supplier shall provide the Services in accordance with Schedule A.
+
+2.2 Service Levels. The Supplier shall achieve a monthly service availability of not less than 99.5% for the Services, measured in accordance with Schedule B.
+
+3. TERM
+
+3.1 Initial Term. This Agreement commences on the Effective Date and continues for an initial term of 24 (twenty four) months.
+
+4. CHARGES
+
+4.1 Charges. The Customer shall pay the Charges set out in Schedule A.
+
+5. PAYMENT
+
+5.1 Invoicing. The Supplier shall issue an Invoice monthly in arrears.
+
+5.2 Payment Period. The Customer shall pay the amount stated in each undisputed Invoice within 45 (forty five) days after the date of that Invoice, and in any event not later than the Payment Due Date determined in accordance with Clause 1.2.
+
+6. LATE PAYMENT
+
+6.1 Late Charges. If the Customer fails to pay any undisputed Invoice by the Payment Due Date determined in accordance with Clause 5.2, the Customer shall pay late charges at the rate of 1% per month on the overdue amount, calculated from the Payment Due Date until payment in full.
+
+7. NOTICES
+
+7.1 Notices. Every notice under this Agreement shall be in writing and shall be deemed served 7 (seven) days after despatch.
+
+8. GOVERNING LAW AND DISPUTE RESOLUTION
+
+8.1 Governing Law. This Agreement shall be governed by the laws of India.
+
+8.2 Arbitration. Any dispute shall be referred to arbitration under the Arbitration and Conciliation Act, 1996, seated in Chennai.
+
+SCHEDULE A - SERVICES, CHARGES AND ADDRESSES
+Services: housekeeping and patient-support services for the Customer's Chennai premises.
+Charges: INR 7,80,000 per month, exclusive of taxes.
