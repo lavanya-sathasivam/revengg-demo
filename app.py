@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 
 from db import (
     get_conn,
@@ -17,12 +18,15 @@ from db import (
     save_clauses,
 )
 from extract import extract_text, split_clauses
+from reasoning import explain_with_retrieval
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("app")
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
+TEMPLATES_DIR = BASE_DIR / "templates"
+INDEX_HTML = TEMPLATES_DIR / "index.html"
 
 # Reasonable upload size limit (10 MB)
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024
@@ -164,6 +168,25 @@ def mark_clause_failure(contract_id: int, details: str) -> None:
         )
 
 
+def _normalize_section_number(value) -> str:
+    """Normalize a section number for exact comparison.
+
+    Strips whitespace, a leading 'section' (case-insensitive) and trailing
+    period, so 'Section 3.' and '3' both become '3'.
+    """
+    text = str(value if value is not None else "").strip()
+    text = re.sub(r"^section\s+", "", text, flags=re.IGNORECASE)
+    return text.strip().rstrip(".").strip()
+
+
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    """Serve the static demo UI from templates/index.html."""
+    if not INDEX_HTML.is_file():
+        raise HTTPException(status_code=404, detail="UI template not found")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 @app.get("/health")
 def health() -> dict:
     """Simple health check to confirm the API is running."""
@@ -298,3 +321,38 @@ def get_contract_clauses_route(contract_id: int) -> dict:
     if contract is None:
         raise HTTPException(status_code=404, detail="Contract not found")
     return {"contract_id": contract_id, "clauses": list_clauses(contract_id)}
+
+
+@app.get("/contracts/{contract_id}/clauses/{section_number}/explanation")
+def get_clause_explanation_route(contract_id: int, section_number: str) -> dict:
+    """
+    Return a deterministic, template-based explanation for one stored clause.
+
+    The requested section number is matched against the contract's stored
+    clauses using the same normalization for both sides: surrounding
+    whitespace is stripped and a leading 'Section ' prefix and trailing '.'
+    are removed, so '3', ' 3 ', 'Section 3' and '3.' all resolve to the
+    stored section '3'. Matching is exact (not a prefix/substring match), so
+    '3' will not match '30'.
+
+    Returns 404 if the contract does not exist, or if no stored clause for
+    that contract has the requested section number.
+    """
+    contract = get_contract(contract_id)
+    if contract is None:
+        raise HTTPException(status_code=404, detail="Contract not found")
+
+    requested = _normalize_section_number(section_number)
+    match = None
+    for clause in list_clauses(contract_id):
+        if _normalize_section_number(clause.get("section_number")) == requested:
+            match = clause
+            break
+
+    if match is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Clause with section number '{section_number}' not found for this contract",
+        )
+
+    return explain_with_retrieval(match.get("clause_text") or "")

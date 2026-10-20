@@ -228,5 +228,61 @@ class RetrievalTests(ApiTestCase):
         self.assertIn(("/health", ("GET",)), routes)
 
 
+class ClauseExplanationTests(ApiTestCase):
+    """Tests for the per-clause explanation endpoint."""
+
+    EXPLANATION_KEYS = {
+        "input",
+        "summary",
+        "key_points",
+        "relevant_authorities",
+        "matched_evidence",
+        "possible_legal_relevance",
+        "uncertainties_and_missing_information",
+        "reasoning_trace",
+        "disclaimer",
+        "meta",
+    }
+
+    def test_explanation_for_existing_section(self):
+        upload = self._upload(SECTIONS_PDF)
+        result = app.get_clause_explanation_route(upload["contract_id"], "2")
+
+        self.assertIsInstance(result, dict)
+        self.assertEqual(set(result.keys()), self.EXPLANATION_KEYS)
+        self.assertIsInstance(result["relevant_authorities"], list)
+        self.assertIn("This is not legal advice", result["disclaimer"])
+
+    def test_unknown_contract_returns_404(self):
+        with self.assertRaises(HTTPException) as ctx:
+            app.get_clause_explanation_route(9999, "1")
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertEqual(ctx.exception.detail, "Contract not found")
+
+    def test_unknown_section_returns_404(self):
+        upload = self._upload(SECTIONS_PDF)
+        with self.assertRaises(HTTPException) as ctx:
+            app.get_clause_explanation_route(upload["contract_id"], "99")
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_section_matching_is_exact(self):
+        upload = self._upload(SECTIONS_PDF)
+        contract_id = upload["contract_id"]
+
+        # Replace the detected clauses with a single section 30.
+        db.save_clauses(
+            contract_id,
+            [{"section_number": "30", "clause_text": "30. THIRTY. Section thirty text."}],
+        )
+
+        # "3" must not match "30".
+        with self.assertRaises(HTTPException) as ctx:
+            app.get_clause_explanation_route(contract_id, "3")
+        self.assertEqual(ctx.exception.status_code, 404)
+
+        result = app.get_clause_explanation_route(contract_id, "30")
+        self.assertIn("Section thirty text", result["input"]["text"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
