@@ -436,6 +436,10 @@ independently verified by the agent before anything is asserted in a
 specification. Where a cell says "not publicly described", that means *not
 described in public material* — not *absent*.
 
+The fuller reverse-engineering write-up — what we analysed, how we tested the
+gap on our own corpus, and what we added on top — is in
+`docs/reverse_engineering_log.md`.
+
 | capability | this system | Kira Systems | Luminance | Harvey | CoCounsel |
 |---|---|---|---|---|---|
 | clause segmentation & classification | deterministic, fixed 18-type vocabulary, auditable | AI extraction of clause-level metadata | AI clause analysis | document parsing / extraction for review | document understanding, extraction for review and drafting |

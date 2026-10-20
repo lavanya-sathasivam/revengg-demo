@@ -4,6 +4,12 @@ Reverse-engineering academic project (3rd year). An AI decision-support tool
 for lawyers that understands a contract as a **structure of linked obligations**,
 not as a bag of text chunks.
 
+> We tore down what Kira / Luminance / Harvey / CoCounsel do, rebuilt a thin
+> version, and found one thing they do not have: a contract modelled as
+> **typed relations between clauses**, so a proposed change can be traced to
+> the clauses it hits — and to the questions it leaves open.
+> See `docs/reverse_engineering_log.md`.
+
 **Branch `b-graph` — Person B (clauses → relationship model → impact analysis),
 rebased onto `origin/a-backend`.**
 
@@ -215,6 +221,7 @@ model, not from string matching on the clause text.
 | `tools/llm_probe.py` | **B** | exercises the LLM path (works with no key) |
 | `tests/test_evaluate.py` | **B** | tests for the evaluator and the rules it locked in |
 | `docs/architecture_walkthrough.md` | **B** | **how to explain the technical parts — read this one** |
+| `docs/reverse_engineering_log.md` | **B** | what we tore down, what we found, what we added |
 | `docs/demo_runbook.md` | **B** | the demo, step by step, with the likely questions |
 | `docs/evaluation_report.md` | **B** | the generated evaluation report (the Results chapter) |
 | `docs/invention_note.md` | **B** | the patent invention note (confidential, pre-filing) |
