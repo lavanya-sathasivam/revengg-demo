@@ -14,12 +14,81 @@ what branch B adds or needs from A.
 | `adapter.py` | the seam: the ONLY file that talks to A's `db.py` |
 | `graph.py` | nodes, typed edges, relation table, BFS impact traversal |
 | `impact.py` | counterfactual, doubts, conflict detection, cross-contract compare |
+| `api_b.py` | **the HTTP API** — router with 5 endpoints, mounted by `server.py` |
+| `server.py` | runs A's `app.py` + B's `api_b.py` in one process (demo server) |
 | `llm.py` | one LLM helper that never raises |
 | `cli.py` | terminal demo of the impact engine |
 | `seed.py` | loads the two synthetic contracts into `demo.db` |
-| `tests/test_graph.py` | 29 tests for the relationship model |
+| `tests/test_graph.py` | 39 tests for the relationship model and the API |
 | `data/contracts/contract_a.txt`, `contract_b.txt` | synthetic Indian commercial contracts |
 | `data/ground_truth.json` | hand-annotated truth set (seed AND test set) |
+
+---
+
+## 1a. The API — what C should build the screen against
+
+Person C: **you do not need to wait for anyone.** Branch B now ships a working
+HTTP API. Start the demo server:
+
+```powershell
+py -3.11 seed.py
+py -3.11 -m uvicorn server:app --reload
+open http://127.0.0.1:8000/docs     # interactive API docs, try it live
+```
+
+| endpoint | what it returns |
+|---|---|
+| `GET /graph/{contract_id}` | every node and every typed edge (draw your graph here) |
+| `GET /clauses/{contract_id}` | clauses + type + references + numbers |
+| `POST /impact` | **the headline endpoint** — all 12 MVP spec items |
+| `GET /compare/{a}/{b}` | cross-contract comparison + portfolio anomaly |
+| `GET /demo/{contract_id}/suggest` | a ready-made example change (one click, no typo) |
+
+`POST /impact` request body:
+
+```json
+{ "contract_id": 1, "clause_id": "7.2", "old_value": 30, "new_value": 15 }
+```
+
+Response keys — this is exactly the MVP spec from the master context:
+
+```
+changed_clause, direct, indirect, chain,
+obligations, conditions, consequences, deadlines, rights, definitions,
+counterfactual, doubts, conflicts, evidence, review_points, summary
+```
+
+Each item in `obligations` / `conditions` / `consequences` / `deadlines` is:
+
+```json
+{ "clause": "8.1", "kind": "obligation", "detail": "pay late charges on any overdue Invoice" }
+```
+
+Each doubt is:
+
+```json
+{ "code": "definition_collision", "severity": "high",
+  "question": "...", "evidence": [ {...} ], "review_point": "..." }
+```
+
+**C should write the screen against these endpoints.** C's `reasoning.py` (the
+IRAC-style narrative) is a separate layer on top — it consumes this JSON and
+writes the lawyer-facing sentences. Every number it needs is already there.
+
+---
+
+## 1b. How A can mount the routes into app.py (optional)
+
+Branch B ships `server.py`, which imports A's `app.py` and mounts B's router
+without editing A's file. If A would rather have the routes inside `app.py`,
+the change is two lines:
+
+```python
+from api_b import router
+app.include_router(router)
+```
+
+That is the whole change. Nothing else in `app.py` moves.
 
 ---
 
@@ -144,9 +213,21 @@ governing_law, dispute, warranty, term, other`
 
 ```powershell
 py -3.11 seed.py                                  # builds demo.db
-py -3.11 cli.py --contract 1 --change 7.2:30:15   # the headline demo
-py -3.11 -m unittest discover -s tests -v          # 29 tests, must all pass
+py -3.11 cli.py --contract 1 --change 7.2:30:15   # the headline demo (terminal)
+py -3.11 -m uvicorn server:app --reload           # the headline demo (browser)
+py -3.11 -m unittest discover -s tests -v          # 39 tests, must all pass
 ```
 
 The last test in the suite runs A's own three test files in a clean subprocess,
 so branch B cannot silently break branch A.
+
+### One gotcha we already hit (so nobody hits it again)
+
+A's `test_split_clauses.py` skips its real-document tests **only when `app.db`
+is absent**. An EMPTY `app.db` (0 bytes) makes those tests run and fail with
+`no such table: contracts`. So:
+
+- branch B never writes to `app.db` — it uses `demo.db`
+- `cli.py` always points at `demo.db`, never `app.db`
+- if you ever see `no such table: contracts` in A's tests, check for a stray
+  empty `app.db` and delete it

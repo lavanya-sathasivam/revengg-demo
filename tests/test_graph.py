@@ -216,6 +216,43 @@ class TestImpact(GraphTestCase):
         report = impact.analyze_change(CONTRACT_A, "7.2", 30, 15)
         self.assertIn("3 clause(s) directly", report["summary"])
 
+    def test_report_surfaces_legal_meaning_not_just_clause_numbers(self):
+        """MVP spec items 3, 4, 5: related obligations, conditions affected,
+        consequences. 'Clause 8.1 is affected' is useless; 'the obligation to
+        pay late charges is affected' is what a lawyer needs."""
+        report = impact.analyze_change(CONTRACT_A, "7.2", 30, 15)
+
+        for key in ("obligations", "conditions", "consequences", "deadlines"):
+            self.assertIn(key, report)
+            self.assertIsInstance(report[key], list)
+
+        obligation_clauses = {o["clause"] for o in report["obligations"]}
+        self.assertIn("8.1", obligation_clauses)
+        self.assertIn("8.2", obligation_clauses)
+        self.assertTrue(any("late charge" in o["detail"].lower()
+                            for o in report["obligations"]))
+
+        condition_clauses = {c["clause"] for c in report["conditions"]}
+        self.assertIn("10.1", condition_clauses)
+
+        consequence_clauses = {c["clause"] for c in report["consequences"]}
+        self.assertIn("12.3", consequence_clauses)
+
+        deadline_clauses = {d["clause"] for d in report["deadlines"]}
+        self.assertIn("10.2", deadline_clauses)
+
+        # every semantic item must point back at a clause
+        for bucket in ("obligations", "conditions", "consequences", "deadlines"):
+            for item in report[bucket]:
+                self.assertTrue(item["clause"])
+                self.assertTrue(item["detail"])
+
+    def test_changed_clause_effects_are_separate(self):
+        report = impact.analyze_change(CONTRACT_A, "7.2", 30, 15)
+        own = report["changed_clause_effects"]
+        self.assertTrue(own["obligations"])
+        self.assertEqual({o["clause"] for o in own["obligations"]}, {"7.2"})
+
     def test_impact_does_not_cross_contracts(self):
         """Changing 7.2 in Contract A must not reach into Contract B."""
         imp = impact.impact_of(CONTRACT_A, "7.2")
@@ -246,6 +283,66 @@ class TestConflictAndCrossContract(GraphTestCase):
                          GT["cross_contract"]["expected_payment_days"]["B"])
 
 
+class TestApiSurface(GraphTestCase):
+    """The HTTP surface Person C will build the screen against."""
+
+    def test_router_exposes_the_endpoints(self):
+        import api_b
+        paths = {r.path for r in api_b.router.routes}
+        for expected in ("/graph/{contract_id}", "/clauses/{contract_id}",
+                         "/impact", "/compare/{contract_a}/{contract_b}",
+                         "/demo/{contract_id}/suggest"):
+            self.assertIn(expected, paths)
+
+    def test_impact_endpoint_returns_all_twelve_mvp_items(self):
+        import api_b
+        report = api_b.analyze(api_b.ImpactRequest(
+            contract_id=CONTRACT_A, clause_id="7.2",
+            old_value=30, new_value=15))
+        for key in ("changed_clause", "direct", "indirect", "obligations",
+                    "conditions", "consequences", "counterfactual", "doubts",
+                    "conflicts", "evidence", "review_points", "summary"):
+            self.assertIn(key, report, "MVP spec item %s missing" % key)
+
+    def test_impact_endpoint_rejects_unknown_clause(self):
+        import api_b
+        from fastapi import HTTPException
+        with self.assertRaises(HTTPException) as ctx:
+            api_b.analyze(api_b.ImpactRequest(
+                contract_id=CONTRACT_A, clause_id="99.9",
+                old_value=1, new_value=2))
+        self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_impact_endpoint_rejects_unknown_contract(self):
+        import api_b
+        from fastapi import HTTPException
+        with self.assertRaises(HTTPException) as ctx:
+            api_b.analyze(api_b.ImpactRequest(
+                contract_id=9999, clause_id="7.2", old_value=30, new_value=15))
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_suggest_endpoint_finds_the_payment_clause(self):
+        import api_b
+        result = api_b.suggest(CONTRACT_A)
+        self.assertEqual(result["clause_id"], "7.2")
+        self.assertEqual(result["old_value"], 30)
+        self.assertEqual(result["new_value"], 15)
+        self.assertIn("request", result)
+
+    def test_graph_endpoint_returns_nodes_and_edges(self):
+        import api_b
+        payload = api_b.get_graph(CONTRACT_A)
+        self.assertGreater(payload["counts"]["nodes"], 0)
+        self.assertGreater(payload["counts"]["edges"], 0)
+        self.assertIn("src", payload["edges"][0])
+        self.assertIn("rel", payload["edges"][0])
+
+    def test_compare_endpoint(self):
+        import api_b
+        payload = api_b.compare(CONTRACT_A, CONTRACT_B)
+        self.assertTrue(payload["mismatches"])
+
+
 class TestRobustness(GraphTestCase):
     def test_unknown_clause_returns_error_not_crash(self):
         report = impact.analyze_change(CONTRACT_A, "99.9", 1, 2)
@@ -264,6 +361,22 @@ class TestRobustness(GraphTestCase):
         """llm.ask_json must never raise, even with no API key configured."""
         import llm
         self.assertIsInstance(llm.ask_json("give me json"), dict)
+
+    def test_graph_helpers_work_before_init_db(self):
+        """Reading the graph on a database that has no tables must not raise
+        'no such table' - a demo must never die on a setup mistake."""
+        import shutil as _shutil
+        empty_dir = tempfile.mkdtemp(prefix="revengg_empty_")
+        empty_db = os.path.join(empty_dir, "empty.db")
+        orig = db.get_db_path
+        db.get_db_path = lambda: empty_db
+        try:
+            adapter.ensure_graph_schema()
+            self.assertEqual(adapter.get_nodes(1), [])
+            self.assertEqual(adapter.get_edges(1), [])
+        finally:
+            db.get_db_path = orig
+            _shutil.rmtree(empty_dir, ignore_errors=True)
 
     def test_person_a_tests_still_pass(self):
         """Branch B must not break branch A.

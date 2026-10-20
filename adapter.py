@@ -66,11 +66,16 @@ _schema_ready = False
 
 
 def ensure_graph_schema(conn=None):
-    """Add the graph columns if they are missing. Never drops anything.
+    """Make sure the graph tables exist and have the columns branch B needs.
 
-    Safe to call repeatedly. Called automatically before the first graph
-    write, so branch B works even if Person A has not folded the migration
-    into db.init_db() yet.
+    - If the tables do not exist at all, we call db.init_db() (A's function),
+      so we never leave a half-created database behind. A 0-byte database file
+      is WORSE than no file: Person A's test suite skips its real-document
+      tests only when app.db is absent, so an empty app.db breaks their run.
+    - The three extra columns are added with safe ALTER TABLE migrations (the
+      same pattern A already used for contracts.raw_text). Nothing is dropped.
+
+    Safe to call repeatedly.
     """
     global _schema_ready
     if _schema_ready and conn is None:
@@ -78,7 +83,18 @@ def ensure_graph_schema(conn=None):
     own = conn is None
     conn = conn or db.get_conn()
     try:
+        tables = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if "nodes" not in tables or "edges" not in tables:
+            # the database has not been initialised yet - let A create it
+            conn.commit()
+            db.init_db()
+            conn = db.get_conn()
+            tables = {r[0] for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'")}
         for table, column, coltype in _GRAPH_MIGRATIONS:
+            if table not in tables:
+                continue
             existing = [r[1] for r in conn.execute("PRAGMA table_info(%s)" % table)]
             if column not in existing:
                 conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, coltype))
@@ -241,11 +257,18 @@ def insert_edge(contract_id, source_node, target_node, relationship_type):
         conn.close()
 
 
+def _table_exists(conn, table):
+    return table in {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table'")}
+
+
 def get_nodes(contract_id):
-    """All graph nodes of one contract."""
+    """All graph nodes of one contract. Empty list if the table does not exist."""
     conn = db.get_conn()
     try:
         ensure_graph_schema(conn)
+        if not _table_exists(conn, "nodes"):
+            return []
         rows = conn.execute(
             """SELECT node_id, clause_reference, node_type, contract_id, detail
                FROM nodes WHERE contract_id = ? ORDER BY node_id""",
@@ -266,6 +289,8 @@ def get_edges(contract_id):
     conn = db.get_conn()
     try:
         ensure_graph_schema(conn)
+        if not _table_exists(conn, "edges"):
+            return []
         rows = conn.execute(
             """SELECT s.clause_reference AS src_ref, t.clause_reference AS dst_ref,
                       e.relationship_type AS rel

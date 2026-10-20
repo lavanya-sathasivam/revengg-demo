@@ -86,6 +86,58 @@ def _evidence(sec_no, index, why):
     }
 
 
+# Which node kinds mean what in the impact report.
+# The MVP spec asks for four things the lawyer reads separately:
+#   obligations  - what the parties must DO
+#   conditions   - what must be true / what triggers
+#   consequences - what happens if it goes wrong
+#   deadlines    - when it is due
+_KIND_BUCKETS = {
+    "obligation": "obligations",
+    "condition": "conditions",
+    "termination": "consequences",
+    "deadline": "deadlines",
+    "payment": "obligations",
+    "right": "rights",
+    "definition": "definitions",
+}
+
+
+def affected_semantics(contract_id, impacted_secs):
+    """Group the impacted clauses' semantic nodes by what they MEAN.
+
+    This is the difference between "clause 8.1 is affected" (useless) and
+    "the Customer's obligation to pay late charges at 1.5% per month is
+    affected" (useful to a lawyer).
+
+    Returns {obligations: [...], conditions: [...], consequences: [...],
+             deadlines: [...], rights: [...], definitions: [...]}
+    """
+    wanted = set(impacted_secs)
+    out = {"obligations": [], "conditions": [], "consequences": [],
+           "deadlines": [], "rights": [], "definitions": []}
+
+    for node in adapter.get_nodes(contract_id):
+        ref = node.get("clause_reference") or ""
+        if "::" not in ref:
+            continue                      # this is the clause node itself
+        sec_no, kind = ref.split("::", 1)
+        if sec_no not in wanted:
+            continue
+        bucket = _KIND_BUCKETS.get(node.get("node_type"))
+        if not bucket:
+            continue
+        out[bucket].append({
+            "clause": sec_no,
+            "kind": node.get("node_type"),
+            "detail": node.get("detail", ""),
+        })
+
+    for bucket in out:
+        out[bucket].sort(key=lambda x: (x["clause"], x["detail"]))
+    return out
+
+
 # ---------------------------------------------------------------------------
 # 1. IMPACT
 # ---------------------------------------------------------------------------
@@ -471,6 +523,11 @@ def analyze_change(contract_id, changed_sec, old_value, new_value):
     doubts = detect_doubts(contract_id, changed_sec, old_value, new_value)
     clashes = clash_check(contract_id)
 
+    # what the impacted clauses MEAN, not just which numbers they are
+    impacted_secs = [h["sec_no"] for h in imp["all"]]
+    semantics = affected_semantics(contract_id, impacted_secs)
+    semantics["of_changed_clause"] = affected_semantics(contract_id, [changed_sec])
+
     evidence = [_evidence(changed_sec, index, "the clause being changed")]
     for h in imp["all"]:
         evidence.append(_evidence(h["sec_no"], index,
@@ -490,6 +547,13 @@ def analyze_change(contract_id, changed_sec, old_value, new_value):
         "direct": imp["direct"],
         "indirect": imp["indirect"],
         "chain": imp["chain"],
+        "obligations": semantics["obligations"],
+        "conditions": semantics["conditions"],
+        "consequences": semantics["consequences"],
+        "deadlines": semantics["deadlines"],
+        "rights": semantics["rights"],
+        "definitions": semantics["definitions"],
+        "changed_clause_effects": semantics["of_changed_clause"],
         "counterfactual": cfact,
         "doubts": doubts,
         "conflicts": clashes,
@@ -497,9 +561,11 @@ def analyze_change(contract_id, changed_sec, old_value, new_value):
         "review_points": review_points,
         "summary": (
             "Changing Clause %s from %s to %s affects %d clause(s) directly and "
-            "%d indirectly. The system has %d open question(s) that a lawyer should "
+            "%d indirectly. It touches %d obligation(s) and %d condition(s). "
+            "The system has %d open question(s) that a lawyer should "
             "resolve before this change is accepted."
             % (changed_sec, old_value, new_value, len(imp["direct"]),
-               len(imp["indirect"]), len(doubts))
+               len(imp["indirect"]), len(semantics["obligations"]),
+               len(semantics["conditions"]), len(doubts))
         ),
     }

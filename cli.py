@@ -21,12 +21,22 @@ DEMO_DB = os.path.join(HERE, "demo.db")
 
 # Branch B's demo data lives in demo.db so it never overwrites the contract
 # Person A uploaded into app.db (their test suite reads contract 1 from it).
-if os.path.exists(DEMO_DB):
-    db.get_db_path = lambda: DEMO_DB
+# We ALWAYS point at demo.db - pointing at app.db by mistake would create a
+# stray empty app.db, and Person A's test_split_clauses skips its real-document
+# tests only when app.db is ABSENT, so an empty app.db breaks their suite.
+db.get_db_path = lambda: DEMO_DB
 
 import adapter     # noqa: E402
 import graph       # noqa: E402
 import impact      # noqa: E402
+
+
+def list_contracts_safe():
+    """list_contracts that survives an un-seeded database."""
+    try:
+        return adapter.list_contracts()
+    except Exception:
+        return []
 
 
 def print_graph(contract_id):
@@ -73,6 +83,25 @@ def print_impact(report):
 
     print("\nCAUSAL CHAIN")
     print("  " + "  ->  ".join(report["chain"]))
+
+    print("\nWHAT IS AFFECTED, IN LEGAL TERMS")
+    groups = [
+        ("Obligations", report.get("obligations", [])),
+        ("Conditions", report.get("conditions", [])),
+        ("Consequences", report.get("consequences", [])),
+        ("Deadlines", report.get("deadlines", [])),
+        ("Rights", report.get("rights", [])),
+    ]
+    any_group = False
+    for label, items in groups:
+        if not items:
+            continue
+        any_group = True
+        print("  %s:" % label)
+        for it in items:
+            print("    - Clause %-6s %s" % (it["clause"], it["detail"]))
+    if not any_group:
+        print("  (no semantic nodes recorded for the impacted clauses)")
 
     print("\nOLD vs NEW")
     for row in report["counterfactual"]["rows"]:
@@ -140,8 +169,13 @@ def main():
         return
 
     if args.list or args.contract is None:
+        rows = list_contracts_safe()
+        if not rows:
+            print("\nNo contracts in demo.db yet.")
+            print("Run this first:  py -3.11 seed.py\n")
+            return
         print("\nCONTRACTS")
-        for c in adapter.list_contracts():
+        for c in rows:
             print("  %d  %s  (%s)" % (c["contract_id"], c["filename"],
                                       c["processing_status"]))
         print("\nuse: --contract <id> --change 7.2:30:15")
