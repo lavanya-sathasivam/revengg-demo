@@ -30,6 +30,17 @@ REQUEST SHAPE for POST /impact
       "new_value": 15
     }
 
+    clause_id is a section number scoped to contract_id. The server reads that
+    clause from the database and rejects the request if old_value does not
+    match the value stored in the requested contract; the client's old_value
+    is an expectation, never the authoritative baseline.
+
+    old_value and new_value are numbers in the unit implied by the clause:
+    days for a payment period and percentage points for an SLA. Decimal values
+    such as 99.5 are accepted. The API has no unit field and performs no
+    conversion between days, months, years, or percentages; a modelled value
+    stored in a different unit is rejected.
+
 RESPONSE SHAPE (all 12 items of the MVP spec)
     changed_clause     what you changed
     direct             clauses hit directly
@@ -48,8 +59,11 @@ The engine never raises on a bad input: it returns an {"error": ...} body
 with HTTP 400 so the demo cannot die mid-presentation.
 """
 
+import math
+from decimal import Decimal
+
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import adapter
 import clauses as clause_tools
@@ -58,12 +72,42 @@ import impact
 
 router = APIRouter(tags=["impact-analysis (branch b)"])
 
+_INVALID_NUMBER = "__invalid_number__"
+_NON_FINITE_NUMBER = "__non_finite_number__"
+
 
 class ImpactRequest(BaseModel):
     contract_id: int
     clause_id: str = Field(..., examples=["7.2"])
-    old_value: int = Field(..., examples=[30])
-    new_value: int = Field(..., examples=[15])
+    old_value: Decimal = Field(
+        ..., examples=[30],
+        description="Current value in the clause's implied unit: days for "
+                    "payment, percentage points for SLA.",
+    )
+    new_value: Decimal = Field(
+        ..., examples=[15],
+        description="Proposed value in the same implied unit.",
+    )
+
+    @field_validator("old_value", "new_value", mode="before")
+    @classmethod
+    def _reject_non_finite(cls, value):
+        """Keep NaN/infinity from breaking the 422 error response itself.
+
+        Pydantic rejects non-finite Decimals, but FastAPI then tries to echo
+        the original NaN/infinity in the validation detail, which Python's
+        JSON encoder cannot serialise. Substituting an ordinary marker string
+        makes the rejection serialisable while still failing validation.
+        """
+        if isinstance(value, bool):
+            return _INVALID_NUMBER
+        if isinstance(value, float):
+            return value if math.isfinite(value) else _NON_FINITE_NUMBER
+        if isinstance(value, Decimal):
+            return value if value.is_finite() else _NON_FINITE_NUMBER
+        if isinstance(value, (int, str)):
+            return value
+        return _INVALID_NUMBER
 
 
 def _contract_or_404(contract_id):
@@ -125,7 +169,10 @@ def analyze(req: ImpactRequest):
     report = impact.analyze_change(req.contract_id, req.clause_id,
                                     req.old_value, req.new_value)
     if "error" in report:
-        raise HTTPException(status_code=400, detail=report["error"])
+        raise HTTPException(
+            status_code=report.get("http_status", 400),
+            detail=report["error"],
+        )
     return report
 
 

@@ -285,6 +285,13 @@ def get_edges(contract_id):
     Edges in A's schema point at node ids. We resolve them back to clause
     references so the graph logic can stay readable. Element nodes are
     referenced as '7.2::payment'; clause nodes as '7.2'.
+
+    Scope is enforced on the ROW and on BOTH endpoints. It is not enough for
+    the edge row to claim contract X: if a corrupt or maliciously inserted edge
+    points at a node from contract Y, returning it would leak Y's clause
+    reference into X's graph and evidence. Such rows are dropped (fail closed)
+    rather than repaired, because the graph cannot prove which contract the
+    relationship really belongs to.
     """
     conn = db.get_conn()
     try:
@@ -298,6 +305,8 @@ def get_edges(contract_id):
                JOIN nodes s ON s.node_id = e.source_node
                JOIN nodes t ON t.node_id = e.target_node
                WHERE e.contract_id = ?
+                 AND s.contract_id = e.contract_id
+                 AND t.contract_id = e.contract_id
                ORDER BY e.edge_id""",
             (contract_id,),
         ).fetchall()

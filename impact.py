@@ -16,6 +16,9 @@ Every item carries evidence (a clause id) so the reasoning layer on branch C
 can cite it.
 """
 
+import math
+from decimal import Decimal
+
 import adapter
 import clauses as clause_tools
 import graph
@@ -39,6 +42,180 @@ def _clause_index(contract_id):
             "level": meta.get("level", 1),
         }
     return index
+
+
+def _error(code, message, http_status=400):
+    """A machine-readable rejection that the HTTP layer can return safely."""
+    return {"error": message, "error_code": code, "http_status": http_status}
+
+
+def _as_decimal(value):
+    """An exact, finite Decimal for a supported numeric value, else None.
+
+    Decimal(str(float)) is deliberate: Decimal(float) would preserve the
+    binary representation error, which is exactly what this comparison is
+    meant to avoid. Strings are not accepted here; HTTP/Pydantic owns that
+    coercion and direct callers must pass a numeric type.
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, Decimal):
+        number = value
+    elif isinstance(value, int):
+        number = Decimal(value)
+    elif isinstance(value, float):
+        if not math.isfinite(value):
+            return None
+        number = Decimal(str(value))
+    else:
+        return None
+    if not number.is_finite():
+        return None
+    return number
+
+
+def _same_number(left, right):
+    """Compare values as exact decimals, not binary floats."""
+    left_number = _as_decimal(left)
+    right_number = _as_decimal(right)
+    if left_number is None or right_number is None:
+        return False
+    return left_number == right_number
+
+
+def _stored_values(clause):
+    """The authoritative values a stored clause states, never the request's.
+
+    The API has no unit field, so the modelled change types carry an implicit
+    unit: payment periods are days and service levels are percentage points.
+    Only values in that unit are returned. A payment clause whose operative
+    period is stated in months (or an SLA clause with no percentage) therefore
+    yields no comparable value and is rejected as unsupported rather than
+    having its number silently reinterpreted in the expected unit.
+    """
+    text = clause.get("text", "") or ""
+    ctype = clause.get("type")
+    values = []
+
+    if ctype == "payment":
+        within = clause_tools.find_within_days(text)
+        if within is not None:
+            values.append({"value": within, "unit": "days"})
+        elif not clause_tools.WITHIN_RE.search(text):
+            # No 'within' period at all: day numbers elsewhere in the clause
+            # are still usable. A 'within N months' period is deliberately
+            # left empty so validation can reject it without inventing days.
+            values = [{"value": n["value"], "unit": n["unit"]}
+                      for n in clause_tools.find_numbers(text)
+                      if n["unit"] == "days"]
+    elif ctype == "sla":
+        percentages = _pct_in(clause)
+        if percentages:
+            values.append({"value": percentages[0], "unit": "%"})
+    else:
+        # No arithmetic is modelled for other types, so there is no unit
+        # convention to enforce; preserve the existing number check.
+        values = [{"value": n["value"], "unit": n["unit"]}
+                  for n in clause_tools.find_numbers(text)]
+
+    unique = []
+    seen = set()
+    for item in values:
+        key = (_as_decimal(item["value"]), item["unit"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(item)
+    return unique
+
+
+def _format_stored_values(values):
+    return ", ".join(
+        "%s%s" % (_fmt_num(v["value"]), v["unit"])
+        if v["unit"] == "%"
+        else "%s %s" % (_fmt_num(v["value"]), v["unit"])
+        for v in values
+    )
+
+
+def _coerce_change_values(old_value, new_value):
+    """Return exact Decimal values, or a rejection for invalid input."""
+    old_number = _as_decimal(old_value)
+    new_number = _as_decimal(new_value)
+    if old_number is None or new_number is None:
+        return None, None, _error(
+            "invalid_change_value",
+            "old_value and new_value must be finite numbers.",
+        )
+    if old_number < 0 or new_number < 0:
+        return None, None, _error(
+            "invalid_change_value",
+            "old_value and new_value must be non-negative.",
+        )
+    return old_number, new_number, None
+
+
+def _unsupported_unit(changed_sec, changed):
+    """Reject a modelled value stated in a unit the API cannot express.
+
+    No conversion is performed. In particular a 'within 2 months' payment
+    period is not treated as 2 or 60 days, and a non-percentage SLA figure is
+    not treated as a percentage.
+    """
+    expected = {"payment": "days", "sla": "%"}.get(changed.get("type"))
+    if expected is None:
+        return None
+    observed = []
+    for number in clause_tools.find_numbers(changed.get("text", "") or ""):
+        unit = number["unit"]
+        if unit != expected and unit not in observed:
+            observed.append(unit)
+    if not observed:
+        return None
+    return _error(
+        "unsupported_unit",
+        "Clause %s states values in %s, but this change type is modelled "
+        "only in %s. No unit conversion is performed; submit the change in "
+        "%s." % (changed_sec, ", ".join(observed), expected, expected),
+    )
+
+
+def _validate_change_values(changed_sec, changed, old_value, new_value):
+    """Reject values that do not match the stored clause.
+
+    old_value is the client's assertion about the current contract. It must be
+    checked against the clause row read for THIS contract; otherwise a caller
+    could make the report say Clause 7.2 currently reads 999 days and derive
+    arithmetic from a value the contract never contained.
+
+    A clause with no parseable value in its modelled unit has nothing to
+    compare against. The existing 'no arithmetic modelled' behaviour is
+    preserved for other clause types, but a payment/SLA value stated in a
+    different unit is rejected rather than converted.
+    """
+    if old_value is None or new_value is None:
+        return _error(
+            "missing_change_value",
+            "Both old_value and new_value are required.",
+        )
+    old_number, _new_number, value_error = _coerce_change_values(
+        old_value, new_value
+    )
+    if value_error is not None:
+        return value_error
+
+    stored = _stored_values(changed)
+    if not stored:
+        return _unsupported_unit(changed_sec, changed)
+    if not any(_same_number(old_number, item["value"]) for item in stored):
+        return _error(
+            "stale_old_value",
+            "old_value %s does not match the stored value for Clause %s "
+            "(%s). Re-read the clause and submit its current value."
+            % (_fmt_num(old_number), changed_sec,
+               _format_stored_values(stored)),
+        )
+    return None
 
 
 def _days_in(clause):
@@ -70,7 +247,13 @@ def _payment_days(index):
 
 def _fmt_num(value):
     """Format a number without truncating decimals (1.5 must not print as 1)."""
-    if isinstance(value, float) and value == int(value):
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            return str(value)
+        if value == value.to_integral_value():
+            return str(int(value))
+        return format(value.normalize(), "f")
+    if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
 
@@ -141,10 +324,34 @@ def affected_semantics(contract_id, impacted_secs):
 # ---------------------------------------------------------------------------
 # 1. IMPACT
 # ---------------------------------------------------------------------------
+def _reference_section(reference):
+    """'7.2::payment' -> '7.2'; '7.2' stays '7.2'."""
+    return str(reference or "").split("::", 1)[0]
+
+
+def _scoped_edges(contract_id, index):
+    """Edges that connect only clauses belonging to this contract.
+
+    adapter.get_edges() already enforces the contract on both node rows. This
+    second check keeps impact traversal and evidence inside the verified clause
+    set even if a node row exists for this contract but points at a section the
+    contract does not actually store.
+    """
+    edges = []
+    for edge in adapter.get_edges(contract_id):
+        if (_reference_section(edge.get("src")) in index
+                and _reference_section(edge.get("dst")) in index):
+            edges.append(edge)
+    return edges
+
+
 def impact_of(contract_id, changed_sec, max_hops=3):
     """Direct and indirect impact of changing one clause."""
-    edges = adapter.get_edges(contract_id)
+    index = _clause_index(contract_id)
+    edges = _scoped_edges(contract_id, index)
     hits = graph.find_impact(changed_sec, edges, max_hops=max_hops)
+    # Never report a graph-derived clause that is not stored in this contract.
+    hits = [hit for hit in hits if hit.get("sec_no") in index]
     direct = [h for h in hits if h["hops"] == 1]
     indirect = [h for h in hits if h["hops"] >= 2]
     return {
@@ -222,16 +429,16 @@ def _payment_counterfactual(index, changed_sec, old_value, new_value):
 
     rows.append({
         "metric": "Payment deadline (Clause %s)" % changed_sec,
-        "old": "%s days" % old_value,
-        "new": "%s days" % new_value,
+        "old": "%s days" % _fmt_num(old_value),
+        "new": "%s days" % _fmt_num(new_value),
         "changed": True,
     })
 
     if cure_days is not None:
         rows.append({
             "metric": "Default can be declared on (payment + cure)",
-            "old": "day %d" % (old_value + cure_days),
-            "new": "day %d" % (new_value + cure_days),
+            "old": "day %s" % _fmt_num(old_value + cure_days),
+            "new": "day %s" % _fmt_num(new_value + cure_days),
             "changed": True,
             "detail": "cure period %d days (Clause %s)" % (cure_days, cure_clause),
         })
@@ -243,8 +450,8 @@ def _payment_counterfactual(index, changed_sec, old_value, new_value):
     if has_interest:
         rows.append({
             "metric": "Interest accrual window",
-            "old": "%s days" % old_value,
-            "new": "%s days" % new_value,
+            "old": "%s days" % _fmt_num(old_value),
+            "new": "%s days" % _fmt_num(new_value),
             "changed": True,
         })
 
@@ -388,6 +595,14 @@ def counterfactual(contract_id, changed_sec, old_value, new_value):
     """
     index = _clause_index(contract_id)
     changed = index.get(changed_sec, {})
+    validation_error = _validate_change_values(
+        changed_sec, changed, old_value, new_value
+    )
+    if validation_error is not None:
+        # analyze_change() rejects this before calling us. Raising here keeps a
+        # direct counterfactual() call from calculating with NaN, infinity,
+        # a negative value, or a value in the wrong unit.
+        raise ValueError(validation_error["error"])
     ctype = changed.get("type")
 
     if ctype == "payment":
@@ -453,7 +668,8 @@ def detect_doubts(contract_id, changed_sec, old_value, new_value):
             "review_point": "Confirm the interaction between Clause %s and Definition %s."
                             % (changed_sec, e["dst"]),
         })
-        if def_days and def_days[0] == old_value and def_days[0] != new_value:
+        if (def_days and _same_number(def_days[0], old_value)
+                and not _same_number(def_days[0], new_value)):
             doubts.append({
                 "code": "cross_ref_mismatch",
                 "severity": "high",
@@ -475,7 +691,8 @@ def detect_doubts(contract_id, changed_sec, old_value, new_value):
         if not clause:
             continue
         nums = [n for n in clause_tools.find_numbers(clause["text"])
-                if n["value"] not in (old_value, new_value)]
+                if not any(_same_number(n["value"], value)
+                           for value in (old_value, new_value))]
         if not nums:
             continue
         first = nums[0]
@@ -579,7 +796,7 @@ def detect_doubts(contract_id, changed_sec, old_value, new_value):
     # -- D7 service level vs the credit schedule ---------------------------
     if changed_type == "sla":
         schedule_sec, credit = _find_credit_schedule(index)
-        if credit and credit["threshold_pct"] != new_value:
+        if credit and not _same_number(credit["threshold_pct"], new_value):
             doubts.append({
                 "code": "sla_schedule_mismatch",
                 "severity": "high",
@@ -768,11 +985,32 @@ def portfolio_anomaly(contract_ids):
 # 6. THE MAIN ENTRY POINT
 # ---------------------------------------------------------------------------
 def analyze_change(contract_id, changed_sec, old_value, new_value):
-    """Full impact report for one proposed change."""
+    """Full impact report for one proposed change.
+
+    The request is only a pointer: the authoritative clause is read from the
+    database for the requested contract, and old_value must match that stored
+    clause. Client-supplied values never become the baseline for arithmetic.
+    """
+    if adapter.get_contract(contract_id) is None:
+        return _error(
+            "unknown_contract",
+            "Contract %s not found." % contract_id,
+            http_status=404,
+        )
+
     index = _clause_index(contract_id)
     changed = index.get(changed_sec)
     if not changed:
-        return {"error": "Clause %s not found in this contract." % changed_sec}
+        return _error(
+            "unknown_clause",
+            "Clause %s not found in contract %s." % (changed_sec, contract_id),
+        )
+
+    validation_error = _validate_change_values(
+        changed_sec, changed, old_value, new_value
+    )
+    if validation_error is not None:
+        return validation_error
 
     imp = impact_of(contract_id, changed_sec)
     cfact = counterfactual(contract_id, changed_sec, old_value, new_value)
