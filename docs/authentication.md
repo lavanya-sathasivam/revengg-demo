@@ -13,6 +13,7 @@
 - Contract reads, clause reads, graph, impact, explanation, suggestion, comparison, and upload all use the active firm.
 - Foreign and unknown contract ids both return `404`; a member without the required role gets `403`.
 - Demo mode remains anonymous and read-only, and only sees `contracts.firm_id IS NULL`.
+- Security-relevant actions and denials are written to an append-only `audit_events` table. This covers firm/user/membership/session lifecycle, authentication and authorization denials, firm-switch denials, uploads, clause persistence, and graph publication/failure. Audit metadata is sanitized and must not contain contract text, clause text, session tokens, or secrets.
 
 There is deliberately **no login endpoint, password table, password hash, MFA, SSO, or production identity provider integration** yet. OQ-02 in `docs/DECISIONS_AND_OPEN_QUESTIONS.md` remains open.
 
@@ -118,7 +119,8 @@ Authentication and authorization semantics:
 - Cookie-authenticated state changes rely on `SameSite=Lax` in this phase. A separate CSRF token is not implemented; do not add permissive CORS or cross-site embedding.
 - SQLite is local/test storage, not production multi-tenant storage. There is no PostgreSQL or row-level security in this phase.
 - Filesystem access to the SQLite database or upload directory is outside the HTTP authorization boundary.
-- No audit log, rate limiting, account lockout, MFA, SSO, or session rotation on privilege change is implemented yet.
+- No rate limiting, account lockout, MFA, SSO, or session rotation on privilege change is implemented yet.
+- The audit trail is append-only at the SQLite trigger level, but there is no audit viewer, export endpoint, retention job, access-review workflow, or protection against a database owner who can drop triggers. See `docs/phase5_integrity.md`.
 - No production identity provider is selected. Do not treat local provisioning as production login.
 - Session tokens are bearer credentials. Anyone who obtains one can use it until expiry or logout.
 - In upload mode the HTML workspaces are public shells but have no browser login flow yet. Their API calls return `401` until a session cookie is provisioned out of band or an approved IdP integration is added.
@@ -129,7 +131,7 @@ Authentication and authorization semantics:
 - Choose and approve an identity provider, MFA policy, SSO model, and production session policy (OQ-02).
 - Approve a production CSRF strategy if cookie-authenticated state changes remain browser-facing.
 - Approve PostgreSQL and RLS before claiming database-enforced tenant isolation.
-- Add audit logging for authentication, authorization denials, membership changes, and uploads.
+- Approve audit retention, audit access roles, export policy, and access-review cadence (OQ-13).
 - Decide whether matter-level/ethical-wall permissions are required at launch (OQ-06).
 - Add session rotation, absolute/idle timeouts, device/session management, and revocation tooling.
 - Decide how legacy unclassified upload rows should be quarantined/reclassified; rows with `firm_id IS NULL` are never visible to firm members.

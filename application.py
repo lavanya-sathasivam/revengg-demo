@@ -15,6 +15,7 @@ from fastapi.routing import iter_route_contexts
 import api_a
 import api_auth
 import api_b
+import audit
 import auth
 import db
 from app_config import AppSettings, BASE_DIR, MODE_DEMO, load_settings
@@ -144,6 +145,22 @@ def create_app(
                 and not auth.is_public_path(request.url.path)
                 and not principal.authenticated
             ):
+                # Anonymous requests never reach a handler, but the denied
+                # attempt is still security-relevant evidence.  A failed audit
+                # write must not turn a 401 into a 500.
+                audit.record_event(
+                    "auth.denied",
+                    "denied",
+                    actor_type="anonymous",
+                    target_type="route",
+                    target_id=request.url.path,
+                    metadata={
+                        "path": request.url.path,
+                        "method": request.method,
+                        "reason": "not_authenticated",
+                    },
+                    swallow=True,
+                )
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Authentication required"},

@@ -287,14 +287,14 @@ class UploadFlowTests(ApiTestCase):
             self.assertEqual(edge_contract, source_contract)
             self.assertEqual(edge_contract, target_contract)
 
-    def test_graph_build_failure_clears_partial_graph_and_records_failure(self):
-        original_build = graph.build_graph
-
-        def build_then_fail(contract_id, **kwargs):
-            original_build(contract_id, **kwargs)
-            raise RuntimeError("simulated graph failure")
-
-        with mock.patch.object(graph, "build_graph", side_effect=build_then_fail):
+    def test_graph_build_failure_leaves_no_partial_graph_and_records_failure(self):
+        # Force failure at the atomic publication boundary, after clauses are
+        # saved but before any node or edge can become visible.
+        with mock.patch.object(
+            adapter,
+            "replace_graph",
+            side_effect=RuntimeError("simulated graph failure"),
+        ):
             with self.assertRaises(HTTPException) as ctx:
                 self._upload(DEPENDENCY_PDF)
         self.assertEqual(ctx.exception.status_code, 500)
@@ -307,6 +307,12 @@ class UploadFlowTests(ApiTestCase):
         self.assertTrue(db.list_clauses(cid))
         self.assertEqual(adapter.get_nodes(cid), [])
         self.assertEqual(adapter.get_edges(cid), [])
+
+        builds = db.list_graph_builds(cid)
+        self.assertEqual(len(builds), 1)
+        self.assertEqual(builds[0]["status"], "failed")
+        self.assertEqual(builds[0]["error_type"], "RuntimeError")
+
         analysis_error = self.client.post(
             "/impact",
             json={

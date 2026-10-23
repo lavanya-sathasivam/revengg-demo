@@ -18,6 +18,7 @@ valid session and always scopes data to the session's active firm.
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -25,6 +26,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, Request, Response
 
 import db
+
+logger = logging.getLogger("app.auth")
 
 SESSION_COOKIE_NAME = "revengg_session"
 DEFAULT_SESSION_TTL_SECONDS = 8 * 60 * 60
@@ -111,6 +114,60 @@ def _require_role(role: str) -> str:
     return role
 
 
+def _record_audit(
+    action,
+    outcome="success",
+    *,
+    principal=None,
+    firm_id=None,
+    actor_user_id=None,
+    actor_type="system",
+    target_type=None,
+    target_id=None,
+    correlation_id=None,
+    metadata=None,
+    conn=None,
+    commit=True,
+    swallow=False,
+):
+    """Write an audit event without making demo mode writable.
+
+    Demo mode opens a read-only database.  A skipped audit write there is not
+    a silent security failure: the demo contains only synthetic read-only data
+    and has no authenticated actor.  In upload mode failures are either
+    propagated (default) or logged (``swallow`` on denial paths).
+    """
+
+    if principal is not None:
+        if principal.demo:
+            return None
+        if principal.authenticated:
+            actor_user_id = principal.user_id
+            actor_type = "user"
+            if firm_id is None:
+                firm_id = principal.firm_id
+    config = db.get_database_config()
+    if config is not None and config.read_only:
+        return None
+
+    import audit
+
+    return audit.record_event(
+        action,
+        outcome,
+        firm_id=firm_id,
+        actor_user_id=actor_user_id,
+        actor_type=actor_type,
+        target_type=target_type,
+        target_id=target_id,
+        correlation_id=correlation_id,
+        metadata=metadata,
+        conn=conn,
+        commit=commit,
+        swallow=swallow,
+    )
+
+
 def is_public_path(path: str) -> bool:
     """Return True for routes that never expose firm data.
 
@@ -134,8 +191,21 @@ def create_firm(name: str) -> int:
             "INSERT INTO firms (name, created_at) VALUES (?, ?)",
             (name, _iso(_now())),
         )
+        firm_id = cur.lastrowid
+        _record_audit(
+            "firm.created",
+            firm_id=firm_id,
+            target_type="firm",
+            target_id=firm_id,
+            metadata={"name": name},
+            conn=conn,
+            commit=False,
+        )
         conn.commit()
-        return cur.lastrowid
+        return firm_id
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -170,8 +240,20 @@ def create_user(subject: str, display_name: str | None = None) -> int:
                VALUES (?, ?, ?, 0)""",
             (subject, display_name, _iso(_now())),
         )
+        user_id = cur.lastrowid
+        _record_audit(
+            "user.created",
+            target_type="user",
+            target_id=user_id,
+            metadata={"user_id": user_id},
+            conn=conn,
+            commit=False,
+        )
         conn.commit()
-        return cur.lastrowid
+        return user_id
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -190,7 +272,19 @@ def add_membership(firm_id: int, user_id: int, role: str) -> None:
                DO UPDATE SET role = excluded.role""",
             (firm_id, user_id, role, _iso(_now())),
         )
+        _record_audit(
+            "membership.upserted",
+            firm_id=firm_id,
+            target_type="membership",
+            target_id="%s:%s" % (firm_id, user_id),
+            metadata={"firm_id": firm_id, "user_id": user_id, "role": role},
+            conn=conn,
+            commit=False,
+        )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -266,7 +360,7 @@ def create_session(
 
         token = secrets.token_urlsafe(32)
         now = _now()
-        conn.execute(
+        cur = conn.execute(
             """INSERT INTO auth_sessions
                    (token_hash, user_id, active_firm_id, created_at,
                     expires_at, revoked_at)
@@ -279,8 +373,27 @@ def create_session(
                 _iso(now + timedelta(seconds=ttl)),
             ),
         )
+        session_id = cur.lastrowid
+        _record_audit(
+            "session.created",
+            firm_id=active_firm_id,
+            actor_user_id=user_id,
+            actor_type="user",
+            target_type="session",
+            target_id=session_id,
+            metadata={
+                "session_id": session_id,
+                "user_id": user_id,
+                "active_firm_id": active_firm_id,
+            },
+            conn=conn,
+            commit=False,
+        )
         conn.commit()
         return token
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -410,6 +523,14 @@ def require_authenticated(principal: Principal) -> Principal:
     if principal.demo:
         return principal
     if not principal.authenticated:
+        _record_audit(
+            "auth.denied",
+            "denied",
+            actor_type="anonymous",
+            target_type="route",
+            metadata={"reason": "not_authenticated"},
+            swallow=True,
+        )
         raise HTTPException(
             status_code=401,
             detail="Authentication required",
@@ -425,6 +546,14 @@ def require_active_firm(principal: Principal) -> int | None:
         return None
     require_authenticated(principal)
     if principal.firm_id is None:
+        _record_audit(
+            "authorization.denied",
+            "denied",
+            principal=principal,
+            target_type="firm",
+            metadata={"reason": "no_active_firm"},
+            swallow=True,
+        )
         raise HTTPException(
             status_code=403,
             detail="No active firm is selected for this session.",
@@ -441,6 +570,18 @@ def require_upload_permission(principal: Principal) -> int:
     require_authenticated(principal)
     firm_id = require_active_firm(principal)
     if principal.role not in UPLOAD_ROLES:
+        _record_audit(
+            "upload.denied",
+            "denied",
+            principal=principal,
+            target_type="firm",
+            target_id=firm_id,
+            metadata={
+                "reason": "insufficient_role",
+                "role": principal.role,
+            },
+            swallow=True,
+        )
         raise HTTPException(
             status_code=403,
             detail="Your firm role does not permit contract uploads.",
@@ -457,10 +598,21 @@ def authorized_contract(contract_id: int, principal: Principal) -> dict:
 
     if principal.demo:
         contract = db.get_contract_for_firm(contract_id, None)
+        firm_id = None
     else:
         firm_id = require_active_firm(principal)
         contract = db.get_contract_for_firm(contract_id, firm_id)
     if contract is None:
+        _record_audit(
+            "contract.access_denied",
+            "denied",
+            principal=principal,
+            firm_id=firm_id,
+            target_type="contract",
+            target_id=contract_id,
+            metadata={"reason": "not_found_or_foreign"},
+            swallow=True,
+        )
         raise HTTPException(status_code=404, detail="Contract not found")
     return contract
 
@@ -514,6 +666,15 @@ def switch_active_firm(principal: Principal, firm_id: int) -> Principal:
     require_authenticated(principal)
     membership = get_membership(principal.user_id, firm_id)
     if membership is None:
+        _record_audit(
+            "firm.switch_denied",
+            "denied",
+            principal=principal,
+            target_type="firm",
+            target_id=firm_id,
+            metadata={"reason": "not_a_member"},
+            swallow=True,
+        )
         raise HTTPException(
             status_code=403,
             detail="You do not have access to that firm.",
@@ -527,9 +688,37 @@ def switch_active_firm(principal: Principal, firm_id: int) -> Principal:
                WHERE session_id = ? AND user_id = ? AND revoked_at IS NULL""",
             (firm_id, principal.session_id, principal.user_id),
         )
-        conn.commit()
         if cur.rowcount != 1:
+            conn.rollback()
+            _record_audit(
+                "firm.switch_denied",
+                "denied",
+                principal=principal,
+                target_type="firm",
+                target_id=firm_id,
+                metadata={"reason": "session_no_longer_valid"},
+                swallow=True,
+            )
             raise HTTPException(status_code=401, detail="Session is no longer valid.")
+        _record_audit(
+            "firm.switched",
+            principal=principal,
+            firm_id=firm_id,
+            target_type="firm",
+            target_id=firm_id,
+            metadata={
+                "previous_firm_id": principal.firm_id,
+                "active_firm_id": firm_id,
+            },
+            conn=conn,
+            commit=False,
+        )
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -545,12 +734,25 @@ def logout(principal: Principal) -> None:
         return
     conn = db.get_conn()
     try:
-        conn.execute(
+        cur = conn.execute(
             """UPDATE auth_sessions SET revoked_at = ?
                WHERE session_id = ? AND revoked_at IS NULL""",
             (_iso(_now()), principal.session_id),
         )
+        if cur.rowcount == 1:
+            _record_audit(
+                "session.revoked",
+                principal=principal,
+                target_type="session",
+                target_id=principal.session_id,
+                metadata={"session_id": principal.session_id},
+                conn=conn,
+                commit=False,
+            )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 

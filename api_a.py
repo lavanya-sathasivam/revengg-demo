@@ -5,23 +5,24 @@ one canonical router. app.py remains the historical import path and re-exports
 these names for existing callers.
 """
 
+import hashlib
 import logging
 import os
 import re
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
+import audit
+import auth
+import clauses as clause_tools
+import db
 from db import (
     get_conn,
     list_clauses,
     save_clauses,
 )
-import adapter
-import auth
-import clauses as clause_tools
 from extract import extract_text
 import graph
 from reasoning import explain_with_retrieval
@@ -40,6 +41,24 @@ def sanitize_filename(filename: str) -> str:
     name = os.path.basename(filename or "")
     name = re.sub(r"[^A-Za-z0-9._-]", "_", name)
     return name or "contract.pdf"
+
+
+def _file_sha256(path) -> str:
+    """Hash a saved upload in chunks without loading it into memory."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        while True:
+            chunk = handle.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _actor_fields(principal):
+    if principal is not None and principal.authenticated and not principal.demo:
+        return {"actor_user_id": principal.user_id, "actor_type": "user"}
+    return {"actor_type": "system"}
 
 
 def _upload_settings(request: Request):
@@ -118,30 +137,102 @@ def save_contract_with_trace(
     action: str,
     details: str,
     firm_id: int | None = None,
+    *,
+    provenance_status=db.PROVENANCE_UNVERIFIED,
+    created_by=None,
+    source_path=None,
+    source_sha256=None,
+    source_size_bytes=None,
+    source_mime=None,
+    extracted_text_sha256=None,
+    extraction_status=db.EXTRACTION_STATUS_SUCCEEDED,
+    version_status=db.VERSION_STATUS_DRAFT,
+    clause_splitter_version=None,
+    audit_action=None,
+    audit_outcome="success",
+    correlation_id=None,
 ) -> int:
     """
-    Insert one contract row plus one trace row in a single transaction.
+    Insert one contract row, its first version, and one trace in one transaction.
 
     If anything fails, the transaction is rolled back so no partial record
     is left behind. Returns the new contract_id. ``firm_id`` is always derived
     from the authenticated session by the upload route, never from the client.
+
+    The source hash, path, size, MIME type, extraction status and splitter
+    version are stored on the version row, not on the contract identity.  A
+    failed extraction still gets a version (status ``failed``) so the failed
+    attempt has provenance without being reported as a successful import.
     """
     conn = get_conn()
     try:
         cur = conn.cursor()
-        now = datetime.now(timezone.utc).isoformat()
+        now = db.utc_now_iso()
         cur.execute(
             """INSERT INTO contracts
-               (filename, upload_timestamp, processing_status, raw_text, firm_id)
-               VALUES (?, ?, ?, ?, ?)""",
-            (filename, now, status, raw_text, firm_id),
+               (filename, upload_timestamp, processing_status, raw_text,
+                firm_id, provenance_status)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                filename,
+                now,
+                status,
+                raw_text,
+                firm_id,
+                provenance_status,
+            ),
         )
         contract_id = cur.lastrowid
+        version_id = db.insert_version_row(
+            cur,
+            contract_id,
+            firm_id=firm_id,
+            created_by=created_by,
+            source_filename=filename,
+            source_path=source_path,
+            source_sha256=source_sha256,
+            source_size_bytes=source_size_bytes,
+            source_mime=source_mime,
+            extracted_text_sha256=extracted_text_sha256,
+            extraction_status=extraction_status,
+            clause_splitter_version=clause_splitter_version,
+            provenance_status=provenance_status,
+            source_kind="upload",
+            status=version_status,
+        )
+        cur.execute(
+            """UPDATE contracts
+               SET current_version_id = ?, provenance_status = ?
+               WHERE contract_id = ?""",
+            (version_id, provenance_status, contract_id),
+        )
         cur.execute(
             """INSERT INTO traces (contract_id, action, details, timestamp)
                VALUES (?, ?, ?, ?)""",
             (contract_id, action, details, now),
         )
+        if audit_action:
+            audit.record_event(
+                conn=conn,
+                commit=False,
+                action=audit_action,
+                outcome=audit_outcome,
+                firm_id=firm_id,
+                actor_user_id=created_by,
+                actor_type="user" if created_by is not None else "system",
+                target_type="contract",
+                target_id=contract_id,
+                correlation_id=correlation_id,
+                metadata={
+                    "filename": filename,
+                    "processing_status": status,
+                    "version_id": version_id,
+                    "source_sha256": source_sha256,
+                    "source_size_bytes": source_size_bytes,
+                    "source_mime": source_mime,
+                    "extraction_status": extraction_status,
+                },
+            )
         conn.commit()
         return contract_id
     except Exception:
@@ -152,57 +243,103 @@ def save_contract_with_trace(
         conn.close()
 
 
-def mark_clause_failure(contract_id: int, details: str) -> None:
+def mark_clause_failure(
+    contract_id: int,
+    details: str,
+    *,
+    principal=None,
+    firm_id=None,
+    error_type=None,
+    correlation_id=None,
+) -> bool:
     """
     Best-effort correction when clause persistence fails after the contract
     row was already committed as 'extracted'.
 
-    Contract storage and clause storage are two separate transactions, so we
-    cannot make them atomic without changing db.py. Instead of leaving a
-    misleading 'extracted' status, update the contract's processing_status to
-    'clause_persistence_failed' and append a trace row. This is best effort:
-    if it fails too, we log and continue so the original error is preserved.
+    The draft version is marked failed so it can never be published by a
+    later save. The contract status becomes 'clause_persistence_failed' and a
+    trace plus audit event are recorded. This is best effort: if it fails too,
+    we log and continue so the original error is preserved.
     """
     try:
         conn = get_conn()
         try:
             cur = conn.cursor()
-            now = datetime.now(timezone.utc).isoformat()
+            now = db.utc_now_iso()
             cur.execute(
                 "UPDATE contracts SET processing_status = ? WHERE contract_id = ?",
                 ("clause_persistence_failed", contract_id),
+            )
+            cur.execute(
+                """UPDATE contract_versions SET status = ?
+                   WHERE version_id = (
+                       SELECT current_version_id FROM contracts
+                       WHERE contract_id = ?
+                   ) AND status IN (?, ?)""",
+                (
+                    db.VERSION_STATUS_FAILED,
+                    contract_id,
+                    db.VERSION_STATUS_DRAFT,
+                    db.VERSION_STATUS_EXTRACTED,
+                ),
             )
             cur.execute(
                 """INSERT INTO traces (contract_id, action, details, timestamp)
                    VALUES (?, ?, ?, ?)""",
                 (contract_id, "clause_extraction", details, now),
             )
+            audit.record_event(
+                conn=conn,
+                commit=False,
+                swallow=True,
+                action="clauses.persist_failed",
+                outcome="failure",
+                firm_id=(
+                    firm_id
+                    if firm_id is not None
+                    else getattr(principal, "firm_id", None)
+                ),
+                target_type="contract",
+                target_id=contract_id,
+                correlation_id=correlation_id,
+                metadata={
+                    "error_type": error_type,
+                    "reason": "clause_persistence_failed",
+                },
+                **_actor_fields(principal),
+            )
             conn.commit()
+            return True
         finally:
             conn.close()
     except Exception:
         logger.exception(
             "Could not record clause-persistence failure for contract %s", contract_id
         )
+        return False
 
 
-def mark_graph_failure(contract_id: int, details: str) -> bool:
-    """Clear a partial graph and record that contract analysis did not finish.
+def mark_graph_failure(
+    contract_id: int,
+    details: str,
+    *,
+    principal=None,
+    firm_id=None,
+    error_type=None,
+    correlation_id=None,
+) -> bool:
+    """Record that graph construction failed without deleting a good graph.
 
-    Graph writes currently commit incrementally. Clearing this contract's
-    graph is therefore best-effort recovery, not a transaction spanning the
-    whole build. The status and trace are recorded together where possible.
+    replace_graph() publishes atomically, so a failed build has already left
+    the previous published nodes and edges untouched. Clearing them here would
+    destroy the last known-good graph; this function therefore only updates the
+    contract status and records trace/audit evidence.
     """
-    try:
-        adapter.clear_graph(contract_id)
-    except Exception:
-        logger.exception("Could not clear partial graph for contract %s", contract_id)
-
     recorded = False
     try:
         conn = get_conn()
         try:
-            now = datetime.now(timezone.utc).isoformat()
+            now = db.utc_now_iso()
             cur = conn.cursor()
             cur.execute(
                 "UPDATE contracts SET processing_status = ? WHERE contract_id = ?",
@@ -212,6 +349,26 @@ def mark_graph_failure(contract_id: int, details: str) -> bool:
                 """INSERT INTO traces (contract_id, action, details, timestamp)
                    VALUES (?, ?, ?, ?)""",
                 (contract_id, "graph_construction", details, now),
+            )
+            audit.record_event(
+                conn=conn,
+                commit=False,
+                swallow=True,
+                action="contract.graph_status_failed",
+                outcome="failure",
+                firm_id=(
+                    firm_id
+                    if firm_id is not None
+                    else getattr(principal, "firm_id", None)
+                ),
+                target_type="contract",
+                target_id=contract_id,
+                correlation_id=correlation_id,
+                metadata={
+                    "error_type": error_type,
+                    "reason": "graph_build_failed",
+                },
+                **_actor_fields(principal),
             )
             conn.commit()
             recorded = True
@@ -267,10 +424,23 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
     saved_path, original_name = save_upload(file, settings.upload_dir)
 
     try:
+        source_sha256 = _file_sha256(saved_path)
+        source_size_bytes = os.path.getsize(saved_path)
+    except OSError:
+        Path(saved_path).unlink(missing_ok=True)
+        logger.exception("Could not hash the saved upload %s", saved_path)
+        raise HTTPException(
+            status_code=500, detail="Could not read the uploaded file after saving it."
+        )
+
+    correlation_id = uuid.uuid4().hex
+    source_mime = "application/pdf"
+
+    try:
         text = extract_text(saved_path)
     except (FileNotFoundError, ValueError) as exc:
-        # Extraction failed: record the failure, then tell the client clearly.
-        # No clauses are saved on this path.
+        # Extraction failed: record the failed version and trace, then tell the
+        # client clearly. No clauses are saved on this path.
         try:
             save_contract_with_trace(
                 filename=original_name,
@@ -279,6 +449,18 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
                 action="upload",
                 details=f"Text extraction failed for {original_name}: {exc}",
                 firm_id=firm_id,
+                provenance_status=db.PROVENANCE_VERIFIED,
+                created_by=principal.user_id,
+                source_path=saved_path,
+                source_sha256=source_sha256,
+                source_size_bytes=source_size_bytes,
+                source_mime=source_mime,
+                extracted_text_sha256=None,
+                extraction_status=db.EXTRACTION_STATUS_FAILED,
+                version_status=db.VERSION_STATUS_FAILED,
+                audit_action="contract.extraction_failed",
+                audit_outcome="failure",
+                correlation_id=correlation_id,
             )
         except Exception:
             logger.exception("Could not record extraction failure")
@@ -299,9 +481,40 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
             action="upload",
             details=f"Uploaded and extracted text from {original_name} ({len(text)} characters).",
             firm_id=firm_id,
+            provenance_status=db.PROVENANCE_VERIFIED,
+            created_by=principal.user_id,
+            source_path=saved_path,
+            source_sha256=source_sha256,
+            source_size_bytes=source_size_bytes,
+            source_mime=source_mime,
+            extracted_text_sha256=db.sha256_text(text),
+            extraction_status=db.EXTRACTION_STATUS_SUCCEEDED,
+            version_status=db.VERSION_STATUS_DRAFT,
+            clause_splitter_version=clause_tools.SPLITTER_VERSION,
+            audit_action="contract.created",
+            correlation_id=correlation_id,
         )
     except Exception:
         raise HTTPException(status_code=500, detail="Could not save the contract record.")
+
+    version_id = db.get_current_version_id(contract_id)
+    if version_id is None:
+        logger.error("Contract %s has no current version after intake", contract_id)
+        mark_clause_failure(
+            contract_id,
+            f"Contract text was stored for {original_name}, but no version was created.",
+            principal=principal,
+            firm_id=firm_id,
+            error_type="MissingContractVersion",
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Contract text was stored, but its version record is missing. "
+                f"The contract (id={contract_id}) is marked 'clause_persistence_failed'."
+            ),
+        )
 
     # Split the extracted text into clauses. split_clauses never invents
     # sections: it returns [] when no reliable sequence is found, and an
@@ -315,14 +528,39 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         clause["metadata"] = metadata
 
     try:
-        saved_clause_count = save_clauses(contract_id, clauses)
-    except Exception:
-        # Contract row was already committed as 'extracted', so flip its
-        # status and log a trace instead of returning a misleading success.
+        saved_clause_count = save_clauses(
+            contract_id,
+            clauses,
+            version_id=version_id,
+            audit_event={
+                "action": "clauses.persisted",
+                "outcome": "success",
+                "firm_id": firm_id,
+                "actor_user_id": principal.user_id,
+                "actor_type": "user",
+                "target_type": "contract",
+                "target_id": contract_id,
+                "correlation_id": correlation_id,
+                "metadata": {
+                    "filename": original_name,
+                    "source_sha256": source_sha256,
+                    "clause_count": len(clauses),
+                    "processing_status": "extracted",
+                },
+            },
+        )
+    except Exception as exc:
+        # Contract row and version were already committed as 'extracted', so
+        # flip the status and mark the draft version failed instead of
+        # returning a misleading success.
         logger.exception("Failed to persist clauses for contract %s", contract_id)
         mark_clause_failure(
             contract_id,
             f"Stored {len(text)} characters but failed to save clauses for {original_name}.",
+            principal=principal,
+            firm_id=firm_id,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
         )
         raise HTTPException(
             status_code=500,
@@ -333,13 +571,27 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         )
 
     try:
-        graph_stats = graph.build_graph(contract_id, use_llm=False)
+        graph_stats = graph.build_graph(
+            contract_id,
+            use_llm=False,
+            audit_context={
+                "firm_id": firm_id,
+                "actor_user_id": principal.user_id,
+                "actor_type": "user",
+                "correlation_id": correlation_id,
+                "filename": original_name,
+            },
+        )
     except Exception as exc:
         logger.exception("Failed to build graph for contract %s", contract_id)
         failure_recorded = mark_graph_failure(
             contract_id,
             f"Stored {len(text)} characters and {saved_clause_count} clauses, "
             f"but graph construction failed for {original_name}: {exc}",
+            principal=principal,
+            firm_id=firm_id,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
         )
         raise HTTPException(
             status_code=500,

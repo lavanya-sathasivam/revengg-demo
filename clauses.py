@@ -24,6 +24,10 @@ import re
 
 import extract
 
+# Recorded on every stored contract version so a later change to the splitter
+# can be distinguished from a change to the source document.
+SPLITTER_VERSION = "phase5.1"
+
 # ---------------------------------------------------------------------------
 # vocabularies (frozen - do not rename without telling A and C)
 # ---------------------------------------------------------------------------

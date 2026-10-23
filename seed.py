@@ -33,6 +33,49 @@ def use_demo_db():
     return DEMO_DB
 
 
+# Graph/contract tables in dependency order.  audit_events is deliberately
+# absent: the audit trail is append-only, must survive a demo reseed, and must
+# never have its AUTOINCREMENT sequence reset (that could reuse event ids).
+_RESET_TABLES = (
+    "edges",
+    "nodes",
+    "clauses",
+    "clause_history",
+    "graph_builds",
+    "contract_versions",
+    "contracts",
+    "traces",
+)
+
+
+def reset_demo_tables(conn):
+    """Clear synthetic contract/graph data without touching audit history.
+
+    Foreign keys are restrictive, so the order matters: graph rows, clauses,
+    history, builds and versions must go before the contract identity.  Only
+    the sequences for the cleared tables are reset; auth and audit sequences
+    are left alone.
+    """
+
+    existing = {
+        row[0]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        )
+    }
+    for table in _RESET_TABLES:
+        if table in existing:
+            conn.execute("DELETE FROM %s" % table)
+
+    reset_tables = [table for table in _RESET_TABLES if table in existing]
+    if reset_tables and "sqlite_sequence" in existing:
+        marks = ",".join("?" * len(reset_tables))
+        conn.execute(
+            "DELETE FROM sqlite_sequence WHERE name IN (%s)" % marks,
+            reset_tables,
+        )
+
+
 def seed(reset=True, db_path=None):
     """Load the synthetic contracts and build their graphs.
 
@@ -52,9 +95,7 @@ def seed(reset=True, db_path=None):
     if reset:
         conn = adapter.raw_connection()
         try:
-            for table in ("edges", "nodes", "clauses", "contracts", "traces"):
-                conn.execute("DELETE FROM %s" % table)
-            conn.execute("DELETE FROM sqlite_sequence")
+            reset_demo_tables(conn)
             conn.commit()
         finally:
             conn.close()
@@ -68,7 +109,12 @@ def seed(reset=True, db_path=None):
         with open(path, "r", encoding="utf-8") as fh:
             text = fh.read()
 
-        cid = adapter.create_contract(filename, text, status="extracted")
+        cid = adapter.create_contract(
+            filename,
+            text,
+            status="extracted",
+            provenance_status=db.PROVENANCE_SYNTHETIC,
+        )
         n_clauses = graph.ingest_contract(cid, text)
         stats = graph.build_graph(cid, use_llm=False)
         made.append((cid, title, n_clauses, stats))

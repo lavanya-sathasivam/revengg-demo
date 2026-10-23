@@ -1,11 +1,41 @@
+import hashlib
 import json
 import os
 import sqlite3
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+SCHEMA_INTEGRITY_VERSION = "phase5.1"
+
+PROVENANCE_VERIFIED = "verified"
+PROVENANCE_SYNTHETIC = "synthetic"
+PROVENANCE_UNVERIFIED = "unverified"
+PROVENANCE_LEGACY = "legacy_unclassified"
+
+VERSION_STATUS_DRAFT = "draft"
+VERSION_STATUS_EXTRACTED = "extracted"
+VERSION_STATUS_PUBLISHED = "published"
+VERSION_STATUS_SUPERSEDED = "superseded"
+VERSION_STATUS_FAILED = "failed"
+
+EXTRACTION_STATUS_SUCCEEDED = "succeeded"
+EXTRACTION_STATUS_FAILED = "failed"
+
+
+def utc_now_iso() -> str:
+    """Return one consistent UTC timestamp format for all persisted rows."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+def sha256_text(value: str | None) -> str | None:
+    """Hash text for provenance without storing a second readable copy."""
+    if value is None:
+        return None
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -94,9 +124,9 @@ def get_contract(contract_id: int):
         cur = conn.cursor()
         cur.execute(
             """SELECT contract_id, filename, upload_timestamp,
-                      processing_status, raw_text
+                      processing_status, raw_text, %s
                FROM contracts
-               WHERE contract_id = ?""",
+               WHERE contract_id = ?""" % _contract_select_extras(conn),
             (contract_id,),
         )
         row = cur.fetchone()
@@ -111,9 +141,10 @@ def list_contracts():
     try:
         cur = conn.cursor()
         cur.execute(
-            """SELECT contract_id, filename, upload_timestamp, processing_status
+            """SELECT contract_id, filename, upload_timestamp, processing_status,
+                      %s
                FROM contracts
-               ORDER BY contract_id ASC"""
+               ORDER BY contract_id ASC""" % _contract_select_extras(conn)
         )
         return [dict(row) for row in cur.fetchall()]
     finally:
@@ -122,6 +153,42 @@ def list_contracts():
 
 def _contract_columns(conn) -> set[str]:
     return {row[1] for row in conn.execute("PRAGMA table_info(contracts)")}
+
+
+def _table_columns(conn, table: str) -> set[str]:
+    return {row[1] for row in conn.execute("PRAGMA table_info(%s)" % table)}
+
+
+def _table_exists(conn, table: str) -> bool:
+    return bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table,),
+        ).fetchone()
+    )
+
+
+def _contract_select_extras(conn) -> str:
+    """Columns added by the integrity migration, or explicit legacy defaults.
+
+    Demo mode opens a read-only database that may predate these columns.  It
+    must remain readable without running a migration, and its rows must be
+    labelled as unknown provenance rather than silently treated as verified.
+    """
+
+    columns = _contract_columns(conn)
+    extras = []
+    extras.append(
+        "current_version_id"
+        if "current_version_id" in columns
+        else "NULL AS current_version_id"
+    )
+    extras.append(
+        "provenance_status"
+        if "provenance_status" in columns
+        else "'%s' AS provenance_status" % PROVENANCE_LEGACY
+    )
+    return ", ".join(extras)
 
 
 def _contract_scope(conn, firm_id):
@@ -154,9 +221,9 @@ def get_contract_for_firm(contract_id: int, firm_id):
         scope_sql, params = _contract_scope(conn, firm_id)
         cur = conn.execute(
             """SELECT contract_id, filename, upload_timestamp,
-                      processing_status, raw_text
+                      processing_status, raw_text, %s
                FROM contracts
-               WHERE contract_id = ?""" + scope_sql,
+               WHERE contract_id = ?""" % _contract_select_extras(conn) + scope_sql,
             (contract_id,) + params,
         )
         row = cur.fetchone()
@@ -172,9 +239,10 @@ def list_contracts_for_firm(firm_id):
     try:
         scope_sql, params = _contract_scope(conn, firm_id)
         cur = conn.execute(
-            """SELECT contract_id, filename, upload_timestamp, processing_status
+            """SELECT contract_id, filename, upload_timestamp, processing_status,
+                      %s
                FROM contracts
-               WHERE 1 = 1""" + scope_sql + """
+               WHERE 1 = 1""" % _contract_select_extras(conn) + scope_sql + """
                ORDER BY contract_id ASC""",
             params,
         )
@@ -183,48 +251,430 @@ def list_contracts_for_firm(firm_id):
         conn.close()
 
 
-def save_clauses(contract_id, clauses):
+def _cursor_columns(cur, table: str) -> set[str]:
+    return {row[1] for row in cur.execute("PRAGMA table_info(%s)" % table)}
+
+
+def _cursor_table_exists(cur, table: str) -> bool:
+    return bool(
+        cur.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table,),
+        ).fetchone()
+    )
+
+
+def _contract_row_for_write(cur, contract_id):
+    columns = _cursor_columns(cur, "contracts")
+    fields = ["contract_id", "filename", "processing_status"]
+    for optional in (
+        "firm_id",
+        "current_version_id",
+        "provenance_status",
+        "raw_text",
+    ):
+        if optional in columns:
+            fields.append(optional)
+    row = cur.execute(
+        "SELECT %s FROM contracts WHERE contract_id = ?" % ", ".join(fields),
+        (contract_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def _next_version_number(cur, contract_id) -> int:
+    row = cur.execute(
+        """SELECT COALESCE(MAX(version_number), 0) + 1
+           FROM contract_versions WHERE contract_id = ?""",
+        (contract_id,),
+    ).fetchone()
+    return int(row[0])
+
+
+def insert_version_row(
+    cur,
+    contract_id,
+    *,
+    firm_id=None,
+    created_by=None,
+    source_filename=None,
+    source_path=None,
+    source_sha256=None,
+    source_size_bytes=None,
+    source_mime=None,
+    extracted_text_sha256=None,
+    extraction_status=EXTRACTION_STATUS_SUCCEEDED,
+    clause_splitter_version=None,
+    provenance_status=None,
+    source_kind="programmatic",
+    status=VERSION_STATUS_DRAFT,
+    version_number=None,
+):
+    """Insert one immutable version row and return its id.
+
+    The caller owns the transaction.  Version numbers are scoped to the
+    contract, so two contracts may both have version 1 without colliding.
+    This low-level helper is public so an intake transaction can create the
+    contract row and its first version atomically.
     """
-    Store the clauses of one contract, replacing any previously stored set.
 
-    `clauses` is the list of dicts produced by extract.split_clauses():
-    each item has "section_number", "clause_text" and optionally "metadata".
-    Missing metadata is stored as {} (serialized as JSON text, matching the
-    TEXT metadata column).
+    if version_number is None:
+        version_number = _next_version_number(cur, contract_id)
+    cur.execute(
+        """INSERT INTO contract_versions
+               (contract_id, version_number, created_at, created_by, firm_id,
+                source_filename, source_path, source_sha256, source_size_bytes,
+                source_mime, extracted_text_sha256, extraction_status,
+                clause_splitter_version, provenance_status, source_kind, status,
+                published_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)""",
+        (
+            contract_id,
+            version_number,
+            utc_now_iso(),
+            created_by,
+            firm_id,
+            source_filename,
+            source_path,
+            source_sha256,
+            source_size_bytes,
+            source_mime,
+            extracted_text_sha256,
+            extraction_status,
+            clause_splitter_version,
+            provenance_status or PROVENANCE_UNVERIFIED,
+            source_kind,
+            status,
+        ),
+    )
+    return cur.lastrowid
 
-    Duplicate safety: the clauses table has no UNIQUE constraint, so this
-    uses replace-all semantics instead - inside ONE transaction every
-    existing clause row for this contract is deleted and the new set is
-    inserted. Saving the same contract's clauses twice can therefore never
-    create duplicate rows, and the stored text always matches the latest
-    call. SQLite allows a single writer at a time, so concurrent saves
-    serialize and the final state is exactly one complete set.
 
-    A foreign key on clauses.contract_id is enforced (PRAGMA foreign_keys=ON
-    in get_conn), so an unknown contract_id makes the INSERT fail with
-    sqlite3.IntegrityError and the whole transaction is rolled back - no
-    partial rows are left behind. Any other failure rolls back as well.
+def create_contract_version(
+    contract_id,
+    *,
+    firm_id=None,
+    created_by=None,
+    source_filename=None,
+    source_path=None,
+    source_sha256=None,
+    source_size_bytes=None,
+    source_mime=None,
+    extracted_text_sha256=None,
+    extraction_status=EXTRACTION_STATUS_SUCCEEDED,
+    clause_splitter_version=None,
+    provenance_status=None,
+    source_kind="programmatic",
+    status=VERSION_STATUS_DRAFT,
+):
+    """Public additive version creation helper.
 
-    Returns the number of clause rows saved (0 for an empty list, which
-    clears previously stored clauses for the contract).
+    The version's firm must match the contract's firm.  A demo/legacy contract
+    (firm_id NULL) cannot be silently assigned to a firm by creating a version
+    for it.
     """
+
     conn = get_conn()
     try:
         cur = conn.cursor()
-        # The DELETE below starts the transaction; inserts join the same one.
+        contract = _contract_row_for_write(cur, contract_id)
+        if contract is None:
+            raise ValueError("Contract does not exist.")
+        contract_firm = contract.get("firm_id")
+        if firm_id is not None and contract_firm != firm_id:
+            raise ValueError("Version firm does not match the contract firm.")
+        version_provenance = (
+            provenance_status
+            or contract.get("provenance_status")
+            or PROVENANCE_UNVERIFIED
+        )
+        version_id = insert_version_row(
+            cur,
+            contract_id,
+            firm_id=contract_firm,
+            created_by=created_by,
+            source_filename=source_filename,
+            source_path=source_path,
+            source_sha256=source_sha256,
+            source_size_bytes=source_size_bytes,
+            source_mime=source_mime,
+            extracted_text_sha256=extracted_text_sha256,
+            extraction_status=extraction_status,
+            clause_splitter_version=clause_splitter_version,
+            provenance_status=version_provenance,
+            source_kind=source_kind,
+            status=status,
+        )
+        columns = _cursor_columns(cur, "contracts")
+        assignments = ["current_version_id = ?"]
+        values = [version_id]
+        if "provenance_status" in columns:
+            assignments.append("provenance_status = ?")
+            values.append(version_provenance)
+        values.append(contract_id)
+        cur.execute(
+            "UPDATE contracts SET %s WHERE contract_id = ?"
+            % ", ".join(assignments),
+            values,
+        )
+        conn.commit()
+        return version_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _resolve_version_for_save(cur, contract):
+    """Choose the version that a clause save belongs to.
+
+    A published version is immutable.  If the current version already has
+    clauses, a direct save creates a new version rather than overwriting the
+    prior one.  A draft/extracted version with no clauses is still writable.
+    """
+
+    contract_id = contract["contract_id"]
+    current_id = contract.get("current_version_id")
+    if current_id is not None:
+        row = cur.execute(
+            """SELECT version_id, contract_id, status, firm_id
+               FROM contract_versions WHERE version_id = ?""",
+            (current_id,),
+        ).fetchone()
+        if row is not None and row["contract_id"] == contract_id:
+            has_clauses = cur.execute(
+                "SELECT 1 FROM clauses WHERE contract_id = ? LIMIT 1",
+                (contract_id,),
+            ).fetchone()
+            if row["status"] in (VERSION_STATUS_DRAFT, VERSION_STATUS_EXTRACTED) \
+                    and (not has_clauses or row["status"] == VERSION_STATUS_DRAFT):
+                return row["version_id"]
+
+    current_provenance = contract.get("provenance_status") or PROVENANCE_UNVERIFIED
+    if current_provenance not in (
+        PROVENANCE_VERIFIED,
+        PROVENANCE_SYNTHETIC,
+        PROVENANCE_UNVERIFIED,
+        PROVENANCE_LEGACY,
+    ):
+        current_provenance = PROVENANCE_UNVERIFIED
+    source_kind = {
+        PROVENANCE_SYNTHETIC: "synthetic",
+        PROVENANCE_LEGACY: "legacy",
+    }.get(current_provenance, "programmatic")
+    raw_text = contract.get("raw_text")
+    version_id = insert_version_row(
+        cur,
+        contract_id,
+        firm_id=contract.get("firm_id"),
+        source_filename=contract.get("filename"),
+        extracted_text_sha256=sha256_text(raw_text),
+        extraction_status=EXTRACTION_STATUS_SUCCEEDED,
+        provenance_status=current_provenance,
+        source_kind=source_kind,
+        status=VERSION_STATUS_DRAFT,
+    )
+    cur.execute(
+        "UPDATE contracts SET current_version_id = ? WHERE contract_id = ?",
+        (version_id, contract_id),
+    )
+    return version_id
+
+
+def _validate_explicit_version(cur, contract_id, version_id):
+    row = cur.execute(
+        """SELECT version_id, contract_id, status, firm_id
+           FROM contract_versions WHERE version_id = ?""",
+        (version_id,),
+    ).fetchone()
+    if row is None or row["contract_id"] != contract_id:
+        raise ValueError("Version does not belong to this contract.")
+    if row["status"] in (VERSION_STATUS_PUBLISHED, VERSION_STATUS_SUPERSEDED):
+        raise ValueError(
+            "Published contract versions are immutable; create a new version."
+        )
+    if row["status"] == VERSION_STATUS_FAILED:
+        raise ValueError("A failed version cannot be overwritten; create a new version.")
+    return row
+
+
+def _archive_current_clauses(
+    cur, contract_id, old_version_id, new_version_id, archived_at
+):
+    """Copy the current clause set into immutable history before replacement."""
+
+    if not _cursor_table_exists(cur, "clause_history"):
+        return 0
+    clause_columns = _cursor_columns(cur, "clauses")
+    version_expr = "version_id" if "version_id" in clause_columns else "NULL"
+    hash_expr = "clause_sha256" if "clause_sha256" in clause_columns else "NULL"
+    rows = cur.execute(
+        """SELECT clause_id, section_number, clause_text, metadata,
+                  %s AS version_id, %s AS clause_sha256
+           FROM clauses WHERE contract_id = ?""" % (version_expr, hash_expr),
+        (contract_id,),
+    ).fetchall()
+    if not rows:
+        return 0
+
+    # The current-version pointer may already point at the new draft (for
+    # example when create_contract_version() was called first).  Archive based
+    # on where the stored rows actually came from, so replacing a published
+    # set is never mistaken for editing the same draft.
+    stored_versions = {row["version_id"] for row in rows}
+    if stored_versions == {new_version_id}:
+        # Replacing the same draft is not a published-version overwrite.
+        return 0
+    reason = (
+        "version_replaced"
+        if any(version is not None for version in stored_versions)
+        else "legacy_replaced"
+    )
+    for row in rows:
+        cur.execute(
+            """INSERT INTO clause_history
+                   (clause_id, contract_id, version_id, section_number,
+                    clause_text, metadata, clause_sha256, archived_at,
+                    archive_reason)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                row["clause_id"],
+                contract_id,
+                row["version_id"],
+                row["section_number"],
+                row["clause_text"],
+                row["metadata"],
+                row["clause_sha256"],
+                archived_at,
+                reason,
+            ),
+        )
+    return len(rows)
+
+
+def save_clauses(contract_id, clauses, version_id=None, audit_event=None):
+    """
+    Store the current clause set for one contract/version.
+
+    ``version_id`` is optional for backward compatibility.  When omitted, the
+    save uses the current draft/extracted version, or creates a new version if
+    the current version is already published.  A published version can never
+    be overwritten through this function; an explicit attempt raises
+    ``ValueError`` and leaves the stored set untouched.
+
+    The clauses table remains the materialised *current* set, so the graph and
+    impact engine keep working unchanged.  Replaced rows are copied to
+    ``clause_history`` before deletion.  The whole operation is one SQLite
+    transaction; any failure rolls back clause changes, history, version
+    publication, and the current-version pointer together.
+
+    Returns the number of clause rows saved (0 for an empty list).
+    """
+
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        contract = _contract_row_for_write(cur, contract_id)
+        if contract is None:
+            # Preserve the historical failure type expected by callers.
+            raise sqlite3.IntegrityError("contract does not exist")
+
+        if version_id is None:
+            if not _cursor_table_exists(cur, "contract_versions"):
+                raise RuntimeError(
+                    "Contract version schema is missing; run db.init_db() "
+                    "against a writable database before saving clauses."
+                )
+            version_id = _resolve_version_for_save(cur, contract)
+        else:
+            _validate_explicit_version(cur, contract_id, version_id)
+
+        version_row = cur.execute(
+            """SELECT version_id, provenance_status, status
+               FROM contract_versions WHERE version_id = ?""",
+            (version_id,),
+        ).fetchone()
+
+        old_version_id = contract.get("current_version_id")
+        archived_at = utc_now_iso()
+        _archive_current_clauses(
+            cur, contract_id, old_version_id, version_id, archived_at
+        )
+
         cur.execute("DELETE FROM clauses WHERE contract_id = ?", (contract_id,))
+        clause_columns = _cursor_columns(cur, "clauses")
         for item in clauses:
             metadata = item.get("metadata") or {}
+            values = [
+                contract_id,
+                item["section_number"],
+                item["clause_text"],
+                json.dumps(metadata),
+            ]
+            columns = ["contract_id", "section_number", "clause_text", "metadata"]
+            if "version_id" in clause_columns:
+                columns.append("version_id")
+                values.append(version_id)
+            if "clause_sha256" in clause_columns:
+                columns.append("clause_sha256")
+                values.append(sha256_text(item["clause_text"]))
             cur.execute(
-                """INSERT INTO clauses (contract_id, section_number, clause_text, metadata)
-                   VALUES (?, ?, ?, ?)""",
+                "INSERT INTO clauses (%s) VALUES (%s)"
+                % (", ".join(columns), ", ".join("?" * len(columns))),
+                values,
+            )
+
+        if version_row is not None:
+            cur.execute(
+                """UPDATE contract_versions
+                   SET status = ?, published_at = ?
+                   WHERE version_id = ?""",
+                (VERSION_STATUS_PUBLISHED, archived_at, version_id),
+            )
+            cur.execute(
+                """UPDATE contract_versions
+                   SET status = ?
+                   WHERE contract_id = ? AND version_id <> ?
+                     AND status = ?""",
                 (
+                    VERSION_STATUS_SUPERSEDED,
                     contract_id,
-                    item["section_number"],
-                    item["clause_text"],
-                    json.dumps(metadata),
+                    version_id,
+                    VERSION_STATUS_PUBLISHED,
                 ),
             )
+
+        if "current_version_id" in _cursor_columns(cur, "contracts"):
+            cur.execute(
+                "UPDATE contracts SET current_version_id = ? WHERE contract_id = ?",
+                (version_id, contract_id),
+            )
+        if version_row is not None and "provenance_status" in _cursor_columns(
+            cur, "contracts"
+        ):
+            cur.execute(
+                "UPDATE contracts SET provenance_status = ? WHERE contract_id = ?",
+                (version_row["provenance_status"], contract_id),
+            )
+
+        if audit_event:
+            import audit
+
+            event = dict(audit_event)
+            metadata = dict(event.pop("metadata", {}) or {})
+            metadata.setdefault("contract_id", contract_id)
+            metadata.setdefault("version_id", version_id)
+            metadata.setdefault("clause_count", len(clauses))
+            audit.record_event(
+                conn=conn,
+                commit=False,
+                target_type=event.pop("target_type", "contract"),
+                target_id=event.pop("target_id", contract_id),
+                metadata=metadata,
+                **event,
+            )
+
         conn.commit()
         return len(clauses)
     except Exception:
@@ -270,13 +720,181 @@ def list_clauses(contract_id):
         conn.close()
 
 
+def get_current_version_id(contract_id):
+    conn = get_conn()
+    try:
+        if "current_version_id" not in _contract_columns(conn):
+            return None
+        row = conn.execute(
+            "SELECT current_version_id FROM contracts WHERE contract_id = ?",
+            (contract_id,),
+        ).fetchone()
+        return row["current_version_id"] if row else None
+    finally:
+        conn.close()
+
+
+def get_contract_version(version_id):
+    conn = get_conn()
+    try:
+        if not _table_exists(conn, "contract_versions"):
+            return None
+        row = conn.execute(
+            "SELECT * FROM contract_versions WHERE version_id = ?",
+            (version_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_contract_versions(contract_id):
+    conn = get_conn()
+    try:
+        if not _table_exists(conn, "contract_versions"):
+            return []
+        rows = conn.execute(
+            """SELECT * FROM contract_versions
+               WHERE contract_id = ?
+               ORDER BY version_number ASC""",
+            (contract_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def list_clause_history(contract_id, version_id=None):
+    conn = get_conn()
+    try:
+        if not _table_exists(conn, "clause_history"):
+            return []
+        sql = """SELECT history_id, clause_id, contract_id, version_id,
+                        section_number, clause_text, metadata, clause_sha256,
+                        archived_at, archive_reason
+                 FROM clause_history WHERE contract_id = ?"""
+        params = [contract_id]
+        if version_id is not None:
+            sql += " AND version_id = ?"
+            params.append(version_id)
+        sql += " ORDER BY history_id ASC"
+        results = []
+        for row in conn.execute(sql, params).fetchall():
+            item = dict(row)
+            raw_metadata = item.get("metadata")
+            if raw_metadata is None:
+                item["metadata"] = {}
+            else:
+                try:
+                    item["metadata"] = json.loads(raw_metadata)
+                except (TypeError, ValueError):
+                    pass
+            results.append(item)
+        return results
+    finally:
+        conn.close()
+
+
+def get_contract_provenance(contract_id):
+    """Return the current version/source provenance, or an explicit legacy state.
+
+    Read-only demo databases may predate the version tables.  Nothing is
+    created or rewritten here; such a row is reported as
+    ``legacy_unclassified`` because its source cannot be verified.
+    """
+
+    conn = get_conn()
+    try:
+        columns = _contract_columns(conn)
+        fields = ["contract_id", "filename", "processing_status"]
+        for optional in ("firm_id", "current_version_id", "provenance_status"):
+            if optional in columns:
+                fields.append(optional)
+        contract = conn.execute(
+            "SELECT %s FROM contracts WHERE contract_id = ?" % ", ".join(fields),
+            (contract_id,),
+        ).fetchone()
+        if contract is None:
+            return None
+        contract = dict(contract)
+        status = contract.get("provenance_status") or PROVENANCE_LEGACY
+        version = None
+        if _table_exists(conn, "contract_versions"):
+            version_id = contract.get("current_version_id")
+            if version_id is not None:
+                row = conn.execute(
+                    "SELECT * FROM contract_versions WHERE version_id = ?",
+                    (version_id,),
+                ).fetchone()
+                version = dict(row) if row else None
+            if version is None:
+                row = conn.execute(
+                    """SELECT * FROM contract_versions
+                       WHERE contract_id = ?
+                       ORDER BY version_number DESC LIMIT 1""",
+                    (contract_id,),
+                ).fetchone()
+                version = dict(row) if row else None
+        if version is not None:
+            status = version.get("provenance_status") or status
+        return {
+            "contract_id": contract_id,
+            "filename": contract.get("filename"),
+            "processing_status": contract.get("processing_status"),
+            "firm_id": contract.get("firm_id"),
+            "provenance_status": status,
+            "legacy_unclassified": status == PROVENANCE_LEGACY,
+            "current_version_id": contract.get("current_version_id"),
+            "version": version,
+            "source": (
+                {
+                    "filename": version.get("source_filename"),
+                    "path": version.get("source_path"),
+                    "sha256": version.get("source_sha256"),
+                    "size_bytes": version.get("source_size_bytes"),
+                    "mime": version.get("source_mime"),
+                    "extracted_text_sha256": version.get(
+                        "extracted_text_sha256"
+                    ),
+                    "source_kind": version.get("source_kind"),
+                }
+                if version is not None
+                else None
+            ),
+        }
+    finally:
+        conn.close()
+
+
+def list_graph_builds(contract_id):
+    conn = get_conn()
+    try:
+        if not _table_exists(conn, "graph_builds"):
+            return []
+        rows = conn.execute(
+            """SELECT * FROM graph_builds
+               WHERE contract_id = ?
+               ORDER BY build_id ASC""",
+            (contract_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def init_db():
-    """Initialize database tables safely. Can run multiple times without deleting data."""
+    """Initialize database tables safely. Can run multiple times without deleting data.
+
+    All changes are additive.  Existing rows are never rewritten or assigned a
+    guessed source.  A database that predates the integrity migration keeps its
+    rows and reports them as ``legacy_unclassified`` until a human explicitly
+    re-imports them as a version.
+    """
     conn = get_conn()
     try:
         cur = conn.cursor()
 
-        # contracts: metadata about uploaded contracts
+        # contracts: the stable contract identity and current-version pointer.
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS contracts (
@@ -285,25 +903,40 @@ def init_db():
                 upload_timestamp TEXT NOT NULL,
                 processing_status TEXT NOT NULL DEFAULT 'uploaded',
                 raw_text TEXT,
-                firm_id INTEGER
+                firm_id INTEGER,
+                current_version_id INTEGER,
+                current_graph_build_id INTEGER,
+                provenance_status TEXT NOT NULL DEFAULT 'legacy_unclassified'
             )
             """
         )
 
-        # Safe migrations: add raw_text/firm_id if they are missing on an
-        # existing database. Never drops or recreates tables/records.
+        # Safe migrations: add columns if they are missing on an existing
+        # database. Never drops or recreates tables/records and never
+        # backfills a source that cannot be verified.
         cur.execute("PRAGMA table_info(contracts)")
         contract_columns = [row[1] for row in cur.fetchall()]
-        if "raw_text" not in contract_columns:
-            cur.execute("ALTER TABLE contracts ADD COLUMN raw_text TEXT")
-        if "firm_id" not in contract_columns:
-            cur.execute("ALTER TABLE contracts ADD COLUMN firm_id INTEGER")
+        contract_migrations = (
+            ("raw_text", "TEXT"),
+            ("firm_id", "INTEGER"),
+            ("current_version_id", "INTEGER"),
+            ("current_graph_build_id", "INTEGER"),
+            (
+                "provenance_status",
+                "TEXT NOT NULL DEFAULT 'legacy_unclassified'",
+            ),
+        )
+        for column, coltype in contract_migrations:
+            if column not in contract_columns:
+                cur.execute(
+                    "ALTER TABLE contracts ADD COLUMN %s %s" % (column, coltype)
+                )
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_contracts_firm_id ON contracts(firm_id)"
         )
 
-        # Authentication / firm membership.  These are additive tables only:
-        # no existing contract or clause row is rewritten.  Demo rows keep
+        # Authentication / firm membership. These are additive tables only:
+        # no existing contract or clause row is rewritten. Demo rows keep
         # firm_id NULL; uploads always receive the server-derived firm id.
         cur.execute(
             """
@@ -365,7 +998,48 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON auth_sessions(expires_at)"
         )
 
-        # clauses: individual sections extracted from contracts
+        # contract_versions: one immutable provenance record per ingestion or
+        # explicit re-import. The version row owns the source hash/path and the
+        # extraction metadata, so a clause never has to stand alone.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS contract_versions (
+                version_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                contract_id INTEGER NOT NULL,
+                version_number INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                created_by INTEGER,
+                firm_id INTEGER,
+                source_filename TEXT,
+                source_path TEXT,
+                source_sha256 TEXT,
+                source_size_bytes INTEGER,
+                source_mime TEXT,
+                extracted_text_sha256 TEXT,
+                extraction_status TEXT NOT NULL DEFAULT 'draft',
+                clause_splitter_version TEXT,
+                provenance_status TEXT NOT NULL DEFAULT 'unverified',
+                source_kind TEXT NOT NULL DEFAULT 'programmatic',
+                status TEXT NOT NULL DEFAULT 'draft',
+                published_at TEXT,
+                UNIQUE (contract_id, version_number),
+                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE,
+                FOREIGN KEY (firm_id) REFERENCES firms(firm_id) ON DELETE SET NULL ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_contract_versions_number "
+            "ON contract_versions(contract_id, version_number)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_contract_versions_contract "
+            "ON contract_versions(contract_id)"
+        )
+
+        # clauses: the materialised current set used by the deterministic graph
+        # and impact engine. version_id identifies the source version.
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS clauses (
@@ -374,11 +1048,72 @@ def init_db():
                 section_number TEXT,
                 clause_text TEXT,
                 metadata TEXT,
-                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id) ON DELETE RESTRICT ON UPDATE CASCADE
+                version_id INTEGER,
+                clause_sha256 TEXT,
+                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (version_id) REFERENCES contract_versions(version_id) ON DELETE RESTRICT ON UPDATE CASCADE
             )
             """
         )
+        clause_columns = [row[1] for row in cur.execute("PRAGMA table_info(clauses)")]
+        if "version_id" not in clause_columns:
+            cur.execute("ALTER TABLE clauses ADD COLUMN version_id INTEGER")
+        if "clause_sha256" not in clause_columns:
+            cur.execute("ALTER TABLE clauses ADD COLUMN clause_sha256 TEXT")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_clauses_contract_id ON clauses(contract_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_clauses_version ON clauses(version_id)")
+
+        # Immutable copy of replaced clause sets. The current set stays in
+        # clauses so existing readers do not change.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS clause_history (
+                history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                clause_id INTEGER,
+                contract_id INTEGER NOT NULL,
+                version_id INTEGER,
+                section_number TEXT,
+                clause_text TEXT,
+                metadata TEXT,
+                clause_sha256 TEXT,
+                archived_at TEXT NOT NULL,
+                archive_reason TEXT NOT NULL,
+                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (version_id) REFERENCES contract_versions(version_id) ON DELETE SET NULL ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_clause_history_contract "
+            "ON clause_history(contract_id)"
+        )
+
+        # graph_builds: provenance for the published graph and diagnostics for
+        # failed builds. A failed build never becomes the current graph.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS graph_builds (
+                build_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                contract_id INTEGER NOT NULL,
+                version_id INTEGER,
+                build_version TEXT NOT NULL,
+                status TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                finished_at TEXT,
+                node_count INTEGER,
+                edge_count INTEGER,
+                build_hash TEXT,
+                error_type TEXT,
+                error_message TEXT,
+                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (version_id) REFERENCES contract_versions(version_id) ON DELETE SET NULL ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_graph_builds_contract "
+            "ON graph_builds(contract_id)"
+        )
 
         # nodes: graph nodes (referencing clauses)
         cur.execute(
@@ -386,10 +1121,23 @@ def init_db():
             CREATE TABLE IF NOT EXISTS nodes (
                 node_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 clause_reference TEXT,
-                node_type TEXT
+                node_type TEXT,
+                contract_id INTEGER,
+                detail TEXT,
+                build_id INTEGER
             )
             """
         )
+        node_columns = [row[1] for row in cur.execute("PRAGMA table_info(nodes)")]
+        for column, coltype in (
+            ("contract_id", "INTEGER"),
+            ("detail", "TEXT"),
+            ("build_id", "INTEGER"),
+        ):
+            if column not in node_columns:
+                cur.execute(
+                    "ALTER TABLE nodes ADD COLUMN %s %s" % (column, coltype)
+                )
 
         # edges: relationships between nodes
         cur.execute(
@@ -399,13 +1147,23 @@ def init_db():
                 source_node INTEGER NOT NULL,
                 target_node INTEGER NOT NULL,
                 relationship_type TEXT,
+                contract_id INTEGER,
+                build_id INTEGER,
                 FOREIGN KEY (source_node) REFERENCES nodes(node_id) ON DELETE RESTRICT ON UPDATE CASCADE,
                 FOREIGN KEY (target_node) REFERENCES nodes(node_id) ON DELETE RESTRICT ON UPDATE CASCADE
             )
             """
         )
+        edge_columns = [row[1] for row in cur.execute("PRAGMA table_info(edges)")]
+        for column, coltype in (("contract_id", "INTEGER"), ("build_id", "INTEGER")):
+            if column not in edge_columns:
+                cur.execute(
+                    "ALTER TABLE edges ADD COLUMN %s %s" % (column, coltype)
+                )
         cur.execute("CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_node)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_node)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_edges_build ON edges(build_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_nodes_build ON nodes(build_id)")
 
         # authorities: legal authorities (for Person C)
         cur.execute(
@@ -419,7 +1177,8 @@ def init_db():
             """
         )
 
-        # traces: audit trail of actions
+        # traces: legacy application activity log retained for compatibility.
+        # It is NOT the durable audit trail; see audit_events below.
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS traces (
@@ -433,6 +1192,58 @@ def init_db():
             """
         )
         cur.execute("CREATE INDEX IF NOT EXISTS idx_traces_contract_id ON traces(contract_id)")
+
+        # audit_events: durable, append-only security and lifecycle evidence.
+        # No raw contract text, clause text, token, or secret belongs here.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_events (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                occurred_at TEXT NOT NULL,
+                firm_id INTEGER,
+                actor_user_id INTEGER,
+                actor_type TEXT NOT NULL,
+                action TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                target_type TEXT,
+                target_id TEXT,
+                correlation_id TEXT,
+                metadata_json TEXT,
+                FOREIGN KEY (firm_id) REFERENCES firms(firm_id) ON DELETE SET NULL ON UPDATE CASCADE,
+                FOREIGN KEY (actor_user_id) REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audit_events_firm_time "
+            "ON audit_events(firm_id, occurred_at)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audit_events_action "
+            "ON audit_events(action)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audit_events_target "
+            "ON audit_events(target_type, target_id)"
+        )
+        cur.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS audit_events_no_update
+            BEFORE UPDATE ON audit_events
+            BEGIN
+                SELECT RAISE(ABORT, 'audit_events is append-only');
+            END
+            """
+        )
+        cur.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS audit_events_no_delete
+            BEFORE DELETE ON audit_events
+            BEGIN
+                SELECT RAISE(ABORT, 'audit_events is append-only');
+            END
+            """
+        )
 
         conn.commit()
     finally:

@@ -32,9 +32,41 @@ WHY THE RULES TABLE INSTEAD OF PURE LLM
     The LLM is used only to fill gaps the rule table does not cover.
 """
 
+import logging
+from datetime import datetime, timezone
+
 import adapter
 import clauses as clause_tools
 import llm
+
+logger = logging.getLogger("app.graph")
+
+
+def _now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _build_audit_event(contract_id, audit_context, action, outcome, metadata):
+    """Turn an optional upload context into an append-only audit event.
+
+    Graph construction is also used by seed and test code, which has no
+    authenticated actor.  In that case no event is fabricated.
+    """
+
+    if not audit_context:
+        return None
+    event = {
+        "action": action,
+        "outcome": outcome,
+        "target_type": "contract",
+        "target_id": contract_id,
+        "metadata": dict(metadata or {}),
+    }
+    for key in ("firm_id", "actor_user_id", "actor_type", "correlation_id"):
+        value = audit_context.get(key)
+        if value is not None:
+            event[key] = value
+    return event
 
 # ---------------------------------------------------------------------------
 # TYPED RELATION TABLE
@@ -220,7 +252,13 @@ def _deterministic_nodes(clause):
 # ---------------------------------------------------------------------------
 # 3. build the whole graph
 # ---------------------------------------------------------------------------
-def build_graph(contract_id, use_llm=True, llm_limit=None, llm_target=None):
+def build_graph(
+    contract_id,
+    use_llm=True,
+    llm_limit=None,
+    llm_target=None,
+    audit_context=None,
+):
     """Build nodes and edges for a contract. Idempotent: rebuilds from scratch.
 
     use_llm     - allow the LLM to fill gaps the relation table left.
@@ -229,120 +267,211 @@ def build_graph(contract_id, use_llm=True, llm_limit=None, llm_target=None):
                   clause, so a limit keeps the live demo quick and cheap.
     llm_target  - only ask the LLM about this one clause. Useful to show
                   exactly what the model would contribute.
+    audit_context - optional authenticated actor/firm context. When supplied,
+                  publication or failure is written to the append-only audit
+                  trail in the same transaction as the graph build.
 
-    Returns a summary dict with counts.
+    The complete node/edge set is assembled in memory first.  Only then is it
+    handed to adapter.replace_graph(), which validates and publishes it in one
+    SQLite transaction.  A failed rebuild therefore leaves the previous
+    published graph untouched.
+
+    Returns a summary dict with counts and the published build id/hash.
     """
-    raw_clauses = adapter.list_clauses(contract_id)
-    if not raw_clauses:
-        return {"clauses": 0, "nodes": 0, "edges": 0, "llm_fills": 0,
-                "llm_calls": 0}
-
-    enriched = []
-    for row in raw_clauses:
-        meta = adapter.clause_metadata(row)
-        c = clause_tools.enrich({
-            "section_number": row["section_number"],
-            "clause_text": row["clause_text"],
-            "heading": meta.get("heading", ""),
-        })
-        if meta.get("type"):
-            c["type"] = meta["type"]
-        c["id"] = row["clause_id"]
-        enriched.append(c)
-    enriched.sort(key=lambda c: clause_tools.sec_sort_key(c["sec_no"]))
-
-    by_sec = {c["sec_no"]: c for c in enriched}
-    types = {c["sec_no"]: c["type"] for c in enriched}
-
-    adapter.clear_graph(contract_id)
-
-    node_count = 0
-    edge_count = 0
+    started_at = _now_iso()
+    version_id = None
     llm_fills = 0
     llm_calls = 0
+    nodes = []
+    edges = []
 
-    # pass 1: one node per clause, so every edge can point at a real node
-    clause_node = {}
-    for clause in enriched:
-        clause_node[clause["sec_no"]] = adapter.insert_clause_node(
-            contract_id, clause["sec_no"], clause["type"], clause["heading"]
+    try:
+        version_id = adapter.get_current_version_id(contract_id)
+        raw_clauses = adapter.list_clauses(contract_id)
+
+        enriched = []
+        for row in raw_clauses:
+            meta = adapter.clause_metadata(row)
+            c = clause_tools.enrich({
+                "section_number": row["section_number"],
+                "clause_text": row["clause_text"],
+                "heading": meta.get("heading", ""),
+            })
+            if meta.get("type"):
+                c["type"] = meta["type"]
+            c["id"] = row["clause_id"]
+            enriched.append(c)
+        enriched.sort(key=lambda c: clause_tools.sec_sort_key(c["sec_no"]))
+
+        by_sec = {c["sec_no"]: c for c in enriched}
+        types = {c["sec_no"]: c["type"] for c in enriched}
+
+        # pass 1: one node per clause, so every edge can point at a real node
+        clause_node = {}
+        for clause in enriched:
+            clause_node[clause["sec_no"]] = len(nodes)
+            nodes.append({
+                "ref": clause["sec_no"],
+                "node_type": "clause:%s" % clause["type"],
+                "detail": clause["heading"],
+            })
+
+        # pass 2: the things each clause creates, and the typed links
+        for clause in enriched:
+            sec = clause["sec_no"]
+            ctype = clause["type"]
+            text = clause["text"]
+
+            element_nodes = []
+            for kind, detail in _deterministic_nodes(clause):
+                ref = _element_ref(sec, kind)
+                index = len(nodes)
+                nodes.append({
+                    "ref": ref,
+                    "node_type": kind,
+                    "detail": detail,
+                })
+                element_nodes.append((ref, kind, index))
+                edges.append({
+                    "source": clause_node[sec],
+                    "target": index,
+                    "relationship_type": "creates",
+                })
+
+            # a payment duty is conditional on its deadline
+            for ref, kind, nid in element_nodes:
+                if kind == "payment":
+                    for dref, dkind, dnid in element_nodes:
+                        if dkind == "deadline":
+                            edges.append({
+                                "source": nid,
+                                "target": dnid,
+                                "relationship_type": "subject_to",
+                            })
+
+            # edges from explicit clause references
+            refs = clause_tools.find_references(text)
+            rule_dep_made = False
+            for ref in refs:
+                if ref == sec or ref not in by_sec:
+                    continue
+                rtype = types[ref]
+                if (ctype, rtype) in DEPENDENCY_RULES:
+                    edges.append({
+                        "source": clause_node[sec],
+                        "target": clause_node[ref],
+                        "relationship_type": "depends_on",
+                    })
+                    rule_dep_made = True
+                elif (ctype, rtype) in INVERSE_DEPENDENCY_RULES:
+                    # the REFERENCED clause is the dependent here
+                    edges.append({
+                        "source": clause_node[ref],
+                        "target": clause_node[sec],
+                        "relationship_type": "depends_on",
+                    })
+                    rule_dep_made = True
+                else:
+                    edges.append({
+                        "source": clause_node[sec],
+                        "target": clause_node[ref],
+                        "relationship_type": "references",
+                    })
+
+            # the LLM only fills gaps the rule table left
+            if use_llm and not rule_dep_made and _llm_allowed(
+                sec, llm_target, llm_calls, llm_limit
+            ):
+                llm_calls += 1
+                payload = llm.ask_json(
+                    EXTRACT_PROMPT.format(
+                        sec_no=sec, ctype=ctype, text=text[:4000]
+                    )
+                )
+                if payload:
+                    llm_fills += 1
+                    for ref in payload.get("depends_on", []) or []:
+                        ref = str(ref).strip()
+                        if ref and ref != sec and ref in by_sec:
+                            edges.append({
+                                "source": clause_node[sec],
+                                "target": clause_node[ref],
+                                "relationship_type": "depends_on",
+                            })
+                    for item in payload.get("creates", []) or []:
+                        kind = item.get("kind")
+                        detail = (item.get("detail") or "").strip()
+                        if kind and detail:
+                            ref = _element_ref(sec, kind)
+                            index = len(nodes)
+                            nodes.append({
+                                "ref": ref,
+                                "node_type": kind,
+                                "detail": detail[:120],
+                            })
+                            edges.append({
+                                "source": clause_node[sec],
+                                "target": index,
+                                "relationship_type": "creates",
+                            })
+
+        build_version = adapter.GRAPH_BUILD_VERSION
+        build_hash = adapter.compute_graph_hash(
+            nodes, edges, build_version=build_version
         )
-        node_count += 1
-
-    # pass 2: the things each clause creates, and the typed links
-    for clause in enriched:
-        sec = clause["sec_no"]
-        ctype = clause["type"]
-        text = clause["text"]
-
-        element_nodes = []
-        for kind, detail in _deterministic_nodes(clause):
-            ref = _element_ref(sec, kind)
-            nid = adapter.insert_element_node(contract_id, ref, kind, detail)
-            node_count += 1
-            element_nodes.append((ref, kind, nid))
-            adapter.insert_edge(contract_id, clause_node[sec], nid, "creates")
-            edge_count += 1
-
-        # a payment duty is conditional on its deadline
-        for ref, kind, nid in element_nodes:
-            if kind == "payment":
-                for dref, dkind, dnid in element_nodes:
-                    if dkind == "deadline":
-                        adapter.insert_edge(contract_id, nid, dnid, "subject_to")
-                        edge_count += 1
-
-        # edges from explicit clause references
-        refs = clause_tools.find_references(text)
-        rule_dep_made = False
-        for ref in refs:
-            if ref == sec or ref not in by_sec:
-                continue
-            rtype = types[ref]
-            if (ctype, rtype) in DEPENDENCY_RULES:
-                adapter.insert_edge(contract_id, clause_node[sec], clause_node[ref],
-                                    "depends_on")
-                rule_dep_made = True
-                edge_count += 1
-            elif (ctype, rtype) in INVERSE_DEPENDENCY_RULES:
-                # the REFERENCED clause is the dependent here
-                adapter.insert_edge(contract_id, clause_node[ref], clause_node[sec],
-                                    "depends_on")
-                rule_dep_made = True
-                edge_count += 1
-            else:
-                adapter.insert_edge(contract_id, clause_node[sec], clause_node[ref],
-                                    "references")
-                edge_count += 1
-
-        # the LLM only fills gaps the rule table left
-        if use_llm and not rule_dep_made and _llm_allowed(sec, llm_target,
-                                                           llm_calls, llm_limit):
-            llm_calls += 1
-            payload = llm.ask_json(
-                EXTRACT_PROMPT.format(sec_no=sec, ctype=ctype, text=text[:4000])
+        audit_metadata = {}
+        if audit_context and audit_context.get("filename"):
+            audit_metadata["filename"] = audit_context["filename"]
+        published = adapter.replace_graph(
+            contract_id,
+            nodes,
+            edges,
+            version_id=version_id,
+            build_version=build_version,
+            build_hash=build_hash,
+            started_at=started_at,
+            audit_event=_build_audit_event(
+                contract_id,
+                audit_context,
+                "graph.build_published",
+                "success",
+                audit_metadata,
+            ),
+        )
+    except Exception as exc:
+        failure_metadata = {"error_type": type(exc).__name__}
+        if audit_context and audit_context.get("filename"):
+            failure_metadata["filename"] = audit_context["filename"]
+        try:
+            adapter.record_graph_failure(
+                contract_id,
+                exc,
+                version_id=version_id,
+                started_at=started_at,
+                audit_event=_build_audit_event(
+                    contract_id,
+                    audit_context,
+                    "graph.build_failed",
+                    "failure",
+                    failure_metadata,
+                ),
             )
-            if payload:
-                llm_fills += 1
-                for ref in payload.get("depends_on", []) or []:
-                    ref = str(ref).strip()
-                    if ref and ref != sec and ref in by_sec:
-                        adapter.insert_edge(contract_id, clause_node[sec],
-                                            clause_node[ref], "depends_on")
-                        edge_count += 1
-                for item in payload.get("creates", []) or []:
-                    kind = item.get("kind")
-                    detail = (item.get("detail") or "").strip()
-                    if kind and detail:
-                        ref = _element_ref(sec, kind)
-                        nid = adapter.insert_element_node(contract_id, ref, kind,
-                                                         detail[:120])
-                        node_count += 1
-                        adapter.insert_edge(contract_id, clause_node[sec], nid, "creates")
-                        edge_count += 1
+        except Exception:
+            logger.exception(
+                "Could not record graph-build failure for contract %s",
+                contract_id,
+            )
+        raise
 
-    return {"clauses": len(enriched), "nodes": node_count, "edges": edge_count,
-            "llm_fills": llm_fills, "llm_calls": llm_calls}
+    return {
+        "clauses": len(enriched),
+        "nodes": published["node_count"],
+        "edges": published["edge_count"],
+        "llm_fills": llm_fills,
+        "llm_calls": llm_calls,
+        "build_id": published["build_id"],
+        "build_hash": published["build_hash"],
+    }
 
 
 def _llm_allowed(sec, llm_target, calls, llm_limit):
