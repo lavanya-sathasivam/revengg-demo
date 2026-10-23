@@ -1,10 +1,23 @@
 # Phase 5 Database Integrity, Provenance, and Audit
 
-**Status:** Additive SQLite implementation for local/test use. This is **not** a production multi-tenant database, retention system, backup system, or legal-hold implementation.
+**Status:** Phase 5 additive SQLite schema and audit design approved for local/test use. This is **not** a production multi-tenant database, retention system, backup system, or legal-hold implementation.
 
 **Scope:** The schema and service changes in `db.py`, `adapter.py`, `graph.py`, `api_a.py`, `auth.py`, `application.py`, `seed.py`, and `audit.py`.
 
-**Approval note:** The additive schema and audit design have not been recorded as an approved architecture decision. The legal retention, legal-hold, backup-deletion, and audit-retention decisions remain open in `docs/DECISIONS_AND_OPEN_QUESTIONS.md` (OQ-03, OQ-07, OQ-13). This document describes implemented behaviour, not approval of those policies.
+**Decision record:** The additive schema and audit design were approved on 2026-10-23 through the Phase 5 acceptance instruction; the individual approver was not named. Approved policy direction and open operational decisions are recorded in `docs/DECISIONS_AND_OPEN_QUESTIONS.md` (D4, D5, D13; OQ-03, OQ-07, OQ-11, OQ-13, OQ-16). This document distinguishes implemented controls from approved-but-unimplemented policy.
+
+---
+
+## Decision status
+
+| Item | Status |
+|---|---|
+| Additive SQLite schema and append-only audit design | Approved for local/test implementation (D13). |
+| Configurable retention | Approved in principle; production defaults, maximum periods, and deletion SLA remain open (D5, OQ-03). |
+| Legal holds | Approved in principle: only designated, authorized personnel may place or release a hold; specific designees and process remain open (D5, OQ-03). |
+| Audit access and exports | Approved in principle: access and exports are restricted; exact roles, retention, export controls, and review cadence remain open (D5, OQ-13). |
+| Legacy reclassification | Approved in principle: human review with recorded evidence; reviewer authorization and evidence requirements remain open (D4, OQ-11). |
+| Stronger tamper evidence | Open (OQ-16). |
 
 ---
 
@@ -100,7 +113,7 @@ Current audit actions include:
 
 The sanitizer redacts sensitive key names (text/content/token/secret/password/authorization/cookie/API key), token-like values, and truncates long strings. Audit metadata is not a copy of the contract.
 
-**Limitations:** there is no audit viewer, export, retention job, access-review workflow, or role that can read audit events through the application. SQLite triggers are not tamper-proof against a database owner. Those decisions and controls remain open (OQ-13).
+**Limitations:** there is no audit viewer, export, retention job, access-review workflow, or role that can read audit events through the application. SQLite triggers are not tamper-proof against a database owner. Those decisions and controls remain open (OQ-13, OQ-16).
 
 ---
 
@@ -129,7 +142,7 @@ The following operations are single SQLite transactions:
 | `unverified` | Programmatic or test writes without a verified source. |
 | `legacy_unclassified` | Rows that predate the integrity schema, or rows whose source cannot be established. |
 
-Legacy rows are not assigned a firm, a version, or a guessed source. They remain readable in demo mode and are reported explicitly as `legacy_unclassified`. Reclassification requires a human decision and an audit record; it is not automatic (OQ-11/D4).
+Legacy rows are not assigned a firm, a version, or a guessed source. They remain readable in demo mode and are reported explicitly as `legacy_unclassified`. Reclassification requires human review with recorded evidence; it is not automatic (OQ-11/D4). No reclassification workflow is implemented in Phase 5.
 
 Uploaded contracts use the server-derived active firm. A version whose firm would differ from its contract's firm is rejected.
 
@@ -174,7 +187,28 @@ This is SQLite-only and does not implement PostgreSQL, RLS, object storage, back
 
 ## 7. Retention, legal hold, deletion, and backups
 
-**Not implemented in Phase 5.** No retention period, legal-hold authority, deletion SLA, backup-deletion timeline, or audit-retention period has been approved. This phase deliberately does not choose one.
+**Implementation status:** No retention workflow, legal-hold workflow, deletion workflow, or backup/restore control is implemented in Phase 5. Approval of the policy direction does not implement it.
+
+Approved policy direction:
+
+- retention is configurable at firm level, subject to legal and contractual requirements;
+- legal holds override ordinary deletion, and only designated, authorized personnel may place or release a hold;
+- access to audit records and exports is restricted;
+- legacy records whose provenance or ownership is uncertain remain `legacy_unclassified`; reclassification requires human review with recorded evidence;
+- deletion must be authorized and audited, with an audit tombstone that does not contain sensitive clause text;
+- backups must be encrypted and restored with tenant isolation.
+
+Open decisions and unimplemented controls:
+
+- production default and maximum retention periods, the deletion SLA, and applicable deletion obligations;
+- the specific personnel designated to place or release legal holds and the designation process;
+- the audit-retention period, exact audit access roles, export controls, and access-review cadence;
+- backup lifecycle, backup-deletion timeline, restore ownership, RPO/RTO, restore-testing cadence, and incident-response ownership;
+- legacy-record reviewer authorization and the exact recorded evidence required;
+- whether stronger tamper evidence is required beyond SQLite append-only triggers;
+- user-facing soft delete, hard delete, and audit tombstones;
+- deletion across original files, derived artifacts, caches, indexes, and future object storage;
+- scheduled retention/deletion execution and its audit evidence.
 
 What currently exists:
 
@@ -182,17 +216,7 @@ What currently exists:
 - audit rows are append-only at the trigger level;
 - failed extraction still records a version and audit event rather than reporting success.
 
-What is missing and must be decided before any deletion feature:
-
-- user-facing soft delete, hard delete, and audit tombstone;
-- legal-hold capture, authority, and override rules;
-- deletion across original files, derived artifacts, caches, indexes, and future object storage;
-- deletion/retention execution on a schedule and its audit evidence;
-- backup encryption, restore ownership, RPO/RTO, and backup-deletion propagation;
-- audit access roles, export policy, retention, and legal discovery;
-- reviewer identity and evidence requirements for legacy reclassification.
-
-Until those decisions are approved, do not claim that deletion, legal hold, retention, or backup controls are implemented. Do not use direct SQL deletion as a production workflow.
+Do not claim that deletion, legal hold, retention, or backup controls are implemented. Do not use direct SQL deletion as a production workflow.
 
 ---
 
@@ -220,16 +244,20 @@ py -3.11 -m unittest discover -s tests -v
 git diff --check
 ```
 
+**Acceptance run (2026-10-23):** the focused suite passed 17 tests; the full `tests/` suite passed 203 tests; the additional root compatibility suites passed 104 tests with 4 skipped; `git diff --check` was clean. These are local SQLite/test results, not production validation.
+
 The suite uses temporary databases and upload directories. It does not open `demo.db`, `app.db`, or real uploads.
 
 ---
 
 ## 9. Remaining risks and open decisions
 
-- Approve or reject the additive schema design and audit scope as an architecture decision.
-- Approve retention periods, legal-hold authority, deletion SLA, backup-deletion timeline, and audit retention/access (OQ-03, OQ-07, OQ-13).
+- The additive schema and audit design are approved for local/test implementation; production PostgreSQL/RLS remains a separate decision.
+- Record retention defaults, deletion obligations, backup lifecycle, restore ownership, RPO/RTO, restore-testing cadence, and incident-response ownership (OQ-03, OQ-07).
+- Record specific legal-hold designees, exact audit roles, audit retention, export controls, and access-review cadence (OQ-03, OQ-13).
+- Decide legacy-record reviewer authorization and the exact evidence requirements; uncertain records remain unclassified (OQ-11).
+- Decide whether stronger tamper evidence is required beyond SQLite append-only triggers (OQ-16).
 - Add a database-level immutability trigger for published version columns if the service-level rule is insufficient.
-- Add audit read/export authorization and tamper-evidence beyond SQLite triggers.
-- Decide the legacy review and reclassification process (OQ-11).
+- Implement audit read/export authorization and the approved access restrictions.
 - Implement PostgreSQL, RLS, encrypted backups, and object lifecycle only under a separate approved design.
 - Keep the deterministic graph and impact engines free of LLM authority; graph build changes are persistence-only.

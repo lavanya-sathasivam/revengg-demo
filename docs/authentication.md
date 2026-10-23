@@ -131,10 +131,10 @@ Authentication and authorization semantics:
 - Choose and approve an identity provider, MFA policy, SSO model, and production session policy (OQ-02).
 - Approve a production CSRF strategy if cookie-authenticated state changes remain browser-facing.
 - Approve PostgreSQL and RLS before claiming database-enforced tenant isolation.
-- Approve audit retention, audit access roles, export policy, and access-review cadence (OQ-13).
+- Approve the exact audit access roles, export controls, audit-retention period, and access-review cadence (OQ-13). Restricted audit access and exports are approved policy, but no in-app viewer/export role enforcement exists yet. Whether stronger tamper evidence is required remains open (OQ-16).
 - Decide whether matter-level/ethical-wall permissions are required at launch (OQ-06).
 - Add session rotation, absolute/idle timeouts, device/session management, and revocation tooling.
-- Decide how legacy unclassified upload rows should be quarantined/reclassified; rows with `firm_id IS NULL` are never visible to firm members.
+- Decide legacy-record reviewer authorization and evidence requirements; human review with recorded evidence is approved, and uncertain rows remain unclassified (OQ-11). Rows with `firm_id IS NULL` are never visible to firm members.
 
 ## 9. Tests
 
