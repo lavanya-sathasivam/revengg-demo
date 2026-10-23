@@ -29,6 +29,7 @@ import app
 import adapter
 import api_a
 import api_b
+import auth
 import db
 import graph
 from application import create_app
@@ -118,12 +119,24 @@ class ApiTestCase(unittest.TestCase):
         self.addCleanup(db.reset_database_config, self._db_token)
         db.init_db()
 
+        # Every upload-mode request is authenticated.  These are synthetic
+        # local fixtures; no password or production credential exists.
+        self.firm_id = auth.create_firm("API Test Firm")
+        self.user_id = auth.create_user("api-test-user", "API Test User")
+        auth.add_membership(self.firm_id, self.user_id, auth.ROLE_LAWYER)
+        self.session_token = auth.create_session(
+            self.user_id, self.firm_id, ttl_seconds=3600
+        )
+        self.principal = auth.get_session_principal(self.session_token)
+        self.assertIsNotNone(self.principal)
+
         self.application = create_app(
             mode="upload",
             database_path=self.db_path,
             upload_dir=Path(self.upload_dir),
         )
         self.client = TestClient(self.application)
+        self.client.cookies.set(auth.SESSION_COOKIE_NAME, self.session_token)
 
     def _upload(self, data: bytes, filename: str = "contract.pdf"):
         response = self.client.post(
@@ -187,7 +200,9 @@ class UploadFlowTests(ApiTestCase):
         self.assertEqual(by_number["7.2"]["metadata"]["level"], 1)
         self.assertEqual(by_number["7.2"]["metadata"]["type"], "payment")
 
-        returned = app.get_contract_clauses_route(response["contract_id"])
+        returned = self.client.get(
+            "/contracts/%d/clauses" % response["contract_id"]
+        ).json()
         returned_by_number = {
             clause["section_number"]: clause for clause in returned["clauses"]
         }
@@ -213,9 +228,17 @@ class UploadFlowTests(ApiTestCase):
         self.assertIn(("3", "1.1", "depends_on"), edges)
         self.assertIn(("3", "2.1", "depends_on"), edges)
 
-        report = api_b.analyze(api_b.ImpactRequest(
-            contract_id=cid, clause_id="1.1", old_value=30, new_value=15
-        ))
+        analysis = self.client.post(
+            "/impact",
+            json={
+                "contract_id": cid,
+                "clause_id": "1.1",
+                "old_value": 30,
+                "new_value": 15,
+            },
+        )
+        self.assertEqual(analysis.status_code, 200, analysis.text)
+        report = analysis.json()
         self.assertEqual(report["changed_clause"]["sec_no"], "1.1")
         self.assertIn("3", [hit["sec_no"] for hit in report["direct"]])
         self.assertTrue(report["evidence"])
@@ -284,13 +307,18 @@ class UploadFlowTests(ApiTestCase):
         self.assertTrue(db.list_clauses(cid))
         self.assertEqual(adapter.get_nodes(cid), [])
         self.assertEqual(adapter.get_edges(cid), [])
-        with self.assertRaises(HTTPException) as analysis_error:
-            api_b.analyze(api_b.ImpactRequest(
-                contract_id=cid, clause_id="1.1", old_value=30, new_value=15
-            ))
-        self.assertEqual(analysis_error.exception.status_code, 409)
+        analysis_error = self.client.post(
+            "/impact",
+            json={
+                "contract_id": cid,
+                "clause_id": "1.1",
+                "old_value": 30,
+                "new_value": 15,
+            },
+        )
+        self.assertEqual(analysis_error.status_code, 409)
         self.assertIn("Impact analysis is unavailable",
-                      analysis_error.exception.detail)
+                      analysis_error.json()["detail"])
 
         conn = db.get_conn()
         try:
@@ -306,7 +334,9 @@ class UploadFlowTests(ApiTestCase):
 
     def test_clauses_endpoint_returns_sections_in_order(self):
         upload = self._upload(SECTIONS_PDF)
-        body = app.get_contract_clauses_route(upload["contract_id"])
+        body = self.client.get(
+            "/contracts/%d/clauses" % upload["contract_id"]
+        ).json()
         self.assertEqual(body["contract_id"], upload["contract_id"])
         self.assertEqual(
             [c["section_number"] for c in body["clauses"]], ["1", "2", "3", "4"]
@@ -324,7 +354,9 @@ class UploadFlowTests(ApiTestCase):
 
         # No clauses invented; endpoint returns an empty list, not an error.
         self.assertEqual(db.list_clauses(response["contract_id"]), [])
-        body = app.get_contract_clauses_route(response["contract_id"])
+        body = self.client.get(
+            "/contracts/%d/clauses" % response["contract_id"]
+        ).json()
         self.assertEqual(body["clauses"], [])
 
     def test_corrupt_pdf_returns_422_and_saves_no_clauses(self):
@@ -350,12 +382,14 @@ class UploadFlowTests(ApiTestCase):
         self.assertEqual(self._count_contracts(), 0)
 
     def test_oversized_content_length_returns_413(self):
+        request = make_request(
+            content_length=app.MAX_UPLOAD_SIZE + 5_000,
+            application=self.application,
+        )
+        request.state.principal = self.principal
         with self.assertRaises(HTTPException) as ctx:
             app.upload_contract(
-                make_request(
-                    content_length=app.MAX_UPLOAD_SIZE + 5_000,
-                    application=self.application,
-                ),
+                request,
                 make_upload(b"%PDF-1.4", "big.pdf"),
             )
         self.assertEqual(ctx.exception.status_code, 413)
@@ -380,25 +414,23 @@ class UploadFlowTests(ApiTestCase):
 
 class RetrievalTests(ApiTestCase):
     def test_unknown_contract_clauses_returns_404(self):
-        with self.assertRaises(HTTPException) as ctx:
-            app.get_contract_clauses_route(9999)
-        self.assertEqual(ctx.exception.status_code, 404)
+        response = self.client.get("/contracts/9999/clauses")
+        self.assertEqual(response.status_code, 404)
 
     def test_unknown_contract_detail_returns_404(self):
-        with self.assertRaises(HTTPException) as ctx:
-            app.get_contract_route(9999)
-        self.assertEqual(ctx.exception.status_code, 404)
+        response = self.client.get("/contracts/9999")
+        self.assertEqual(response.status_code, 404)
 
     def test_contract_list_and_detail_still_work(self):
         upload = self._upload(SECTIONS_PDF)
         contract_id = upload["contract_id"]
 
-        listing = app.list_contracts_route()
+        listing = self.client.get("/contracts").json()
         self.assertEqual(len(listing), 1)
         self.assertEqual(listing[0]["contract_id"], contract_id)
         self.assertNotIn("raw_text", listing[0])
 
-        detail = app.get_contract_route(contract_id)
+        detail = self.client.get("/contracts/%d" % contract_id).json()
         self.assertEqual(detail["contract_id"], contract_id)
         self.assertIn("raw_text", detail)
 
@@ -433,7 +465,11 @@ class ClauseExplanationTests(ApiTestCase):
 
     def test_explanation_for_existing_section(self):
         upload = self._upload(SECTIONS_PDF)
-        result = app.get_clause_explanation_route(upload["contract_id"], "2")
+        response = self.client.get(
+            "/contracts/%d/clauses/2/explanation" % upload["contract_id"]
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
 
         self.assertIsInstance(result, dict)
         self.assertEqual(set(result.keys()), self.EXPLANATION_KEYS)
@@ -441,16 +477,16 @@ class ClauseExplanationTests(ApiTestCase):
         self.assertIn("This is not legal advice", result["disclaimer"])
 
     def test_unknown_contract_returns_404(self):
-        with self.assertRaises(HTTPException) as ctx:
-            app.get_clause_explanation_route(9999, "1")
-        self.assertEqual(ctx.exception.status_code, 404)
-        self.assertEqual(ctx.exception.detail, "Contract not found")
+        response = self.client.get("/contracts/9999/clauses/1/explanation")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "Contract not found")
 
     def test_unknown_section_returns_404(self):
         upload = self._upload(SECTIONS_PDF)
-        with self.assertRaises(HTTPException) as ctx:
-            app.get_clause_explanation_route(upload["contract_id"], "99")
-        self.assertEqual(ctx.exception.status_code, 404)
+        response = self.client.get(
+            "/contracts/%d/clauses/99/explanation" % upload["contract_id"]
+        )
+        self.assertEqual(response.status_code, 404)
 
     def test_section_matching_is_exact(self):
         upload = self._upload(SECTIONS_PDF)
@@ -463,11 +499,14 @@ class ClauseExplanationTests(ApiTestCase):
         )
 
         # "3" must not match "30".
-        with self.assertRaises(HTTPException) as ctx:
-            app.get_clause_explanation_route(contract_id, "3")
-        self.assertEqual(ctx.exception.status_code, 404)
+        missing = self.client.get(
+            "/contracts/%d/clauses/3/explanation" % contract_id
+        )
+        self.assertEqual(missing.status_code, 404)
 
-        result = app.get_clause_explanation_route(contract_id, "30")
+        result = self.client.get(
+            "/contracts/%d/clauses/30/explanation" % contract_id
+        ).json()
         self.assertIn("Section thirty text", result["input"]["text"])
 
 

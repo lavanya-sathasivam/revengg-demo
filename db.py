@@ -120,6 +120,69 @@ def list_contracts():
         conn.close()
 
 
+def _contract_columns(conn) -> set[str]:
+    return {row[1] for row in conn.execute("PRAGMA table_info(contracts)")}
+
+
+def _contract_scope(conn, firm_id):
+    """Return (SQL fragment, params) for a demo or firm-scoped contract query.
+
+    Demo mode reads only rows whose ``firm_id`` is NULL.  Firm mode reads only
+    the active firm.  A database that predates the additive migration has no
+    ``firm_id`` column: demo reads remain valid (all rows are synthetic), but
+    a firm-scoped read fails closed instead of ignoring the tenant filter.
+    """
+
+    if "firm_id" not in _contract_columns(conn):
+        if firm_id is None:
+            return "", ()
+        return " AND 0", ()
+    if firm_id is None:
+        return " AND firm_id IS NULL", ()
+    return " AND firm_id = ?", (firm_id,)
+
+
+def get_contract_for_firm(contract_id: int, firm_id):
+    """Return a contract only when it belongs to the requested scope.
+
+    ``firm_id=None`` is the read-only synthetic demo scope.  Any other value is
+    an authenticated firm id.  Foreign and unknown ids both return None.
+    """
+
+    conn = get_conn()
+    try:
+        scope_sql, params = _contract_scope(conn, firm_id)
+        cur = conn.execute(
+            """SELECT contract_id, filename, upload_timestamp,
+                      processing_status, raw_text
+               FROM contracts
+               WHERE contract_id = ?""" + scope_sql,
+            (contract_id,) + params,
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_contracts_for_firm(firm_id):
+    """Return lightweight contract rows scoped to the demo or one firm."""
+
+    conn = get_conn()
+    try:
+        scope_sql, params = _contract_scope(conn, firm_id)
+        cur = conn.execute(
+            """SELECT contract_id, filename, upload_timestamp, processing_status
+               FROM contracts
+               WHERE 1 = 1""" + scope_sql + """
+               ORDER BY contract_id ASC""",
+            params,
+        )
+        return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
 def save_clauses(contract_id, clauses):
     """
     Store the clauses of one contract, replacing any previously stored set.
@@ -221,17 +284,86 @@ def init_db():
                 filename TEXT NOT NULL,
                 upload_timestamp TEXT NOT NULL,
                 processing_status TEXT NOT NULL DEFAULT 'uploaded',
-                raw_text TEXT
+                raw_text TEXT,
+                firm_id INTEGER
             )
             """
         )
 
-        # Safe migration: add raw_text to contracts if it is missing on an
+        # Safe migrations: add raw_text/firm_id if they are missing on an
         # existing database. Never drops or recreates tables/records.
         cur.execute("PRAGMA table_info(contracts)")
         contract_columns = [row[1] for row in cur.fetchall()]
         if "raw_text" not in contract_columns:
             cur.execute("ALTER TABLE contracts ADD COLUMN raw_text TEXT")
+        if "firm_id" not in contract_columns:
+            cur.execute("ALTER TABLE contracts ADD COLUMN firm_id INTEGER")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_contracts_firm_id ON contracts(firm_id)"
+        )
+
+        # Authentication / firm membership.  These are additive tables only:
+        # no existing contract or clause row is rewritten.  Demo rows keep
+        # firm_id NULL; uploads always receive the server-derived firm id.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS firms (
+                firm_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                subject TEXT NOT NULL UNIQUE,
+                display_name TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                disabled INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS firm_memberships (
+                firm_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL CHECK (role IN (
+                    'administrator', 'lawyer', 'paralegal', 'reviewer', 'viewer'
+                )),
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (firm_id, user_id),
+                FOREIGN KEY (firm_id) REFERENCES firms(firm_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_memberships_user ON firm_memberships(user_id)"
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_sessions (
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_hash TEXT NOT NULL UNIQUE,
+                user_id INTEGER NOT NULL,
+                active_firm_id INTEGER,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                revoked_at TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (active_firm_id) REFERENCES firms(firm_id) ON DELETE SET NULL ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sessions_user ON auth_sessions(user_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON auth_sessions(expires_at)"
+        )
 
         # clauses: individual sections extracted from contracts
         cur.execute(

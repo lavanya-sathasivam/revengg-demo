@@ -97,6 +97,16 @@ http://127.0.0.1:8000/?contract=1&clause=9.1&old=99&new=98    # the SLA counterf
 router — **neither A's nor C's file is modified** (except for the one route
 that serves the second page).
 
+### Authentication and firm scope (upload mode)
+
+Demo mode remains anonymous and read-only. Upload mode requires a server-side
+session and scopes every contract, clause, graph, impact, explanation,
+suggestion, comparison, and upload request to the session's active firm. The
+identity provider is **not selected yet**; there is no password login. See
+[`docs/authentication.md`](docs/authentication.md) for the session foundation,
+required environment variables, local provisioning, roles, and security
+assumptions.
+
 | endpoint | what it returns |
 |---|---|
 | `GET /graph/{id}` | every node and every typed edge |

@@ -9,13 +9,15 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.routing import iter_route_contexts
 
 import api_a
+import api_auth
 import api_b
+import auth
 import db
-from app_config import AppSettings, BASE_DIR, load_settings
+from app_config import AppSettings, BASE_DIR, MODE_DEMO, load_settings
 
 logger = logging.getLogger("app")
 
@@ -123,9 +125,31 @@ def create_app(
     app.state.upload_dir = settings.upload_dir
 
     @app.middleware("http")
-    async def database_scope(request, call_next):
+    async def request_scope(request, call_next):
+        """Bind the database, then establish authentication and tenant context.
+
+        The database must be bound first because session and membership lookups
+        use the same per-application database.  The middleware, not an
+        individual handler, enforces authentication so a newly added API route
+        cannot accidentally become public.
+        """
+
         token = db.set_database_config(database_config)
         try:
+            principal = auth.authenticate_request(request, settings)
+            request.state.principal = principal
+
+            if (
+                settings.mode != MODE_DEMO
+                and not auth.is_public_path(request.url.path)
+                and not principal.authenticated
+            ):
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Authentication required"},
+                    headers={"WWW-Authenticate": "Session"},
+                )
+
             return await call_next(request)
         finally:
             db.reset_database_config(token)
@@ -145,6 +169,7 @@ def create_app(
         return _serve(EXPLAIN_HTML, "Clause explanation")
 
     # Register each router exactly once, through this factory only.
+    _include_router_once(app, api_auth.router)
     _include_router_once(app, api_a.router)
     _include_router_once(app, api_b.router)
 

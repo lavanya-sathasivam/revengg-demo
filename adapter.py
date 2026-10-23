@@ -116,11 +116,12 @@ def get_contract(contract_id):
     return db.get_contract(contract_id)
 
 
-def create_contract(filename, raw_text, status="extracted"):
+def create_contract(filename, raw_text, status="extracted", firm_id=None):
     """Insert one contract row plus one trace row, return the new id.
 
     A's db.py has no contract INSERT helper (the upload route does it
     inline), so the seam provides one, following A's transaction pattern.
+    ``firm_id=None`` keeps a row in the synthetic/demo scope.
     """
     from datetime import datetime, timezone
 
@@ -128,9 +129,10 @@ def create_contract(filename, raw_text, status="extracted"):
     try:
         now = datetime.now(timezone.utc).isoformat()
         cur = conn.execute(
-            """INSERT INTO contracts (filename, upload_timestamp, processing_status, raw_text)
-               VALUES (?, ?, ?, ?)""",
-            (filename, now, status, raw_text),
+            """INSERT INTO contracts
+                   (filename, upload_timestamp, processing_status, raw_text, firm_id)
+               VALUES (?, ?, ?, ?, ?)""",
+            (filename, now, status, raw_text, firm_id),
         )
         contract_id = cur.lastrowid
         conn.execute(

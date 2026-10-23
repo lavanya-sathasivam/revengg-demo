@@ -27,6 +27,10 @@ DEMO_DB_ENV = "REVENGG_DEMO_DB_PATH"
 UPLOAD_DB_ENV = "REVENGG_UPLOAD_DB_PATH"
 UPLOAD_DIR_ENV = "REVENGG_UPLOAD_DIR"
 MODE_ENV = "REVENGG_MODE"
+SESSION_COOKIE_SECURE_ENV = "REVENGG_SESSION_COOKIE_SECURE"
+SESSION_TTL_ENV = "REVENGG_SESSION_TTL_SECONDS"
+
+DEFAULT_SESSION_TTL_SECONDS = 8 * 60 * 60
 
 
 class ConfigurationError(RuntimeError):
@@ -42,10 +46,45 @@ class AppSettings:
     database_read_only: bool
     uploads_enabled: bool
     upload_dir: Path | None
+    session_cookie_secure: bool = True
+    session_ttl_seconds: int = DEFAULT_SESSION_TTL_SECONDS
 
 
 def _resolved_path(value) -> Path:
     return Path(value).expanduser().resolve()
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise ConfigurationError(
+        f"{name} must be a boolean (true/false), got {raw!r}."
+    )
+
+
+def _session_settings() -> tuple[bool, int]:
+    secure = _env_bool(SESSION_COOKIE_SECURE_ENV, True)
+    raw_ttl = os.environ.get(SESSION_TTL_ENV, "").strip()
+    if not raw_ttl:
+        ttl = DEFAULT_SESSION_TTL_SECONDS
+    else:
+        try:
+            ttl = int(raw_ttl)
+        except ValueError as exc:
+            raise ConfigurationError(
+                f"{SESSION_TTL_ENV} must be an integer number of seconds."
+            ) from exc
+        if ttl <= 0:
+            raise ConfigurationError(
+                f"{SESSION_TTL_ENV} must be greater than zero."
+            )
+    return secure, ttl
 
 
 def _demo_path() -> Path:
@@ -65,6 +104,7 @@ def load_settings(mode=None, database_path=None, upload_dir=None) -> AppSettings
         selected_mode = MODE_UPLOAD if database_path is not None else MODE_DEMO
 
     demo_path = _demo_path()
+    session_cookie_secure, session_ttl_seconds = _session_settings()
 
     if selected_mode == MODE_DEMO:
         chosen = database_path or os.environ.get(DEMO_DB_ENV, "").strip() or demo_path
@@ -74,6 +114,8 @@ def load_settings(mode=None, database_path=None, upload_dir=None) -> AppSettings
             database_read_only=True,
             uploads_enabled=False,
             upload_dir=None,
+            session_cookie_secure=session_cookie_secure,
+            session_ttl_seconds=session_ttl_seconds,
         )
 
     if selected_mode == MODE_UPLOAD:
@@ -98,6 +140,8 @@ def load_settings(mode=None, database_path=None, upload_dir=None) -> AppSettings
             database_read_only=False,
             uploads_enabled=True,
             upload_dir=upload_dir_path,
+            session_cookie_secure=session_cookie_secure,
+            session_ttl_seconds=session_ttl_seconds,
         )
 
     raise ConfigurationError(

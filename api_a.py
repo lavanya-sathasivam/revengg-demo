@@ -16,12 +16,11 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from db import (
     get_conn,
-    get_contract,
     list_clauses,
-    list_contracts,
     save_clauses,
 )
 import adapter
+import auth
 import clauses as clause_tools
 from extract import extract_text
 import graph
@@ -113,13 +112,19 @@ def save_upload(upload: UploadFile, upload_dir: Path) -> tuple[str, str]:
 
 
 def save_contract_with_trace(
-    filename: str, status: str, raw_text: str | None, action: str, details: str
+    filename: str,
+    status: str,
+    raw_text: str | None,
+    action: str,
+    details: str,
+    firm_id: int | None = None,
 ) -> int:
     """
     Insert one contract row plus one trace row in a single transaction.
 
     If anything fails, the transaction is rolled back so no partial record
-    is left behind. Returns the new contract_id.
+    is left behind. Returns the new contract_id. ``firm_id`` is always derived
+    from the authenticated session by the upload route, never from the client.
     """
     conn = get_conn()
     try:
@@ -127,9 +132,9 @@ def save_contract_with_trace(
         now = datetime.now(timezone.utc).isoformat()
         cur.execute(
             """INSERT INTO contracts
-               (filename, upload_timestamp, processing_status, raw_text)
-               VALUES (?, ?, ?, ?)""",
-            (filename, now, status, raw_text),
+               (filename, upload_timestamp, processing_status, raw_text, firm_id)
+               VALUES (?, ?, ?, ?, ?)""",
+            (filename, now, status, raw_text, firm_id),
         )
         contract_id = cur.lastrowid
         cur.execute(
@@ -249,6 +254,8 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
     Clauses are only ever saved after a successful extraction.
     """
     settings = _upload_settings(request)
+    principal = auth.principal_from_request(request)
+    firm_id = auth.require_upload_permission(principal)
 
     content_length = request.headers.get("content-length")
     if content_length and content_length.isdigit() and int(content_length) > MAX_UPLOAD_SIZE + 1024:
@@ -271,6 +278,7 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
                 raw_text=None,
                 action="upload",
                 details=f"Text extraction failed for {original_name}: {exc}",
+                firm_id=firm_id,
             )
         except Exception:
             logger.exception("Could not record extraction failure")
@@ -290,6 +298,7 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
             raw_text=text,
             action="upload",
             details=f"Uploaded and extracted text from {original_name} ({len(text)} characters).",
+            firm_id=firm_id,
         )
     except Exception:
         raise HTTPException(status_code=500, detail="Could not save the contract record.")
@@ -377,36 +386,36 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
 
 
 @router.get("/contracts")
-def list_contracts_route() -> list:
-    """Return a lightweight list of all stored contracts (no extracted text)."""
-    return list_contracts()
+def list_contracts_route(request: Request = None) -> list:
+    """Return only contracts visible in the request's active scope."""
+    principal = auth.principal_from_request(request)
+    return auth.authorized_contracts(principal)
 
 
 @router.get("/contracts/{contract_id}")
-def get_contract_route(contract_id: int) -> dict:
+def get_contract_route(contract_id: int, request: Request = None) -> dict:
     """Return one stored contract's metadata and extracted text by ID."""
-    contract = get_contract(contract_id)
-    if contract is None:
-        raise HTTPException(status_code=404, detail="Contract not found")
-    return contract
+    principal = auth.principal_from_request(request)
+    return auth.authorized_contract(contract_id, principal)
 
 
 @router.get("/contracts/{contract_id}/clauses")
-def get_contract_clauses_route(contract_id: int) -> dict:
+def get_contract_clauses_route(contract_id: int, request: Request = None) -> dict:
     """
     Return the stored clauses for one contract, ordered by section number.
 
-    Returns 404 for an unknown contract, and an empty list (not an error)
-    for a valid contract that has no stored clauses.
+    Returns 404 for an unknown contract or a contract outside the active firm,
+    and an empty list (not an error) for an authorized contract with no clauses.
     """
-    contract = get_contract(contract_id)
-    if contract is None:
-        raise HTTPException(status_code=404, detail="Contract not found")
+    principal = auth.principal_from_request(request)
+    auth.authorized_contract(contract_id, principal)
     return {"contract_id": contract_id, "clauses": list_clauses(contract_id)}
 
 
 @router.get("/contracts/{contract_id}/clauses/{section_number}/explanation")
-def get_clause_explanation_route(contract_id: int, section_number: str) -> dict:
+def get_clause_explanation_route(
+    contract_id: int, section_number: str, request: Request = None
+) -> dict:
     """
     Return a deterministic, template-based explanation for one stored clause.
 
@@ -420,9 +429,8 @@ def get_clause_explanation_route(contract_id: int, section_number: str) -> dict:
     Returns 404 if the contract does not exist, or if no stored clause for
     that contract has the requested section number.
     """
-    contract = get_contract(contract_id)
-    if contract is None:
-        raise HTTPException(status_code=404, detail="Contract not found")
+    principal = auth.principal_from_request(request)
+    auth.authorized_contract(contract_id, principal)
 
     requested = _normalize_section_number(section_number)
     match = None

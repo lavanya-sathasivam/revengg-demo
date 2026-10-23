@@ -62,10 +62,11 @@ with HTTP 400 so the demo cannot die mid-presentation.
 import math
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 import adapter
+import auth
 import clauses as clause_tools
 import graph
 import impact
@@ -110,18 +111,15 @@ class ImpactRequest(BaseModel):
         return _INVALID_NUMBER
 
 
-def _contract_or_404(contract_id):
-    contract = adapter.get_contract(contract_id)
-    if contract is None:
-        raise HTTPException(status_code=404,
-                            detail="Contract %s not found." % contract_id)
-    return contract
+def _contract_or_404(contract_id, request=None):
+    principal = auth.principal_from_request(request)
+    return auth.authorized_contract(contract_id, principal)
 
 
 @router.get("/graph/{contract_id}")
-def get_graph(contract_id: int):
+def get_graph(contract_id: int, request: Request = None):
     """The contract relationship model: every node and every typed edge."""
-    _contract_or_404(contract_id)
+    _contract_or_404(contract_id, request)
     model = graph.get_graph(contract_id)
     return {
         "contract_id": contract_id,
@@ -135,9 +133,9 @@ def get_graph(contract_id: int):
 
 
 @router.get("/clauses/{contract_id}")
-def get_clauses(contract_id: int):
+def get_clauses(contract_id: int, request: Request = None):
     """Every clause with the structure branch B extracted from it."""
-    _contract_or_404(contract_id)
+    _contract_or_404(contract_id, request)
     rows = adapter.list_clauses(contract_id)
     out = []
     for row in rows:
@@ -155,9 +153,9 @@ def get_clauses(contract_id: int):
 
 
 @router.post("/impact")
-def analyze(req: ImpactRequest):
+def analyze(req: ImpactRequest, request: Request = None):
     """The headline endpoint: what breaks if this clause changes."""
-    contract = _contract_or_404(req.contract_id)
+    contract = _contract_or_404(req.contract_id, request)
     if contract.get("processing_status") == "graph_build_failed":
         raise HTTPException(
             status_code=409,
@@ -177,19 +175,23 @@ def analyze(req: ImpactRequest):
 
 
 @router.get("/compare/{contract_a}/{contract_b}")
-def compare(contract_a: int, contract_b: int):
-    """Compare two contracts on the numbers that matter."""
-    _contract_or_404(contract_a)
-    _contract_or_404(contract_b)
+def compare(contract_a: int, contract_b: int, request: Request = None):
+    """Compare two contracts on the numbers that matter.
+
+    Both contracts must be visible in the request's active scope.  A foreign
+    contract makes the whole request a 404; no partial comparison is returned.
+    """
+    _contract_or_404(contract_a, request)
+    _contract_or_404(contract_b, request)
     result = impact.compare_contracts(contract_a, contract_b)
     result["anomaly"] = impact.portfolio_anomaly([contract_a, contract_b])
     return result
 
 
 @router.get("/demo/{contract_id}/suggest")
-def suggest(contract_id: int):
+def suggest(contract_id: int, request: Request = None):
     """A ready-made example change, so the demo is one click and not a typo."""
-    _contract_or_404(contract_id)
+    _contract_or_404(contract_id, request)
     index = impact._clause_index(contract_id)
     for sec, clause in index.items():
         if clause.get("type") != "payment":

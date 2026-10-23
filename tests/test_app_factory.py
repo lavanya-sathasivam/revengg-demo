@@ -23,7 +23,9 @@ sys.path.insert(0, ROOT)
 import pymupdf  # noqa: E402
 
 import api_a  # noqa: E402
+import api_auth  # noqa: E402
 import api_b  # noqa: E402
+import auth  # noqa: E402
 import db  # noqa: E402
 import seed  # noqa: E402
 from app_config import (  # noqa: E402
@@ -106,7 +108,7 @@ class RouteManifestTests(TempDirectoryTestCase):
                 f"{path} {methods} is mounted more than once",
             )
 
-        for router in (api_a.router, api_b.router):
+        for router in (api_auth.router, api_a.router, api_b.router):
             for route in router.routes:
                 methods = tuple(sorted(route.methods))
                 self.assertIn((route.path, methods), manifest)
@@ -291,6 +293,13 @@ class UploadModeConfigurationTests(TempDirectoryTestCase):
 
         upload_db = self.path("local-uploads.db")
         upload_dir = self.path("local-uploads")
+        with db.database_context(upload_db):
+            db.init_db()
+            firm_id = auth.create_firm("Upload Test Firm")
+            user_id = auth.create_user("upload-test-user")
+            auth.add_membership(firm_id, user_id, auth.ROLE_LAWYER)
+            token = auth.create_session(user_id, firm_id, ttl_seconds=3600)
+
         application = create_app(
             mode="upload",
             database_path=upload_db,
@@ -298,6 +307,7 @@ class UploadModeConfigurationTests(TempDirectoryTestCase):
         )
 
         with TestClient(application) as client:
+            client.cookies.set(auth.SESSION_COOKIE_NAME, token)
             response = client.post(
                 "/upload",
                 files={"file": ("contract.pdf", SECTIONS_PDF, "application/pdf")},
