@@ -184,9 +184,17 @@ def _contract_select_extras(conn) -> str:
         else "NULL AS current_version_id"
     )
     extras.append(
+        "current_graph_build_id"
+        if "current_graph_build_id" in columns
+        else "NULL AS current_graph_build_id"
+    )
+    extras.append(
         "provenance_status"
         if "provenance_status" in columns
         else "'%s' AS provenance_status" % PROVENANCE_LEGACY
+    )
+    extras.append(
+        "firm_id" if "firm_id" in columns else "NULL AS firm_id"
     )
     return ", ".join(extras)
 
@@ -270,6 +278,7 @@ def _contract_row_for_write(cur, contract_id):
     for optional in (
         "firm_id",
         "current_version_id",
+        "current_graph_build_id",
         "provenance_status",
         "raw_text",
     ):
@@ -408,6 +417,11 @@ def create_contract_version(
         columns = _cursor_columns(cur, "contracts")
         assignments = ["current_version_id = ?"]
         values = [version_id]
+        if "current_graph_build_id" in columns:
+            # A new current version invalidates the graph that was built from
+            # the old one. The graph rows remain for audit, but no reader may
+            # treat them as current.
+            assignments.append("current_graph_build_id = NULL")
         if "provenance_status" in columns:
             assignments.append("provenance_status = ?")
             values.append(version_provenance)
@@ -645,14 +659,23 @@ def save_clauses(contract_id, clauses, version_id=None, audit_event=None):
                 ),
             )
 
-        if "current_version_id" in _cursor_columns(cur, "contracts"):
+        contract_columns = _cursor_columns(cur, "contracts")
+        if "current_version_id" in contract_columns:
             cur.execute(
                 "UPDATE contracts SET current_version_id = ? WHERE contract_id = ?",
                 (version_id, contract_id),
             )
-        if version_row is not None and "provenance_status" in _cursor_columns(
-            cur, "contracts"
-        ):
+        if "current_graph_build_id" in contract_columns:
+            # Clause rows have just been replaced, so any published graph was
+            # built from a different clause set. Invalidate the pointer in the
+            # SAME transaction; a reader can never see new clauses with an old
+            # graph pointer.
+            cur.execute(
+                "UPDATE contracts SET current_graph_build_id = NULL "
+                "WHERE contract_id = ?",
+                (contract_id,),
+            )
+        if version_row is not None and "provenance_status" in contract_columns:
             cur.execute(
                 "UPDATE contracts SET provenance_status = ? WHERE contract_id = ?",
                 (version_row["provenance_status"], contract_id),
@@ -689,18 +712,31 @@ def list_clauses(contract_id):
     Return one contract's clauses ordered by section number.
 
     Each row is a dict with clause_id, contract_id, section_number,
-    clause_text and metadata (metadata is parsed back into a Python value;
-    rows with missing or invalid JSON keep the stored value / get {}).
-    The connection is always closed, including on errors.
+    clause_text, metadata, version_id and clause_sha256. The last two are
+    explicit ``NULL`` values on a legacy database that predates those
+    columns; no read path migrates or rewrites it. Metadata is parsed back
+    into a Python value; rows with missing or invalid JSON keep the stored
+    value / get {}. The connection is always closed, including on errors.
     """
     conn = get_conn()
     try:
         cur = conn.cursor()
+        columns = _table_columns(conn, "clauses")
+        version_expr = (
+            "version_id" if "version_id" in columns
+            else "NULL AS version_id"
+        )
+        hash_expr = (
+            "clause_sha256" if "clause_sha256" in columns
+            else "NULL AS clause_sha256"
+        )
         cur.execute(
-            """SELECT clause_id, contract_id, section_number, clause_text, metadata
+            """SELECT clause_id, contract_id, section_number, clause_text,
+                      metadata, %s, %s
                FROM clauses
                WHERE contract_id = ?
-               ORDER BY CAST(section_number AS INTEGER) ASC, section_number ASC""",
+               ORDER BY CAST(section_number AS INTEGER) ASC, section_number ASC"""
+            % (version_expr, hash_expr),
             (contract_id,),
         )
         results = []
@@ -807,7 +843,12 @@ def get_contract_provenance(contract_id):
     try:
         columns = _contract_columns(conn)
         fields = ["contract_id", "filename", "processing_status"]
-        for optional in ("firm_id", "current_version_id", "provenance_status"):
+        for optional in (
+            "firm_id",
+            "current_version_id",
+            "current_graph_build_id",
+            "provenance_status",
+        ):
             if optional in columns:
                 fields.append(optional)
         contract = conn.execute(
@@ -845,6 +886,7 @@ def get_contract_provenance(contract_id):
             "provenance_status": status,
             "legacy_unclassified": status == PROVENANCE_LEGACY,
             "current_version_id": contract.get("current_version_id"),
+            "current_graph_build_id": contract.get("current_graph_build_id"),
             "version": version,
             "source": (
                 {

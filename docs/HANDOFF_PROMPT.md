@@ -18,6 +18,72 @@ of us are using opencode to build, learning the stack as we go.
 My job right now: finish the impact-analysis branch, then produce evaluation
 metrics and the patent invention note.
 
+## 0.1 PHASE 7 UPDATE (2026-10-23) — read this before the older facts below
+
+Phase 7 hardened contract-analysis correctness, provenance, and evidence. The
+full report is `docs/phase7_contract_analysis_hardening.md`. Do not describe
+the older payment-only or truncated-evidence behaviour as current.
+
+### What changed
+
+- **Durations are unit-aware and fail closed.** Only a single calendar-day
+  `within N days` period is usable. Months, years, business/working days,
+  competing periods, percentages, and money are rejected or treated as
+  ambiguous; no conversion is performed. Simple number words such as
+  `within thirty days` are accepted.
+- **SLAs use `[0, 100]` inclusively.** Zero is valid.
+- **The false "Interest accrual window" counterfactual row is removed.** If an
+  interest clause exists, the counterfactual returns a note explaining that
+  interest is not derived from the payment period. This is the one intentional
+  output change.
+- **Evidence is never silently truncated.** Each evidence item keeps the full
+  `text` and `text_length`; display fields are `excerpt`/`text_excerpt` and
+  explicitly say how many characters were omitted. The changed clause keeps
+  full `text` plus `text_excerpt`.
+- **Graph analysis is bound to the current build.**
+  `contracts.current_graph_build_id` is authoritative. Saving clauses or
+  creating a new current version atomically invalidates the pointer. Stale or
+  missing graphs return HTTP `409` with `error_code` `graph_stale` or
+  `graph_not_built`; old graph rows are not returned. Legacy read-only graphs
+  stay readable as `legacy_unbound` and `partially_supported`.
+- **Every report carries `analysis_binding`:** contract id, clause id/version/
+  hash, contract version, graph build id/version/hash, graph state/reason, and
+  rules fingerprint. `POST /impact` accepts an optional 64-hex
+  `expected_clause_sha256`; mismatch/unavailable returns HTTP `409`.
+- **Statuses are explicit:** `supported`, `partially_supported`, `unsupported`
+  on the report, evidence, doubts, conflicts, and counterfactual.
+- **Every counterfactual row has `rule_id`, `assumptions`, and a `calculation`
+  object.** The counterfactual also exposes `rule_ids`, `rules_fingerprint`,
+  and the binding.
+
+### API additions C must handle
+
+`POST /impact` errors keep the old string `detail` and add `error_code`:
+
+```json
+{ "detail": "safe message", "error_code": "graph_stale" }
+```
+
+| HTTP | `error_code` |
+|---:|---|
+| 409 | `graph_stale`, `graph_not_built`, `graph_build_failed` |
+| 409 | `clause_hash_mismatch`, `clause_hash_unavailable` |
+| 400 | `unsupported_unit`, `unsupported_clause_value`, `ambiguous_clause_value`, `sla_out_of_range`, `stale_old_value` |
+
+`GET /graph/{id}` and `GET /clauses/{id}` include `binding` and
+`analysis_ready`; `/clauses` also includes clause `version_id` and
+`clause_sha256`. The UI should show `counterfactual.notes`, `analysis_status`,
+and the 409 code rather than treating an empty counterfactual as a crash.
+
+### Verification
+
+The Phase 7 focused suite is `tests/test_phase7_hardening.py` (26 tests). The
+full suite is **262 tests, OK** (Phase 6 baseline: 236). All tests use temporary
+databases. No frontend, template, CSS, JS, Phase 8, or database schema migration
+was added by Phase 7.
+
+---
+
 ## 1. WHAT THIS PROJECT IS
 
 An AI decision-support tool for lawyers that understands a contract as a
@@ -58,6 +124,12 @@ by me; A and C are collaborators.
 **The credentials are already cached on this machine** — `git clone` and
 `git ls-remote` work without a prompt. You can fetch and inspect the real
 repo. Do that before assuming anything.
+
+> Verified locally on 2026-10-23: `main` is at `1d6e827`. The Phase 7 changes
+> described above are **uncommitted in the working tree**. The commit names and
+> test counts in the older branch table below are historical; use `git status`
+> and the Phase 7 section as the current source of truth.
+
 
 ## 3. TECH STACK (locked, do not change)
 
@@ -169,19 +241,30 @@ INDIRECT: 10.1 (default, hop 2), 12.3 (termination, hop 3)
 CHAIN:    7.2 -> 8.1 -> 10.1 -> 12.3
 ```
 
-### Counterfactual
+### Counterfactual (Phase 7)
 ```
 Payment deadline (Clause 7.2)               30 days -> 15 days  [CHANGED]
 Default can be declared on (payment + cure)  day 45  -> day 30  [CHANGED]
-Interest accrual window                      30 days -> 15 days  [CHANGED]
 Cure period (Clause 10.2)                   15 days -> 15 days  [unchanged]
 Notice required before default (Clause 14.1)  7 days ->  7 days  [unchanged]
 ```
+The old "Interest accrual window" row is deliberately removed: it was not
+supported by the corpus. An interest clause now produces an explanatory note,
+not a derived number. Every row has `rule_id`, `assumptions`, and a
+`calculation` trace. The counterfactual also carries a `status` and
+`rules_fingerprint`, and the report carries `analysis_binding`.
 
-### Uncertainty engine — 8 doubt codes, each evidence-linked
+An SLA change (e.g. 99% -> 98%) has a separate service-credit counterfactual:
+drafted threshold, conformed threshold, credit rate, first credit, maximum
+credit, and monthly Charges base. Percentages are never converted to days.
+
+### Uncertainty engine — 9 doubt codes, each evidence-linked and status-labelled
 `definition_collision`, `cross_ref_mismatch`, `unchanged_dependent_param`,
 `notice_vs_cure`, `undefined_term`, `amendment_form`, `scope_of_change`,
-`definition_drift`
+`definition_drift`, `sla_schedule_mismatch`
+
+Each doubt has `rule_id`, `status`, `question`, `review_point`, and evidence
+with the full clause `text`, clause hash/version, and an explicit `excerpt`.
 
 ### Legal-meaning grouping (MVP spec items 3/4/5)
 The report groups impacted clauses' nodes into obligations / conditions /
@@ -196,11 +279,16 @@ consequences / deadlines — "the obligation to pay late charges" rather than
 ### HTTP API (`api_b.py`) — what C builds against
 | endpoint | returns |
 |---|---|
-| `GET /graph/{id}` | every node + every typed edge |
-| `GET /clauses/{id}` | clauses + type + references + numbers |
-| `POST /impact` | **the headline endpoint** — all 12 MVP spec items |
+| `GET /graph/{id}` | every node + every typed edge, plus graph `binding` and `analysis_ready` |
+| `GET /clauses/{id}` | clauses + type + references + numbers, plus version/hash and `binding` |
+| `POST /impact` | **the headline endpoint** — all 12 MVP items, plus status/binding/trace fields |
 | `GET /compare/{a}/{b}` | cross-contract comparison + portfolio anomaly |
 | `GET /demo/{id}/suggest` | ready-made example change (one click) |
+
+`POST /impact` accepts an optional `expected_clause_sha256` (64 hex chars). A
+mismatch or unavailable hash is HTTP `409`. Stale/missing graphs also return
+HTTP `409` with `error_code` `graph_stale` / `graph_not_built`; rebuild before
+retrying. Error responses keep the string `detail` and add `error_code`.
 
 `server.py` mounts A's `app.py` + B's `api_b.py` **without editing either
 person's file**. A can optionally add two lines to `app.py` instead.
@@ -216,7 +304,7 @@ py -3.11 cli.py --list
 py -3.11 cli.py --contract 1 --change 7.2:30:15    # headline demo (terminal)
 py -3.11 -m uvicorn server:app --reload            # headline demo (browser)
 open http://127.0.0.1:8000/docs                    # interactive API docs
-py -3.11 -m unittest discover -s tests -v           # 39 tests, must all pass
+py -3.11 -m unittest discover -s tests -v           # 262 tests, must all pass
 ```
 
 ### TWO DATABASES — on purpose
@@ -249,25 +337,14 @@ makes them fail with `no such table: contracts`. This already happened once.
 
 ### Mine (Person B) — in priority order
 
-**1. EVALUATION METRICS (~1 hour). DO THIS NEXT.**
-`data/ground_truth.json` already holds the hand-annotated truth: 59 + 22
-clauses, expected types, expected dependencies, expected impact chain,
-expected doubts, expected cross-contract mismatches. Write a script that
-computes against it:
-- Extraction precision / recall / F1 (clause segmentation, clause type)
-- Impact precision / recall on the direct + indirect lists
-- Doubt detection recall
-- Cross-contract mismatch precision
+**1. EVALUATION METRICS — DONE.** `tools/evaluate.py` and
+`docs/evaluation_report.md` exist. Re-run `tools/evaluate.py` after engine
+changes; do not treat the hand-annotated synthetic scores as real-contract
+accuracy.
 
-This is the "Results" chapter of the report and the difference between "the
-demo works" and "the system is measurably correct". It is what an examiner
-and a patent agent will ask about. Put it in `tools/evaluate.py` and emit a
-markdown table. **Do this before any new features.**
-
-**2. SLA % COUNTERFACTUAL (~40 min).** The counterfactual is implemented for
-payment-period changes only. An SLA change (99% → 98%) is not modelled. Add a
-branch: service-credit exposure changes. Keep it in the same
-`counterfactual()` function with the same row format.
+**2. SLA % COUNTERFACTUAL — DONE in Phase 7.** The counterfactual now handles
+payment-period and service-level changes, with a separate service-credit
+exposure path. Other clause types return no rows and an explicit note.
 
 **3. EXERCISE THE LLM PATH (~20 min).** `llm.py` currently runs in `mock`
 mode (`LLM_PROVIDER=mock`) and `ask_json` returns `{}`. Add a real key to
@@ -316,7 +393,8 @@ Report says all 15; code proves what it proves; the rest is labelled
 
 ## 11. HONEST LIMITATIONS (state these, don't hide them)
 
-- Counterfactual is payment-period only until item 2 above is done.
+- Counterfactual is modelled for payment-period and service-level changes only;
+  other change types return no rows plus an explicit note.
 - The doubt engine is 8 rule families — a rule engine, not a general
   defeasible-reasoning system. Say so.
 - The synthetic contracts are deliberately well-drafted. Real contracts are
@@ -341,14 +419,14 @@ Report says all 15; code proves what it proves; the rest is labelled
 - When you change a file, tell me which file and why.
 - Never commit or push without me asking. Never `git push --force`.
 - If you find a bug, fix it and add a test. The suite must stay green:
-  `py -3.11 -m unittest discover -s tests` → 39 tests, OK.
+  `py -3.11 -m unittest discover -s tests` → 262 tests, OK.
 
 ## 13. FIRST FIVE TASKS FOR THIS SESSION
 
 1. `git clone` the repo (or use the existing clone at
    `D:\Desktop\revengg-demo`), `git checkout b-graph`, `git pull`.
 2. Run `py -3.11 seed.py` and `py -3.11 -m unittest discover -s tests`.
-   Confirm 39/39 green before you change anything.
+   Confirm 262/262 green before you change anything (Phase 7 working tree).
 3. Read `graph.py` (the relation table + BFS) and `impact.py` (the doubt
    engine). These are the heart of the branch.
 4. **Build `tools/evaluate.py`** — the evaluation metrics against

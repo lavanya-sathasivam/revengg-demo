@@ -132,6 +132,18 @@ def create_app(
     app.state.database_config = database_config
     app.state.upload_dir = settings.upload_dir
 
+    @app.exception_handler(api_b.AnalysisError)
+    async def analysis_error_handler(_request, exc):
+        """Keep ``detail`` stable while adding a machine-readable code."""
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "detail": exc.detail,
+                "error_code": exc.error_code,
+            },
+            headers=exc.headers,
+        )
+
     @app.middleware("http")
     async def request_scope(request, call_next):
         """Bind the database, then establish authentication and tenant context.

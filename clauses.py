@@ -21,6 +21,7 @@ WHY SUB-CLAUSE LEVEL MATTERS
 """
 
 import re
+from decimal import Decimal, InvalidOperation
 
 import extract
 
@@ -113,8 +114,36 @@ NUM_RE = re.compile(
 )
 # 'within 30 (thirty) days' - the operative deadline, not any number at all
 WITHIN_RE = re.compile(
-    r"within\s+(\d+)\s*(?:\([^)]*\)\s*)?(day|days|month|months)\b", re.IGNORECASE
+    r"within\s+(\d+)\s*(?:\([^)]*\)\s*)?(day|days|month|months|year|years)\b",
+    re.IGNORECASE,
 )
+# 'within 30 Business Days' and 'within 10 working days' use a different
+# calendar convention. The engine performs no business-day conversion, so a
+# period expressed this way is reported as ambiguous rather than guessed.
+WITHIN_BUSINESS_RE = re.compile(
+    r"within\s+(\d+)\s*(?:\([^)]*\)\s*)?(?:business|working)\s+days?\b",
+    re.IGNORECASE,
+)
+# 'within thirty days' - an unambiguous number word. Only simple English
+# numbers are supported; an unknown word fails closed rather than guessing.
+WITHIN_WORD_RE = re.compile(
+    r"within\s+([A-Za-z]+(?:[\s-]+[A-Za-z]+)?)\s+"
+    r"(day|days|month|months|year|years)\b",
+    re.IGNORECASE,
+)
+_WORD_UNITS = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+    "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40,
+    "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80,
+    "ninety": 90,
+}
+
+# Units that a duration parser understands without conversion. Money and
+# percentages are deliberately absent: they are values, not durations.
+DURATION_UNITS = frozenset({"days", "months", "years"})
 
 
 # ---------------------------------------------------------------------------
@@ -409,9 +438,14 @@ def find_references(text):
 
 
 def find_numbers(text):
-    """Every number+unit in the text. e.g. [{'value':30,'unit':'days'}]"""
+    """Every number+unit in the text, as exact Decimal values.
+
+    Example: [{'value': Decimal('30'), 'unit': 'days'}]. Decimal is used
+    because a legal amount or duration must not acquire binary floating-point
+    error before it is compared with a stored clause value.
+    """
     out = []
-    for m in NUM_RE.finditer(text):
+    for m in NUM_RE.finditer(text or ""):
         unit = m.group(2).lower()
         if unit.startswith("per"):
             unit = "%"
@@ -422,22 +456,150 @@ def find_numbers(text):
         elif unit.startswith("year"):
             unit = "years"
         try:
-            value = float(m.group(1))
-        except ValueError:
+            value = Decimal(m.group(1))
+        except (InvalidOperation, ValueError):
             continue
-        out.append({"value": int(value) if value == int(value) else value,
-                    "unit": unit})
+        if not value.is_finite():
+            continue
+        out.append({"value": value, "unit": unit})
     return out
 
 
+def _parse_word_period(value_text):
+    """'thirty' -> 30; 'twenty-five' -> 25. Unknown words return None."""
+    words = re.split(r"[\s-]+", (value_text or "").strip().lower())
+    if len(words) == 1:
+        return _WORD_UNITS.get(words[0])
+    if len(words) == 2:
+        tens = _WORD_UNITS.get(words[0])
+        ones = _WORD_UNITS.get(words[1])
+        if tens in (20, 30, 40, 50, 60, 70, 80, 90) and 1 <= (ones or 0) <= 9:
+            return tens + ones
+    return None
+
+
+def find_within_period(text):
+    """Read a 'within N days/months/years' period, failing closed on ambiguity.
+
+    Returns None when no period is stated. Otherwise returns a dict with:
+        days       int for a single supported day period, else None
+        unit       normalised unit ('days', 'months', 'business_days')
+        supported  True only when days is a usable calendar-day count
+        ambiguous  True when the clause states competing conventions/counts
+        reason     a safe explanation when unsupported or ambiguous
+
+    Both digits and simple number words are accepted ('within 30 days',
+    'within thirty days'). No conversion is performed. Months, years, business
+    days, and working days are returned as unsupported; two different 'within'
+    periods are ambiguous. The caller must not pick one silently.
+    """
+    text = text or ""
+    business = list(WITHIN_BUSINESS_RE.finditer(text))
+    numeric = list(WITHIN_RE.finditer(text))
+    word_matches = list(WITHIN_WORD_RE.finditer(text))
+
+    if business:
+        return {
+            "days": None,
+            "unit": "business_days",
+            "supported": False,
+            "ambiguous": True,
+            "reason": (
+                "The clause states a business-day or working-day period. "
+                "No business-day calendar is configured and no conversion to "
+                "calendar days is performed."
+            ),
+        }
+
+    periods = [
+        (int(m.group(1)), m.group(2).lower()) for m in numeric
+    ]
+    for match in word_matches:
+        value = _parse_word_period(match.group(1))
+        if value is not None:
+            periods.append((value, match.group(2).lower()))
+    if not periods:
+        return None
+
+    units = sorted({unit for _value, unit in periods})
+    values = sorted({value for value, _unit in periods})
+    if len(units) > 1 or len(values) > 1:
+        descriptions = []
+        for match in numeric:
+            descriptions.append(
+                "within %s %s" % (match.group(1), match.group(2).lower())
+            )
+        for match in word_matches:
+            if _parse_word_period(match.group(1)) is not None:
+                descriptions.append(
+                    "within %s %s" % (match.group(1).lower(),
+                                      match.group(2).lower())
+                )
+        return {
+            "days": None,
+            "unit": ",".join(units),
+            "supported": False,
+            "ambiguous": True,
+            "reason": (
+                "The clause states more than one competing 'within' period "
+                "(%s). The operative period cannot be selected safely."
+                % ", ".join(descriptions[:4])
+            ),
+        }
+
+    raw_unit = units[0]
+    if raw_unit.startswith("month"):
+        return {
+            "days": None,
+            "unit": "months",
+            "supported": False,
+            "ambiguous": False,
+            "reason": (
+                "The clause states a period in months. No month length or "
+                "month-end convention is configured, so no conversion to days "
+                "is performed."
+            ),
+        }
+    if raw_unit.startswith("year"):
+        return {
+            "days": None,
+            "unit": "years",
+            "supported": False,
+            "ambiguous": False,
+            "reason": (
+                "The clause states a period in years. No year length or "
+                "month-end convention is configured, so no conversion to days "
+                "is performed."
+            ),
+        }
+
+    return {
+        "days": values[0],
+        "unit": "days",
+        "supported": True,
+        "ambiguous": False,
+        "reason": None,
+    }
+
+
+def within_period_error(text):
+    """A safe rejection message for an ambiguous 'within' period, else None."""
+    period = find_within_period(text)
+    if period is not None and period.get("ambiguous"):
+        return period["reason"]
+    return None
+
+
 def find_within_days(text):
-    """The first 'within N days' deadline in the text, or None."""
-    m = WITHIN_RE.search(text)
-    if not m:
+    """The first usable calendar-day 'within N days' deadline, or None.
+
+    A clause with competing periods, a business-day period, or a month/year
+    period returns None. Callers must not invent a conversion.
+    """
+    period = find_within_period(text)
+    if period is None or not period.get("supported"):
         return None
-    if m.group(2).lower().startswith("month"):
-        return None
-    return int(m.group(1))
+    return period["days"]
 
 
 # A whole-word 'dispute'. Substring matching would also match 'undisputed',
@@ -472,15 +634,21 @@ CREDIT_CAP_RE = re.compile(r"capped at\s+(\d+(?:\.\d+)?)\s*%", re.IGNORECASE)
 
 
 def find_amounts(text):
-    """Rupee amounts stated in the text, as numbers. 'INR 4,50,000' -> 450000."""
+    """Rupee amounts stated in the text, as exact Decimal values.
+
+    'INR 4,50,000' -> [Decimal('450000')]. Money is never parsed as a
+    duration and never converted to a day count.
+    """
     out = []
     for m in AMOUNT_RE.finditer(text or ""):
         digits = m.group(1).replace(",", "")
         try:
-            value = float(digits)
-        except ValueError:
+            value = Decimal(digits)
+        except (InvalidOperation, ValueError):
             continue
-        out.append(int(value) if value == int(value) else value)
+        if not value.is_finite():
+            continue
+        out.append(value)
     return out
 
 
@@ -498,11 +666,14 @@ def parse_service_credit_schedule(text):
     cap = CREDIT_CAP_RE.search(text)
     if not (threshold and rate and cap):
         return None
-    return {
-        "threshold_pct": float(threshold.group(1)),
-        "rate_pct": float(rate.group(1)),
-        "cap_pct": float(cap.group(1)),
-    }
+    try:
+        return {
+            "threshold_pct": Decimal(threshold.group(1)),
+            "rate_pct": Decimal(rate.group(1)),
+            "cap_pct": Decimal(cap.group(1)),
+        }
+    except (InvalidOperation, ValueError):
+        return None
 
 
 def defined_terms_by_clause(text):

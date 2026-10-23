@@ -77,6 +77,19 @@ _INVALID_NUMBER = "__invalid_number__"
 _NON_FINITE_NUMBER = "__non_finite_number__"
 
 
+class AnalysisError(HTTPException):
+    """An HTTP error with a stable machine-readable code.
+
+    ``detail`` remains a plain string for backward compatibility. The
+    application factory registers a handler that adds ``error_code`` to the
+    JSON body; direct callers still see a normal ``HTTPException``.
+    """
+
+    def __init__(self, status_code, detail, error_code):
+        super().__init__(status_code=status_code, detail=detail)
+        self.error_code = error_code
+
+
 class ImpactRequest(BaseModel):
     contract_id: int
     clause_id: str = Field(..., examples=["7.2"])
@@ -88,6 +101,14 @@ class ImpactRequest(BaseModel):
     new_value: Decimal = Field(
         ..., examples=[15],
         description="Proposed value in the same implied unit.",
+    )
+    expected_clause_sha256: str | None = Field(
+        default=None,
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F]{64}$",
+        description="Optional SHA-256 of the clause text the caller read. "
+                    "A mismatch is a stale request and returns HTTP 409.",
     )
 
     @field_validator("old_value", "new_value", mode="before")
@@ -118,11 +139,14 @@ def _contract_or_404(contract_id, request=None):
 
 @router.get("/graph/{contract_id}")
 def get_graph(contract_id: int, request: Request = None):
-    """The contract relationship model: every node and every typed edge."""
+    """The contract relationship model and the build binding it came from."""
     _contract_or_404(contract_id, request)
+    binding = adapter.get_graph_binding(contract_id)
     model = graph.get_graph(contract_id)
     return {
         "contract_id": contract_id,
+        "binding": binding,
+        "analysis_ready": binding["analysis_ready"],
         "nodes": model["nodes"],
         "edges": model["edges"],
         "counts": {
@@ -134,8 +158,9 @@ def get_graph(contract_id: int, request: Request = None):
 
 @router.get("/clauses/{contract_id}")
 def get_clauses(contract_id: int, request: Request = None):
-    """Every clause with the structure branch B extracted from it."""
+    """Every clause with its structure, content hash, and version binding."""
     _contract_or_404(contract_id, request)
+    binding = adapter.get_graph_binding(contract_id)
     rows = adapter.list_clauses(contract_id)
     out = []
     for row in rows:
@@ -146,10 +171,19 @@ def get_clauses(contract_id: int, request: Request = None):
             "type": meta.get("type", "other"),
             "level": meta.get("level", 1),
             "text": row["clause_text"],
+            "version_id": row.get("version_id"),
+            "clause_sha256": row.get("clause_sha256"),
             "references": clause_tools.find_references(row["clause_text"] or ""),
             "numbers": clause_tools.find_numbers(row["clause_text"] or ""),
         })
-    return {"contract_id": contract_id, "clauses": out, "count": len(out)}
+    return {
+        "contract_id": contract_id,
+        "contract_version_id": binding.get("current_version_id"),
+        "binding": binding,
+        "analysis_ready": binding["analysis_ready"],
+        "clauses": out,
+        "count": len(out),
+    }
 
 
 @router.post("/impact")
@@ -157,19 +191,24 @@ def analyze(req: ImpactRequest, request: Request = None):
     """The headline endpoint: what breaks if this clause changes."""
     contract = _contract_or_404(req.contract_id, request)
     if contract.get("processing_status") == "graph_build_failed":
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Impact analysis is unavailable because graph construction "
-                f"failed for contract {req.contract_id}."
-            ),
+        raise AnalysisError(
+            409,
+            "Impact analysis is unavailable because graph construction "
+            "failed for contract %s." % req.contract_id,
+            "graph_build_failed",
         )
-    report = impact.analyze_change(req.contract_id, req.clause_id,
-                                    req.old_value, req.new_value)
+    report = impact.analyze_change(
+        req.contract_id,
+        req.clause_id,
+        req.old_value,
+        req.new_value,
+        expected_clause_sha256=req.expected_clause_sha256,
+    )
     if "error" in report:
-        raise HTTPException(
-            status_code=report.get("http_status", 400),
-            detail=report["error"],
+        raise AnalysisError(
+            report.get("http_status", 400),
+            report["error"],
+            report.get("error_code", "analysis_error"),
         )
     return report
 

@@ -746,8 +746,261 @@ def insert_edge(
         conn.close()
 
 
+GRAPH_STATE_CURRENT = "current"
+GRAPH_STATE_STALE = "stale"
+GRAPH_STATE_MISSING = "missing"
+GRAPH_STATE_LEGACY_UNBOUND = "legacy_unbound"
+
+_ANALYSIS_READY_STATES = frozenset(
+    {GRAPH_STATE_CURRENT, GRAPH_STATE_LEGACY_UNBOUND}
+)
+
+
+def _binding_result(contract_id, state, reason_code, reason, **fields):
+    result = {
+        "contract_id": contract_id,
+        "state": state,
+        "reason_code": reason_code,
+        "reason": reason,
+        "analysis_ready": state in _ANALYSIS_READY_STATES,
+        "legacy_unbound": state == GRAPH_STATE_LEGACY_UNBOUND,
+        "current_version_id": None,
+        "current_graph_build_id": None,
+        "build_version_id": None,
+        "build_version": None,
+        "build_hash": None,
+        "build_status": None,
+        "node_count": None,
+        "edge_count": None,
+    }
+    result.update(fields)
+    return result
+
+
+def _graph_binding(conn, contract_id):
+    """Resolve which graph, if any, is authoritative for this contract.
+
+    States:
+        current         the published build is the current graph;
+        stale           a graph exists but is not bound to the current clause
+                        set (pointer invalidated, version mismatch, failed or
+                        missing build, or corrupt row counts);
+        missing         no graph has been published;
+        legacy_unbound  a read-only pre-binding database has graph rows but no
+                        pointer column. It remains readable as partial data.
+
+    The function never repairs or migrates anything.  It is the single place
+    that decides whether graph-derived evidence may be used.
+    """
+
+    if not _table_exists(conn, "contracts"):
+        return _binding_result(
+            contract_id, GRAPH_STATE_MISSING, "contracts_table_missing",
+            "The contracts table does not exist.",
+        )
+
+    contract_columns = _columns(conn, "contracts")
+    fields = ["contract_id"]
+    for optional in ("current_version_id", "current_graph_build_id"):
+        if optional in contract_columns:
+            fields.append(optional)
+    contract = conn.execute(
+        "SELECT %s FROM contracts WHERE contract_id = ?" % ", ".join(fields),
+        (contract_id,),
+    ).fetchone()
+    if contract is None:
+        return _binding_result(
+            contract_id, GRAPH_STATE_MISSING, "unknown_contract",
+            "The contract does not exist.",
+        )
+    contract = dict(contract)
+
+    current_version_id = contract.get("current_version_id")
+    pointer_available = "current_graph_build_id" in contract_columns
+    pointer = contract.get("current_graph_build_id")
+
+    nodes_exist = _table_exists(conn, "nodes")
+    edges_exist = _table_exists(conn, "edges")
+    node_columns = _columns(conn, "nodes") if nodes_exist else set()
+    edge_columns = _columns(conn, "edges") if edges_exist else set()
+    has_build_columns = (
+        "build_id" in node_columns and "build_id" in edge_columns
+    )
+    rows_exist = False
+    if nodes_exist and "contract_id" in node_columns:
+        rows_exist = bool(
+            conn.execute(
+                "SELECT 1 FROM nodes WHERE contract_id = ? LIMIT 1",
+                (contract_id,),
+            ).fetchone()
+        )
+    if not rows_exist and edges_exist and "contract_id" in edge_columns:
+        rows_exist = bool(
+            conn.execute(
+                "SELECT 1 FROM edges WHERE contract_id = ? LIMIT 1",
+                (contract_id,),
+            ).fetchone()
+        )
+
+    common = {
+        "current_version_id": current_version_id,
+        "current_graph_build_id": pointer,
+    }
+
+    if not pointer_available:
+        if rows_exist:
+            return _binding_result(
+                contract_id,
+                GRAPH_STATE_LEGACY_UNBOUND,
+                "legacy_schema_without_graph_pointer",
+                "This database predates the graph-build pointer. Graph rows "
+                "are readable as legacy, unbound evidence.",
+                **common
+            )
+        return _binding_result(
+            contract_id,
+            GRAPH_STATE_MISSING,
+            "graph_not_built",
+            "No published graph is bound to this contract.",
+            **common
+        )
+
+    if pointer is None:
+        if rows_exist:
+            return _binding_result(
+                contract_id,
+                GRAPH_STATE_STALE,
+                "graph_pointer_invalidated",
+                "The clause set changed after the last graph publication, so "
+                "the stored graph is not current.",
+                **common
+            )
+        return _binding_result(
+            contract_id,
+            GRAPH_STATE_MISSING,
+            "graph_not_built",
+            "No published graph is bound to this contract.",
+            **common
+        )
+
+    if not nodes_exist or not edges_exist or not has_build_columns:
+        return _binding_result(
+            contract_id,
+            GRAPH_STATE_STALE,
+            "graph_binding_columns_missing",
+            "The graph pointer exists, but the build-binding columns needed "
+            "to verify the graph are missing.",
+            **common
+        )
+
+    if not _table_exists(conn, "graph_builds"):
+        return _binding_result(
+            contract_id,
+            GRAPH_STATE_STALE,
+            "graph_build_missing",
+            "The graph pointer refers to a build record that is not present.",
+            **common
+        )
+
+    build = conn.execute(
+        """SELECT build_id, version_id, build_version, status, build_hash,
+                  node_count, edge_count
+           FROM graph_builds WHERE build_id = ? AND contract_id = ?""",
+        (pointer, contract_id),
+    ).fetchone()
+    if build is None:
+        return _binding_result(
+            contract_id,
+            GRAPH_STATE_STALE,
+            "graph_build_missing",
+            "The graph pointer refers to a build record that is not present.",
+            **common
+        )
+
+    build_fields = {
+        "current_version_id": current_version_id,
+        "current_graph_build_id": pointer,
+        "build_version_id": build["version_id"],
+        "build_version": build["build_version"],
+        "build_hash": build["build_hash"],
+        "build_status": build["status"],
+    }
+    if build["status"] != GRAPH_STATUS_PUBLISHED:
+        return _binding_result(
+            contract_id,
+            GRAPH_STATE_STALE,
+            "graph_build_not_published",
+            "The graph pointer does not refer to a published build.",
+            **build_fields
+        )
+    if (
+        build["version_id"] is not None
+        and current_version_id is not None
+        and build["version_id"] != current_version_id
+    ):
+        return _binding_result(
+            contract_id,
+            GRAPH_STATE_STALE,
+            "graph_version_mismatch",
+            "The published graph was built from a different contract version.",
+            **build_fields
+        )
+
+    node_count = conn.execute(
+        "SELECT COUNT(*) FROM nodes WHERE contract_id = ? AND build_id = ?",
+        (contract_id, pointer),
+    ).fetchone()[0]
+    edge_count = conn.execute(
+        "SELECT COUNT(*) FROM edges WHERE contract_id = ? AND build_id = ?",
+        (contract_id, pointer),
+    ).fetchone()[0]
+    if (
+        build["node_count"] is not None
+        and node_count != build["node_count"]
+    ) or (
+        build["edge_count"] is not None
+        and edge_count != build["edge_count"]
+    ):
+        return _binding_result(
+            contract_id,
+            GRAPH_STATE_STALE,
+            "graph_row_count_mismatch",
+            "The stored graph rows do not match the published build record.",
+            node_count=node_count,
+            edge_count=edge_count,
+            **build_fields
+        )
+
+    return _binding_result(
+        contract_id,
+        GRAPH_STATE_CURRENT,
+        "graph_current",
+        "The published graph is bound to the current contract version.",
+        node_count=node_count,
+        edge_count=edge_count,
+        **build_fields
+    )
+
+
+def get_graph_binding(contract_id):
+    """Public, read-only graph binding status for one contract."""
+
+    conn = db.get_conn()
+    try:
+        if not _is_read_only(conn):
+            ensure_graph_schema(conn)
+        return _graph_binding(conn, contract_id)
+    finally:
+        conn.close()
+
+
 def get_nodes(contract_id):
-    """All graph nodes of one contract. Empty list if the table does not exist.
+    """All current-build graph nodes of one contract.
+
+    A stale or missing graph returns an empty list: old graph rows must never
+    be presented as the current contract structure.  A read-only legacy
+    database without a graph-build pointer is returned as ``legacy_unbound``
+    data and is explicitly labelled partial by the analysis layer.
 
     Read-only legacy databases may lack ``detail`` or ``contract_id``.  We
     never try to migrate them here.  Without ``contract_id`` the rows cannot
@@ -767,13 +1020,26 @@ def get_nodes(contract_id):
         columns = _columns(conn, "nodes")
         if "contract_id" not in columns:
             return []
+
+        binding = _graph_binding(conn, contract_id)
+        if binding["state"] not in _ANALYSIS_READY_STATES:
+            return []
+
         detail_expr = "detail" if "detail" in columns else "NULL AS detail"
+        params = [contract_id]
+        build_clause = ""
+        if binding["state"] == GRAPH_STATE_CURRENT:
+            if "build_id" not in columns:
+                return []
+            build_clause = " AND build_id = ?"
+            params.append(binding["current_graph_build_id"])
+
         rows = conn.execute(
             """SELECT node_id, clause_reference, node_type, contract_id,
                       %s
-               FROM nodes WHERE contract_id = ? ORDER BY node_id"""
-            % detail_expr,
-            (contract_id,),
+               FROM nodes WHERE contract_id = ?%s ORDER BY node_id"""
+            % (detail_expr, build_clause),
+            params,
         ).fetchall()
         return [dict(row) for row in rows]
     finally:
@@ -813,11 +1079,31 @@ def get_edges(contract_id):
             return []
         edge_columns = _columns(conn, "edges")
 
+        binding = _graph_binding(conn, contract_id)
+        if binding["state"] not in _ANALYSIS_READY_STATES:
+            return []
+
         conditions = ["s.contract_id = ?", "t.contract_id = ?"]
         params = [contract_id, contract_id]
         if "contract_id" in edge_columns:
             conditions.insert(0, "e.contract_id = ?")
             params.insert(0, contract_id)
+        if binding["state"] == GRAPH_STATE_CURRENT:
+            if (
+                "build_id" not in edge_columns
+                or "build_id" not in node_columns
+            ):
+                return []
+            conditions.extend(
+                [
+                    "e.build_id = ?",
+                    "s.build_id = ?",
+                    "t.build_id = ?",
+                ]
+            )
+            params.extend(
+                [binding["current_graph_build_id"]] * 3
+            )
 
         rows = conn.execute(
             """SELECT s.clause_reference AS src_ref, t.clause_reference AS dst_ref,

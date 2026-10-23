@@ -10,6 +10,84 @@ what branch B adds or needs from A.
 
 Read this part first if you have not pulled `b-graph` today.
 
+## 0. NEW (2026-10-23): Phase 7 contract-analysis hardening
+
+Read this first. It changes analysis behaviour and adds provenance fields, but
+it does not change the database schema or the frontend.
+
+### 0.0 What Phase 7 fixed
+
+| area | change |
+|---|---|
+| units | Durations are unit-aware. Only a single calendar-day `within N days` period is usable. Months, years, business/working days, competing periods, percentages, and money fail closed; no conversion or guessing. |
+| SLAs | Values are validated inclusively at `0` and `100`. Zero is valid. |
+| interest | The false "Interest accrual window" counterfactual row is **removed**. A note says interest is not derived from the payment period. This is the one intentional output change. |
+| evidence | Evidence and the changed clause keep their full `text`/`text_length`. Short display fields are `excerpt`/`text_excerpt` and say explicitly when they omit characters. |
+| graph binding | Analysis uses `contracts.current_graph_build_id`. Saving clauses or creating a current version atomically invalidates the pointer. Stale/missing graphs return HTTP `409`, not old graph rows. |
+| reproducibility | Reports carry `analysis_binding` (contract, clause version/hash, contract version, build id/version/hash, graph state, rules fingerprint). `POST /impact` accepts an optional 64-hex `expected_clause_sha256`. |
+| statuses | `supported`, `partially_supported`, `unsupported` are explicit on the report, evidence, doubts, conflicts, and counterfactual. Read-only legacy graphs are `legacy_unbound` / `partially_supported`. |
+| traces | Every counterfactual row has `rule_id`, `assumptions`, and a `calculation` object. |
+
+Full report: `docs/phase7_contract_analysis_hardening.md`.
+
+### 0.0.1 API additions C must handle
+
+`POST /impact` request may now include:
+
+```json
+{
+  "contract_id": 1,
+  "clause_id": "7.2",
+  "old_value": 30,
+  "new_value": 15,
+  "expected_clause_sha256": "64 lowercase/uppercase hex characters"
+}
+```
+
+The field is optional. When supplied, the server checks it against the stored
+clause hash.
+
+Errors keep the old string `detail` and add a stable `error_code`:
+
+```json
+{ "detail": "safe message", "error_code": "graph_stale" }
+```
+
+| HTTP | `error_code` | Meaning |
+|---:|---|---|
+| 409 | `graph_stale` | A graph exists but is not bound to the current clause set; rebuild it. |
+| 409 | `graph_not_built` | No published graph exists; build it. |
+| 409 | `graph_build_failed` | Graph construction failed for the contract. |
+| 409 | `clause_hash_mismatch` | The clause changed after the request was prepared. |
+| 409 | `clause_hash_unavailable` | The clause has no stored hash; expected-hash verification is impossible. |
+| 400 | `unsupported_unit` | The stored value uses a unit the API does not model; no conversion. |
+| 400 | `unsupported_clause_value` | No stored value in the modelled unit. |
+| 400 | `ambiguous_clause_value` | Competing or non-calendar periods cannot be selected safely. |
+| 400 | `sla_out_of_range` | SLA value outside `[0, 100]`. |
+| 400 | `stale_old_value` | `old_value` does not match the stored clause. |
+
+`GET /graph/{id}` and `GET /clauses/{id}` now include `binding` and
+`analysis_ready`; `/clauses` also includes each clause's `version_id` and
+`clause_sha256`. The UI can use these to explain why analysis is unavailable.
+
+The report also carries `analysis_status`, `analysis_binding`,
+`rules_fingerprint`, and (inside `counterfactual`) the rule trace fields. The
+old 12 MVP keys are still present. `counterfactual.notes` remains the honest
+explanation when a calculation is not modelled.
+
+### 0.0.2 Verification after pulling Phase 7
+
+```powershell
+py -3.11 -m unittest discover -s tests -p "test_phase7_hardening.py" -v
+py -3.11 -m unittest discover -s tests -v
+```
+
+The focused Phase 7 suite has 26 tests; the full suite has 262 tests (Phase 6
+baseline was 236). Everything uses temporary databases. Do not run the demo
+against `app.db` from branch B.
+
+---
+
 ### 0.1 The evaluation exists now
 
 `tools/evaluate.py` scores the engine against `data/ground_truth.json`.
@@ -120,8 +198,9 @@ doubt rules and who built the evaluation **before** filing.
 | `llm.py` | one LLM helper that never raises |
 | `cli.py` | terminal demo of the impact engine |
 | `seed.py` | loads the two synthetic contracts into `demo.db` |
-| `tests/test_graph.py` | 39 tests for the relationship model and the API |
+| `tests/test_graph.py` | 41 tests for the relationship model and the API |
 | `tests/test_evaluate.py` | 53 tests for the evaluator, the rules it locked in, and the LLM path |
+| `tests/test_phase7_hardening.py` | 26 Phase 7 correctness, provenance, and evidence tests |
 | `tools/evaluate.py` | scores the engine against `data/ground_truth.json` |
 | `tools/llm_probe.py` | exercises the LLM path (works with no key) |
 | `docs/evaluation_report.md` | the generated evaluation report |
@@ -146,23 +225,36 @@ open http://127.0.0.1:8000/docs     # interactive API docs, try it live
 |---|---|
 | `GET /graph/{contract_id}` | every node and every typed edge (draw your graph here) |
 | `GET /clauses/{contract_id}` | clauses + type + references + numbers |
-| `POST /impact` | **the headline endpoint** — all 12 MVP spec items |
+| `POST /impact` | **the headline endpoint** — all 12 MVP spec items, plus binding and status fields |
 | `GET /compare/{a}/{b}` | cross-contract comparison + portfolio anomaly |
 | `GET /demo/{contract_id}/suggest` | a ready-made example change (one click, no typo) |
 
-`POST /impact` request body:
+`POST /impact` request body (the hash is optional):
 
 ```json
-{ "contract_id": 1, "clause_id": "7.2", "old_value": 30, "new_value": 15 }
+{
+  "contract_id": 1,
+  "clause_id": "7.2",
+  "old_value": 30,
+  "new_value": 15,
+  "expected_clause_sha256": "64 hex characters (optional)"
+}
 ```
 
-Response keys — this is exactly the MVP spec from the master context:
+Response keys — the 12 MVP items are unchanged; Phase 7 adds provenance and
+status fields:
 
 ```
 changed_clause, direct, indirect, chain,
 obligations, conditions, consequences, deadlines, rights, definitions,
-counterfactual, doubts, conflicts, evidence, review_points, summary
+counterfactual, doubts, conflicts, evidence, review_points,
+ranked_review_points, summary,
+analysis_status, analysis_binding, rules_fingerprint
 ```
+
+`counterfactual` additionally contains `status`, `rule_ids`, `assumptions`,
+`rules_fingerprint`, and `analysis_binding`. Each row contains `rule_id`,
+`assumptions`, and a `calculation` object.
 
 Each item in `obligations` / `conditions` / `consequences` / `deadlines` is:
 
@@ -174,8 +266,18 @@ Each doubt is:
 
 ```json
 { "code": "definition_collision", "severity": "high",
-  "question": "...", "evidence": [ {...} ], "review_point": "..." }
+  "question": "...", "evidence": [ {...} ], "review_point": "...",
+  "rule_id": "doubt.definition_collision", "status": "supported" }
 ```
+
+When `POST /impact` is unavailable because the graph is stale or missing, the
+response is HTTP `409` with `{"detail": "...", "error_code": "graph_stale"}` or
+`{"detail": "...", "error_code": "graph_not_built"}`. Rebuild the graph before
+retrying. See section 0.0.1 for the full code list.
+
+**C should show `counterfactual.notes`, `analysis_status`, and the 409
+`error_code`.** That is the difference between "we do not know" and "the system
+is broken".
 
 **C should write the screen against these endpoints.** C's `reasoning.py` (the
 IRAC-style narrative) is a separate layer on top — it consumes this JSON and
@@ -321,11 +423,13 @@ governing_law, dispute, warranty, term, other`
 py -3.11 seed.py                                  # builds demo.db
 py -3.11 cli.py --contract 1 --change 7.2:30:15   # the headline demo (terminal)
 py -3.11 -m uvicorn server:app --reload           # the headline demo (browser)
-py -3.11 -m unittest discover -s tests -v          # 39 tests, must all pass
+py -3.11 -m unittest discover -s tests -v          # 262 tests, must all pass
 ```
 
 The last test in the suite runs A's own three test files in a clean subprocess,
-so branch B cannot silently break branch A.
+so branch B cannot silently break branch A. The Phase 7 focused suite can be run
+alone with `py -3.11 -m unittest discover -s tests -p "test_phase7_hardening.py" -v`
+(26 tests).
 
 ### One gotcha we already hit (so nobody hits it again)
 
