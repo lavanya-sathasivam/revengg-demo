@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contract Intelligence</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface-2: #fbfcfd;
+    --border: #dde3ea;
+    --border-strong: #c6d0db;
+    --text: #16202b;
+    --muted: #64748b;
+    --accent: #1f4e79;
+    --accent-soft: #eaf1f8;
+    --warn-soft: #fdf5e3;
+    --warn-border: #e8cf8e;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(22,32,43,.06), 0 4px 14px rgba(22,32,43,.05);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 30px 20px 72px; }
+  .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 1.75rem; font-weight: 650; letter-spacing: -.01em; }
+  .tagline { color: var(--muted); font-size: .95rem; }
+  .tabs { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tab {
+    display: inline-block; padding: 6px 14px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); text-decoration: none; font-size: .88rem; font-weight: 550;
+  }
+  .tab:hover { border-color: var(--border-strong); color: var(--text); }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .intro {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px 24px; margin: 24px 0 18px;
+  }
+  .intro p { margin: 0; max-width: 820px; color: var(--muted); }
+  .intro p + p { margin-top: 10px; }
+
+  .workspaces {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 18px; margin-bottom: 18px;
+  }
+  .workspace {
+    display: flex; flex-direction: column; min-height: 230px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px 24px; color: var(--text); text-decoration: none;
+    transition: border-color .12s ease, transform .12s ease;
+  }
+  .workspace:hover {
+    border-color: var(--accent); transform: translateY(-1px);
+  }
+  .workspace:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .workspace .eyebrow {
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .09em;
+    font-weight: 700; color: var(--muted);
+  }
+  .workspace h2 { margin: 8px 0 8px; font-size: 1.2rem; }
+  .workspace p { margin: 0; color: var(--muted); font-size: .94rem; }
+  .workspace .open {
+    margin-top: auto; padding-top: 20px; color: var(--accent);
+    font-weight: 650; font-size: .9rem;
+  }
+  .workspace .open::after { content: " \2192"; }
+
+  .notice {
+    background: var(--warn-soft); border: 1px solid var(--warn-border);
+    color: #6b4e08; border-radius: 8px; padding: 12px 15px;
+    font-size: .9rem; margin-bottom: 18px;
+  }
+  footer { color: var(--muted); font-size: .82rem; text-align: center; padding-top: 8px; }
+  code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: .88em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>Contract Intelligence</h1>
+      <span class="tagline">evidence-grounded contract analysis, one workspace at a time</span>
+    </div>
+    <nav class="tabs" aria-label="Primary">
+      <a class="tab active" href="/">Overview</a>
+      <a class="tab" href="/impact-analysis">Conflict &amp; Change Impact</a>
+      <a class="tab" href="/explain">Clause Explanation</a>
+      <a class="tab" href="/docs">API</a>
+    </nav>
+  </header>
+
+  <section class="intro" aria-labelledby="overview-heading">
+    <h2 id="overview-heading" style="margin:0 0 8px;font-size:1.1rem;">What this workspace does</h2>
+    <p>
+      Contract Intelligence models a contract as linked obligations rather than
+      a bag of text. Every finding points back to a clause, and the system says
+      what it cannot determine instead of guessing.
+    </p>
+    <p>
+      Choose a workspace below. Conflict &amp; Change Impact asks what breaks
+      when a clause changes. Clause Explanation explains one stored clause and
+      the authorities that may be relevant to it.
+    </p>
+  </section>
+
+  <div class="workspaces">
+    <a class="workspace" id="workspace-impact" href="/impact-analysis">
+      <span class="eyebrow">Workspace</span>
+      <h2>Conflict &amp; Change Impact</h2>
+      <p>
+        Change a payment period, service level, or other modelled value and
+        trace direct and indirect effects, counterfactuals, conflicts, doubts,
+        and the review points a lawyer must decide.
+      </p>
+      <span class="open">Open impact workspace</span>
+    </a>
+
+    <a class="workspace" id="workspace-explanation" href="/explain">
+      <span class="eyebrow">Workspace</span>
+      <h2>Clause Explanation</h2>
+      <p>
+        Read a clause in full, see a deterministic plain-language explanation,
+        and inspect the matched legal authorities, evidence, and stated
+        uncertainties.
+      </p>
+      <span class="open">Open clause explanation</span>
+    </a>
+  </div>
+
+  <div class="notice" role="note">
+    <strong>Synthetic demo mode is read-only.</strong>
+    The bundled contracts are illustrative and cannot be modified by uploads.
+    Uploading requires a separately configured local database and storage path;
+    no upload is ever written to the demo database.
+  </div>
+
+  <footer>
+    Decision support, not legal advice. The review points belong to the lawyer.
+  </footer>
+</div>
+</body>
+</html>

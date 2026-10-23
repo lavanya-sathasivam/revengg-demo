@@ -22,20 +22,25 @@ from unittest import mock
 
 import pymupdf
 from fastapi import HTTPException, UploadFile
+from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 import app
 import adapter
+import api_a
 import api_b
 import db
 import graph
+from application import create_app
 
 
-def make_request(content_length=None):
+def make_request(content_length=None, application=None):
     headers = []
     if content_length is not None:
         headers.append((b"content-length", str(content_length).encode()))
     scope = {"type": "http", "method": "POST", "path": "/upload", "headers": headers}
+    if application is not None:
+        scope["app"] = application
     return Request(scope)
 
 
@@ -104,21 +109,32 @@ class ApiTestCase(unittest.TestCase):
         self.upload_dir = os.path.join(self.tmp_dir, "uploads")
         os.makedirs(self.upload_dir)
 
-        self._orig_get_db_path = db.get_db_path
-        self._orig_upload_dir = app.UPLOAD_DIR
-        db.get_db_path = lambda: self.db_path
-        app.UPLOAD_DIR = Path(self.upload_dir)
-
+        # Explicit, test-scoped configuration. Nothing is monkeypatched on
+        # db.get_db_path and the project's app.db/demo.db are never used.
+        self._db_token = db.set_database_config(
+            db.DatabaseConfig(self.db_path, read_only=False)
+        )
         self.addCleanup(shutil.rmtree, self.tmp_dir, ignore_errors=True)
-        self.addCleanup(self._restore)
+        self.addCleanup(db.reset_database_config, self._db_token)
         db.init_db()
 
-    def _restore(self):
-        db.get_db_path = self._orig_get_db_path
-        app.UPLOAD_DIR = self._orig_upload_dir
+        self.application = create_app(
+            mode="upload",
+            database_path=self.db_path,
+            upload_dir=Path(self.upload_dir),
+        )
+        self.client = TestClient(self.application)
 
     def _upload(self, data: bytes, filename: str = "contract.pdf"):
-        return app.upload_contract(make_request(), make_upload(data, filename))
+        response = self.client.post(
+            "/upload",
+            files={"file": (filename, data, "application/pdf")},
+        )
+        payload = response.json()
+        if response.status_code >= 400:
+            detail = payload.get("detail") if isinstance(payload, dict) else payload
+            raise HTTPException(status_code=response.status_code, detail=detail)
+        return payload
 
     def _count_contracts(self):
         conn = db.get_conn()
@@ -336,14 +352,17 @@ class UploadFlowTests(ApiTestCase):
     def test_oversized_content_length_returns_413(self):
         with self.assertRaises(HTTPException) as ctx:
             app.upload_contract(
-                make_request(content_length=app.MAX_UPLOAD_SIZE + 5_000),
+                make_request(
+                    content_length=app.MAX_UPLOAD_SIZE + 5_000,
+                    application=self.application,
+                ),
                 make_upload(b"%PDF-1.4", "big.pdf"),
             )
         self.assertEqual(ctx.exception.status_code, 413)
         self.assertEqual(self._count_contracts(), 0)
 
     def test_clause_persistence_failure_does_not_claim_extracted(self):
-        with mock.patch.object(app, "save_clauses", side_effect=RuntimeError("boom")):
+        with mock.patch.object(api_a, "save_clauses", side_effect=RuntimeError("boom")):
             with self.assertRaises(HTTPException) as ctx:
                 self._upload(SECTIONS_PDF)
         self.assertEqual(ctx.exception.status_code, 500)

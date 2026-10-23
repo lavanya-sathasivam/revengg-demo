@@ -225,13 +225,27 @@ class TestTheUiServesTheEngine(IntegrationTestCase):
 
     def _client(self):
         from fastapi.testclient import TestClient
-        import app as a_app          # Person A's FastAPI app
-        return TestClient(a_app.app)
+        from application import create_app
 
-    def test_the_landing_page_is_the_impact_view(self):
+        # Build an isolated demo-mode app; never use the process-wide default
+        # database path or an environment-selected upload database.
+        return TestClient(create_app(mode="demo", database_path=self.db_path))
+
+    def test_the_homepage_is_the_contract_intelligence_overview(self):
         page = self._client().get("/")
         self.assertEqual(page.status_code, 200)
         body = page.text
+        self.assertIn("Contract Intelligence", body)
+        self.assertIn('href="/impact-analysis"', body)
+        self.assertIn('href="/explain"', body)
+        self.assertIn("read-only", body)
+        self.assertNotIn('id="upload-form"', body)
+
+    def test_the_impact_workspace_serves_the_engine(self):
+        page = self._client().get("/impact-analysis")
+        self.assertEqual(page.status_code, 200)
+        body = page.text
+        self.assertIn("Conflict &amp; Change Impact", body)
         self.assertIn("Analyze change", body)
         self.assertIn("/impact", body)          # it calls the impact engine
         self.assertIn("Uncertainty", body)      # it renders the doubts
@@ -239,7 +253,7 @@ class TestTheUiServesTheEngine(IntegrationTestCase):
         self.assertIn("priority_reason", body)
 
     def test_the_impact_page_uploads_and_selects_the_returned_contract(self):
-        page = self._client().get("/")
+        page = self._client().get("/impact-analysis")
         self.assertEqual(page.status_code, 200)
         body = page.text
         self.assertIn('id="upload-form"', body)
@@ -257,14 +271,15 @@ class TestTheUiServesTheEngine(IntegrationTestCase):
         html = open(os.path.join(ROOT, "templates", "explain.html"),
                     encoding="utf-8").read()
         self.assertIn('id="impact-analysis-link"', html)
-        self.assertIn('"/?contract=" + encodeURIComponent(String(selectedContractId))',
+        self.assertIn('"/impact-analysis?contract=" + encodeURIComponent(String(selectedContractId))',
                       html)
 
     def test_the_clause_explainer_is_still_reachable(self):
-        """Person C's screen is preserved, not replaced."""
+        """The existing explanation workspace is preserved, not replaced."""
         page = self._client().get("/explain")
         self.assertEqual(page.status_code, 200)
-        self.assertIn("Contract Intelligence Demo", page.text)
+        self.assertIn("Clause Explanation", page.text)
+        self.assertIn('href="/impact-analysis"', page.text)
 
     def test_the_page_exposes_shareable_parameters(self):
         """?clause=7.2&old=30&new=15 must load and run the analysis."""

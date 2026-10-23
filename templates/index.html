@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Contract Impact Analysis</title>
+<title>Conflict &amp; Change Impact — Contract Intelligence</title>
 <style>
   :root {
     --bg: #f4f6f9;
@@ -194,12 +194,13 @@
 
   <header class="masthead">
     <div class="brand">
-      <h1>Contract Impact Analysis</h1>
+      <h1>Conflict &amp; Change Impact</h1>
       <span class="tagline">change a clause &rarr; see what breaks, in days, and what we cannot determine</span>
     </div>
     <nav class="tabs">
-      <a class="tab active" href="/">Impact analysis</a>
-      <a class="tab" href="/explain">Clause explainer</a>
+      <a class="tab" href="/">Overview</a>
+      <a class="tab active" href="/impact-analysis">Conflict &amp; Change Impact</a>
+      <a class="tab" href="/explain">Clause Explanation</a>
       <a class="tab" href="/docs">API</a>
     </nav>
   </header>
@@ -232,11 +233,11 @@
     </div>
     <form id="upload-form" class="uploadrow" aria-label="Upload a PDF contract">
       <div class="uploadfield">
-        <label for="upload-file">Add a contract</label>
+        <label for="upload-file">Add a contract (upload mode only)</label>
         <input id="upload-file" name="file" type="file" accept="application/pdf,.pdf" />
       </div>
       <button class="primary" id="upload-button" type="submit">Upload PDF</button>
-      <span class="small muted">PDF only, up to 10 MB. Text-based PDFs work best.</span>
+      <span class="small muted">PDF only, up to 10 MB. Demo mode is read-only and rejects uploads.</span>
     </form>
     <p id="upload-status" class="upload-status" role="status" aria-live="polite" hidden></p>
   </div>
@@ -269,9 +270,10 @@
   </main>
 
   <footer>
-    Synthetic contracts are for demonstration; uploaded contracts are analyzed
-    from extracted text. The output is decision support,
-    not legal advice &mdash; the review points are yours to decide.
+    Synthetic contracts are read-only in demo mode. Uploaded contracts are
+    analyzed from extracted text only when upload mode is explicitly configured.
+    The output is decision support, not legal advice &mdash; the review points
+    are yours to decide.
   </footer>
 </div>
 
@@ -840,7 +842,7 @@
     q.set("clause", selClause.value);
     q.set("old", inOld.value);
     q.set("new", inNew.value);
-    history.replaceState(null, "", "?" + q.toString());
+    history.replaceState(null, "", window.location.pathname + "?" + q.toString());
   }
 
   function start() {

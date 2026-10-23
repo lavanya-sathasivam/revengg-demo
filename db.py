@@ -1,21 +1,89 @@
 import json
 import os
 import sqlite3
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+
+
+@dataclass(frozen=True)
+class DatabaseConfig:
+    """An explicitly selected database and whether it may be written to.
+
+    The application factory installs this for the lifetime of a request.
+    Legacy scripts and tests may leave it unset, in which case get_db_path()
+    keeps its historical default.
+    """
+
+    path: str
+    read_only: bool = False
+
+
+_database_config: ContextVar[DatabaseConfig | None] = ContextVar(
+    "database_config", default=None
+)
+
+
+def set_database_config(config: DatabaseConfig):
+    """Activate a database configuration in the current context."""
+    return _database_config.set(config)
+
+
+def reset_database_config(token) -> None:
+    """Restore the previous database configuration."""
+    _database_config.reset(token)
+
+
+def get_database_config():
+    """Return the active configuration, or None for legacy callers."""
+    return _database_config.get()
+
+
+@contextmanager
+def database_context(path, read_only=False):
+    """Temporarily use one database path in the current context.
+
+    Used by startup, tests, and maintenance scripts. The previous setting is
+    always restored, so no process-wide monkeypatch is needed.
+    """
+    token = set_database_config(DatabaseConfig(str(path), read_only=read_only))
+    try:
+        yield
+    finally:
+        reset_database_config(token)
 
 
 def get_db_path():
-    """Return the path to app.db located next to this db.py file."""
+    """Return the explicitly selected path, or the legacy app.db default."""
+    config = _database_config.get()
+    if config is not None:
+        return config.path
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_dir, "app.db")
 
 
 def get_conn():
-    """Return a new SQLite connection with safe defaults."""
-    conn = sqlite3.connect(get_db_path())
+    """Return a new SQLite connection with safe defaults.
+
+    A read-only configuration opens the file in SQLite read-only mode and
+    enables query_only as a second layer. A missing demo database therefore
+    fails closed instead of being silently created.
+    """
+    config = _database_config.get()
+    if config is None:
+        conn = sqlite3.connect(get_db_path())
+    elif config.read_only:
+        uri = Path(config.path).expanduser().resolve().as_uri() + "?mode=ro"
+        conn = sqlite3.connect(uri, uri=True)
+    else:
+        conn = sqlite3.connect(config.path)
     conn.row_factory = sqlite3.Row
     # Enable foreign key enforcement
     conn.execute("PRAGMA foreign_keys = ON")
+    if config is not None and config.read_only:
+        conn.execute("PRAGMA query_only = ON")
     return conn
 
 

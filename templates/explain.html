@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contract Intelligence Demo</title>
+<title>Clause Explanation — Contract Intelligence</title>
 <style>
   :root {
     --bg: #f5f7fa;
@@ -326,14 +326,16 @@
 <div class="page">
 
   <header class="site-header">
-    <h1>Contract Intelligence Demo</h1>
+    <h1>Clause Explanation</h1>
     <p class="notice">
       Explanations are generated from deterministic keyword matching against Indian contract law
       authorities. They are informational only and are not legal advice.
     </p>
     <p class="notice">
-      <a id="impact-analysis-link" href="/">&larr; Impact analysis</a> &nbsp;&middot;&nbsp;
-      This page explains a single clause; the impact analysis answers what
+      <a href="/">&larr; Contract Intelligence overview</a> &nbsp;&middot;&nbsp;
+      <a id="impact-analysis-link" href="/impact-analysis">Conflict &amp; Change Impact</a>
+      &nbsp;&middot;&nbsp;
+      This page explains a single clause; the impact workspace answers what
       breaks if a clause <em>changes</em>.
     </p>
     <div class="disclaimer-banner">
@@ -545,8 +547,8 @@
   function syncImpactLink() {
     if (!impactAnalysisLink) return;
     impactAnalysisLink.href = selectedContractId === null || selectedContractId === undefined
-      ? "/"
-      : "/?contract=" + encodeURIComponent(String(selectedContractId));
+      ? "/impact-analysis"
+      : "/impact-analysis?contract=" + encodeURIComponent(String(selectedContractId));
   }
 
   function formatTimestamp(value) {
