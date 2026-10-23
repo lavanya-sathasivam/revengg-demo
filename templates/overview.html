@@ -1,156 +1,1582 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Contract Intelligence</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contract Portfolio — Contract Intelligence</title>
 <style>
   :root {
-    --bg: #f4f6f9;
+    --bg-app: #0b1329;
+    --sidebar-bg: #0f172a;
+    --sidebar-hover: #1e293b;
+    --sidebar-active: #1e3a8a;
+    --sidebar-border: #1e293b;
+    --sidebar-text: #94a3b8;
+    --sidebar-text-active: #ffffff;
+
+    --bg-main: #f8fafc;
     --surface: #ffffff;
-    --surface-2: #fbfcfd;
-    --border: #dde3ea;
-    --border-strong: #c6d0db;
-    --text: #16202b;
-    --muted: #64748b;
-    --accent: #1f4e79;
-    --accent-soft: #eaf1f8;
-    --warn-soft: #fdf5e3;
-    --warn-border: #e8cf8e;
-    --radius: 10px;
-    --shadow: 0 1px 2px rgba(22,32,43,.06), 0 4px 14px rgba(22,32,43,.05);
+    --surface-2: #f1f5f9;
+    --surface-card: #ffffff;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+
+    --accent: #1e40af;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --accent-border: #bfdbfe;
+
+    --ok: #15803d;
+    --ok-soft: #dcfce7;
+    --ok-border: #bbf7d0;
+
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --warn-border: #fde68a;
+
+    --danger: #b91c1c;
+    --danger-soft: #fee2e2;
+    --danger-border: #fecaca;
+
+    --radius-lg: 12px;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
   }
+
   * { box-sizing: border-box; }
+
   body {
     margin: 0;
-    background: var(--bg);
+    padding: 0;
+    background: var(--bg-main);
     color: var(--text);
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
-    font-size: 15.5px;
-    line-height: 1.55;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 30px 20px 72px; }
-  .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-  h1 { margin: 0; font-size: 1.75rem; font-weight: 650; letter-spacing: -.01em; }
-  .tagline { color: var(--muted); font-size: .95rem; }
-  .tabs { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
-  .tab {
-    display: inline-block; padding: 6px 14px; border-radius: 999px;
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--muted); text-decoration: none; font-size: .88rem; font-weight: 550;
-  }
-  .tab:hover { border-color: var(--border-strong); color: var(--text); }
-  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  .intro {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); box-shadow: var(--shadow);
-    padding: 22px 24px; margin: 24px 0 18px;
+  /* ---------- App Layout Shell ---------- */
+  .app-shell {
+    display: flex;
+    min-height: 100vh;
   }
-  .intro p { margin: 0; max-width: 820px; color: var(--muted); }
-  .intro p + p { margin-top: 10px; }
 
-  .workspaces {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 18px; margin-bottom: 18px;
+  /* ---------- Persistent Sidebar ---------- */
+  .app-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 100;
+    transition: transform 0.25s ease;
   }
-  .workspace {
-    display: flex; flex-direction: column; min-height: 230px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); box-shadow: var(--shadow);
-    padding: 22px 24px; color: var(--text); text-decoration: none;
-    transition: border-color .12s ease, transform .12s ease;
-  }
-  .workspace:hover {
-    border-color: var(--accent); transform: translateY(-1px);
-  }
-  .workspace:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .workspace .eyebrow {
-    font-size: .7rem; text-transform: uppercase; letter-spacing: .09em;
-    font-weight: 700; color: var(--muted);
-  }
-  .workspace h2 { margin: 8px 0 8px; font-size: 1.2rem; }
-  .workspace p { margin: 0; color: var(--muted); font-size: .94rem; }
-  .workspace .open {
-    margin-top: auto; padding-top: 20px; color: var(--accent);
-    font-weight: 650; font-size: .9rem;
-  }
-  .workspace .open::after { content: " \2192"; }
 
-  .notice {
-    background: var(--warn-soft); border: 1px solid var(--warn-border);
-    color: #6b4e08; border-radius: 8px; padding: 12px 15px;
-    font-size: .9rem; margin-bottom: 18px;
+  .sidebar-header {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
-  footer { color: var(--muted); font-size: .82rem; text-align: center; padding-top: 8px; }
-  code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: .88em; }
+
+  .brand-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+  }
+  .brand-text { display: flex; flex-direction: column; }
+  .brand-title {
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .brand-tag {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .sidebar-nav {
+    padding: 16px 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nav-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #475569;
+    padding: 8px 12px 4px;
+    margin-top: 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 550;
+    transition: all 0.15s ease;
+  }
+  .nav-item:hover {
+    background: var(--sidebar-hover);
+    color: #ffffff;
+  }
+  .nav-item.active {
+    background: var(--sidebar-active);
+    color: var(--sidebar-text-active);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  .nav-icon {
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+  }
+
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: #090e1a;
+  }
+
+  .auth-widget {
+    margin-bottom: 12px;
+  }
+  .auth-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    background: #1e293b;
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .auth-pill.demo { border-color: #334155; color: #94a3b8; }
+  .auth-pill.firm { border-color: #065f46; background: #064e3b; color: #6ee7b7; }
+  .auth-pill.warn { border-color: #78350f; background: #451a03; color: #fcd34d; }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #94a3b8;
+  }
+  .status-dot.firm { background: #34d399; }
+  .status-dot.warn { background: #f59e0b; }
+  .status-dot.demo { background: #60a5fa; }
+
+  .auth-logout-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #475569;
+    color: #94a3b8;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    padding: 2px 7px;
+    cursor: pointer;
+  }
+  .auth-logout-btn:hover { color: #fff; border-color: #94a3b8; }
+
+  .sidebar-docs-row a {
+    color: #64748b;
+    font-size: 0.78rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sidebar-docs-row a:hover { color: #94a3b8; text-decoration: underline; }
+
+  /* ---------- Main Content View ---------- */
+  .app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .app-topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .mobile-toggle-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .page-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .page-tagline {
+    color: var(--text-muted);
+    font-size: 0.84rem;
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn-open-assistant {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    color: #ffffff;
+    border: none;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-open-assistant:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  }
+
+  .content-container {
+    padding: 24px 28px 60px;
+    max-width: 1360px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  /* Disclaimer Banner */
+  .disclaimer-banner {
+    background: var(--warn-soft);
+    border: 1px solid var(--warn-border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    color: #78350f;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .disclaimer-banner strong { font-weight: 650; }
+
+  /* Metrics strip */
+  .metrics-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .metric-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .metric-value {
+    font-size: 1.7rem;
+    font-weight: 750;
+    color: var(--text);
+    line-height: 1.1;
+  }
+  .metric-sub {
+    font-size: 0.76rem;
+    color: var(--text-subtle);
+    margin-top: 4px;
+  }
+
+  /* Portfolio Layout (Table + Upload/Drawer) */
+  .portfolio-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1.1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .card-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #ffffff;
+  }
+  .card-panel-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .card-panel-body {
+    padding: 20px;
+  }
+
+  /* Search & Filter bar */
+  .filter-search-wrap {
+    padding: 14px 20px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--border);
+  }
+  .search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.84rem;
+    font-family: inherit;
+    background: #ffffff;
+  }
+  .search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
+  }
+
+  /* Table styles */
+  .contracts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+    text-align: left;
+  }
+  .contracts-table th {
+    background: #f8fafc;
+    color: var(--text-muted);
+    font-weight: 650;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .contracts-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  .contracts-table tr.clickable-row {
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .contracts-table tr.clickable-row:hover {
+    background: #f1f5f9;
+  }
+  .contracts-table tr.is-selected {
+    background: var(--accent-soft);
+  }
+
+  .contract-name-cell {
+    font-weight: 650;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .contract-id-pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .badge-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 650;
+    text-transform: capitalize;
+  }
+  .badge-status.extracted, .badge-status.ready {
+    background: var(--ok-soft);
+    color: var(--ok);
+    border: 1px solid var(--ok-border);
+  }
+  .badge-status.processing {
+    background: var(--warn-soft);
+    color: var(--warn);
+    border: 1px solid var(--warn-border);
+  }
+  .badge-status.failed {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
+  }
+
+  /* Action buttons */
+  .btn-action-sm {
+    padding: 5px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    border: 1px solid var(--border-strong);
+    background: #ffffff;
+    color: var(--text);
+    transition: all 0.15s ease;
+  }
+  .btn-action-sm:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* Upload Card */
+  .upload-box {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    text-align: center;
+    background: #fcfdfe;
+    margin-bottom: 20px;
+  }
+  .upload-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .upload-input-file {
+    display: block;
+    width: 100%;
+    margin: 12px 0;
+    font-size: 0.82rem;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 650;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Drawer Details Card */
+  .drawer-panel {
+    background: #fbfcfd;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 16px;
+  }
+  .drawer-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0 0 10px;
+  }
+  .drawer-meta-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.82rem;
+  }
+  .drawer-meta-list li {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .drawer-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .btn-block-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    font-weight: 650;
+    text-decoration: none;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #ffffff;
+  }
+  .btn-block-action.secondary {
+    background: #ffffff;
+    color: var(--accent);
+  }
+  .btn-block-action:hover {
+    filter: brightness(1.05);
+  }
+
+  /* Status message alert line */
+  .status-line {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    margin-top: 12px;
+  }
+  .status-line.error {
+    background: var(--danger-soft);
+    border: 1px solid var(--danger-border);
+    color: var(--danger);
+  }
+  .status-line.success {
+    background: var(--ok-soft);
+    border: 1px solid var(--ok-border);
+    color: var(--ok);
+  }
+
+  /* ---------- Floating Gemini AI Assistant ---------- */
+  .floating-ai-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 28px;
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    font-weight: 650;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.28);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1000;
+    transition: all 0.2s ease;
+  }
+  .floating-ai-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(30, 58, 138, 0.4);
+  }
+
+  .ai-chat-drawer {
+    position: fixed;
+    bottom: 84px;
+    right: 28px;
+    width: 420px;
+    max-width: calc(100vw - 36px);
+    height: 580px;
+    max-height: calc(100vh - 110px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+  }
+  .ai-chat-drawer[hidden] { display: none !important; }
+
+  .ai-drawer-header {
+    padding: 14px 16px;
+    background: #0f172a;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ai-drawer-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ai-bot-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #2563eb, #60a5fa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .ai-title-wrap { display: flex; flex-direction: column; }
+  .ai-drawer-title { font-size: 0.88rem; font-weight: 700; }
+  .ai-model-tag { font-size: 0.68rem; color: #94a3b8; font-family: var(--mono); }
+
+  .ai-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-icon-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .ai-icon-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.1); }
+
+  .ai-context-strip {
+    padding: 6px 14px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    font-size: 0.74rem;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-context-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #38bdf8;
+  }
+
+  .ai-messages-scroll {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f8fafc;
+  }
+
+  .ai-bubble {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    max-width: 90%;
+    word-break: break-word;
+  }
+  .ai-bubble.user {
+    background: var(--accent);
+    color: #ffffff;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+  }
+  .ai-bubble.assistant {
+    background: #ffffff;
+    color: var(--text);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .ai-bubble.assistant p { margin: 0 0 6px; }
+  .ai-bubble.assistant p:last-child { margin-bottom: 0; }
+  .ai-bubble.assistant ul { margin: 4px 0 6px; padding-left: 18px; }
+
+  .ai-typing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    align-self: flex-start;
+  }
+  .ai-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #94a3b8;
+    animation: aiPulse 1.2s infinite ease-in-out;
+  }
+  .ai-dot:nth-child(2) { animation-delay: 0.2s; }
+  .ai-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes aiPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+
+  .ai-suggestions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .ai-suggestion-chip {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.74rem;
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 550;
+    transition: background 0.12s ease;
+  }
+  .ai-suggestion-chip:hover {
+    background: #e2e8f0;
+  }
+
+  .ai-chat-footer {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    background: #ffffff;
+  }
+  .ai-input-form {
+    display: flex;
+    gap: 8px;
+  }
+  .ai-chat-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    resize: none;
+    max-height: 80px;
+  }
+  .ai-chat-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .ai-send-btn {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .ai-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .ai-disclaimer {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  /* Responsive Breakpoints */
+  @media (max-width: 900px) {
+    .app-sidebar {
+      position: fixed;
+      transform: translateX(-100%);
+    }
+    .app-sidebar.open {
+      transform: translateX(0);
+    }
+    .mobile-toggle-btn {
+      display: inline-block;
+    }
+    .portfolio-grid {
+      grid-template-columns: 1fr;
+    }
+    .content-container {
+      padding: 16px;
+    }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header>
-    <div class="brand">
-      <h1>Contract Intelligence</h1>
-      <span class="tagline">evidence-grounded contract analysis, one workspace at a time</span>
+<div class="app-shell">
+
+  <!-- ================= Left Navigation Sidebar ================= -->
+  <aside class="app-sidebar" id="app-sidebar">
+    <div>
+      <div class="sidebar-header">
+        <a href="/" class="brand-link" title="Contract Intelligence Home">
+          <div class="brand-icon">⚖️</div>
+          <div class="brand-text">
+            <span class="brand-title">Contract Intel</span>
+            <span class="brand-tag">Legal Risk &amp; Analysis</span>
+          </div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Main Navigation">
+        <div class="nav-section-title">Workspaces</div>
+        <a class="nav-item active" href="/" aria-current="page" id="nav-portfolio">
+          <span class="nav-icon">📁</span>
+          <span>Portfolio &amp; Intake</span>
+        </a>
+        <a class="nav-item" href="/impact-analysis" id="nav-impact">
+          <span class="nav-icon">⚡</span>
+          <span>Conflict &amp; Change Impact</span>
+        </a>
+        <a class="nav-item" href="/explain" id="nav-explain">
+          <span class="nav-icon">📖</span>
+          <span>Clause Explanation</span>
+        </a>
+      </nav>
     </div>
-    <nav class="tabs" aria-label="Primary">
-      <a class="tab active" href="/">Overview</a>
-      <a class="tab" href="/impact-analysis">Conflict &amp; Change Impact</a>
-      <a class="tab" href="/explain">Clause Explanation</a>
-      <a class="tab" href="/docs">API</a>
-    </nav>
-  </header>
 
-  <section class="intro" aria-labelledby="overview-heading">
-    <h2 id="overview-heading" style="margin:0 0 8px;font-size:1.1rem;">What this workspace does</h2>
-    <p>
-      Contract Intelligence models a contract as linked obligations rather than
-      a bag of text. Every finding points back to a clause, and the system says
-      what it cannot determine instead of guessing.
-    </p>
-    <p>
-      Choose a workspace below. Conflict &amp; Change Impact asks what breaks
-      when a clause changes. Clause Explanation explains one stored clause and
-      the authorities that may be relevant to it.
-    </p>
-  </section>
+    <div class="sidebar-footer">
+      <div class="auth-widget">
+        <div id="auth-status" class="auth-status" aria-live="polite">
+          <span class="auth-pill demo"><span class="status-dot demo"></span>Checking access...</span>
+        </div>
+      </div>
+      <div class="sidebar-docs-row">
+        <a href="/docs" target="_blank" rel="noopener">
+          <span>📜</span> Developer API Docs &rarr;
+        </a>
+      </div>
+    </div>
+  </aside>
 
-  <div class="workspaces">
-    <a class="workspace" id="workspace-impact" href="/impact-analysis">
-      <span class="eyebrow">Workspace</span>
-      <h2>Conflict &amp; Change Impact</h2>
-      <p>
-        Change a payment period, service level, or other modelled value and
-        trace direct and indirect effects, counterfactuals, conflicts, doubts,
-        and the review points a lawyer must decide.
-      </p>
-      <span class="open">Open impact workspace</span>
-    </a>
+  <!-- ================= Main Workspace Area ================= -->
+  <main class="app-main">
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">☰</button>
+        <div>
+          <h1 class="page-title">Contract Portfolio &amp; Intake</h1>
+          <span class="page-tagline">Central repository, version provenance, and document ingestion</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn-open-assistant" id="btn-header-ai">
+          <span>✨</span> Ask Gemini AI
+        </button>
+      </div>
+    </header>
 
-    <a class="workspace" id="workspace-explanation" href="/explain">
-      <span class="eyebrow">Workspace</span>
-      <h2>Clause Explanation</h2>
-      <p>
-        Read a clause in full, see a deterministic plain-language explanation,
-        and inspect the matched legal authorities, evidence, and stated
-        uncertainties.
-      </p>
-      <span class="open">Open clause explanation</span>
-    </a>
-  </div>
+    <div class="content-container">
 
-  <div class="notice" role="note">
-    <strong>Synthetic demo mode is read-only.</strong>
-    The bundled contracts are illustrative and cannot be modified by uploads.
-    Uploading requires a separately configured local database and storage path;
-    no upload is ever written to the demo database.
-  </div>
+      <div class="disclaimer-banner">
+        <span>⚠️</span>
+        <div>
+          <strong>Legal Disclaimer:</strong> Contract Intelligence is an informational analysis workspace for legal teams. Outputs do not evaluate contract enforceability or substitute for formal legal counsel.
+        </div>
+      </div>
 
-  <footer>
-    Decision support, not legal advice. The review points belong to the lawyer.
-  </footer>
+      <!-- Quick Metrics Strip -->
+      <section class="metrics-strip" aria-label="Portfolio Summary">
+        <div class="metric-card">
+          <div class="metric-label">Stored Contracts</div>
+          <div class="metric-value" id="metric-total-contracts">0</div>
+          <div class="metric-sub">Active documents in portfolio</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Analysis Ready</div>
+          <div class="metric-value" id="metric-bound-contracts">0</div>
+          <div class="metric-sub">Full dependency graph mapped</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">System Mode</div>
+          <div class="metric-value" id="metric-sys-mode" style="font-size: 1.25rem;">Demo</div>
+          <div class="metric-sub" id="metric-sys-desc">Synthetic read-only database</div>
+        </div>
+      </section>
+
+      <!-- Portfolio Grid -->
+      <div class="portfolio-grid">
+
+        <!-- Left Column: Contracts Table -->
+        <section class="card-panel" aria-labelledby="portfolio-heading">
+          <div class="card-panel-header">
+            <h2 id="portfolio-heading">Contract Portfolio</h2>
+            <span class="badge-status" id="portfolio-badge-count">Loading...</span>
+          </div>
+
+          <div class="filter-search-wrap">
+            <input type="search" id="contracts-search" class="search-input" placeholder="Filter contracts by filename, ID, or status..." aria-label="Search contracts">
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="contracts-table" aria-label="Stored Contracts">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">ID</th>
+                  <th>Contract Name</th>
+                  <th>Status</th>
+                  <th>Uploaded</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="contracts-table-body">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                    Loading contract portfolio...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="contracts-empty-state" style="padding: 30px; text-align: center; color: var(--text-muted); display: none;">
+            No contracts match your search filter.
+          </div>
+        </section>
+
+        <!-- Right Column: Intake Upload & Selected Document Drawer -->
+        <div>
+
+          <!-- Consolidated Upload UI -->
+          <section class="card-panel" aria-labelledby="upload-heading" id="upload-section">
+            <div class="card-panel-header">
+              <h2 id="upload-heading">Intake Contract PDF</h2>
+            </div>
+            <div class="card-panel-body">
+              <form id="contract-upload-form">
+                <div class="upload-box">
+                  <div class="upload-icon">📄</div>
+                  <label for="portfolio-upload-file" style="font-size: 0.88rem; font-weight: 600; display: block; margin-bottom: 4px;">
+                    Select PDF Contract
+                  </label>
+                  <span style="font-size: 0.76rem; color: var(--text-muted);">
+                    Text-based PDFs up to 10 MB. Clauses and definitions are parsed automatically.
+                  </span>
+                  <input type="file" id="portfolio-upload-file" accept="application/pdf,.pdf" class="upload-input-file">
+                  <button type="submit" id="btn-upload-submit" class="btn-primary" style="width: 100%;">
+                    Upload Contract &rarr;
+                  </button>
+                </div>
+              </form>
+
+              <div id="upload-demo-note" class="status-line warn" style="display: none;">
+                <strong>Notice:</strong> The synthetic demo environment operates in read-only mode. New file uploads are disabled in this mode.
+              </div>
+              <div id="upload-status" class="status-line" style="display: none;"></div>
+            </div>
+          </section>
+
+          <!-- Document Inspection Drawer -->
+          <section class="card-panel" id="document-drawer" style="margin-top: 20px;" aria-labelledby="drawer-heading">
+            <div class="card-panel-header">
+              <h2 id="drawer-heading">Selected Contract</h2>
+              <span id="drawer-id-badge" class="contract-id-pill">ID #1</span>
+            </div>
+            <div class="card-panel-body">
+              <div class="drawer-title" id="drawer-filename">No contract selected</div>
+
+              <ul class="drawer-meta-list">
+                <li><span style="color: var(--text-muted);">Version ID:</span> <strong id="drawer-version-id">1</strong></li>
+                <li><span style="color: var(--text-muted);">Graph Build:</span> <strong id="drawer-graph-build">1</strong></li>
+                <li><span style="color: var(--text-muted);">Processing:</span> <span id="drawer-status-badge" class="badge-status ready">extracted</span></li>
+                <li><span style="color: var(--text-muted);">Provenance:</span> <strong id="drawer-provenance">Synthetic Seed</strong></li>
+              </ul>
+
+              <div class="drawer-actions">
+                <a id="drawer-link-impact" href="/impact-analysis?contract=1" class="btn-block-action">
+                  <span>⚡</span> Run Impact Analysis &rarr;
+                </a>
+                <a id="drawer-link-explain" href="/explain?contract=1" class="btn-block-action secondary">
+                  <span>📖</span> Browse Clause Explanations &rarr;
+                </a>
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
 </div>
+
+<!-- ================= Floating Gemini AI Assistant ================= -->
+<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
+  <span>✨</span>
+  <span>Ask Legal AI</span>
+</button>
+
+<aside class="ai-chat-drawer" id="ai-chat-drawer" aria-label="Gemini Legal Assistant" hidden>
+  <div class="ai-drawer-header">
+    <div class="ai-drawer-header-left">
+      <div class="ai-bot-avatar">✨</div>
+      <div class="ai-title-wrap">
+        <span class="ai-drawer-title">Gemini Contract Assistant</span>
+        <span class="ai-model-tag" id="ai-model-badge">gemini-2.5-flash</span>
+      </div>
+    </div>
+    <div class="ai-header-controls">
+      <button type="button" class="ai-icon-btn" id="ai-clear-btn" title="Clear chat history">⟲</button>
+      <button type="button" class="ai-icon-btn" id="ai-close-btn" aria-label="Close Assistant">&times;</button>
+    </div>
+  </div>
+
+  <div class="ai-context-strip" id="ai-context-strip">
+    <span class="ai-context-dot"></span>
+    <span id="ai-context-text">Context: Contract Portfolio Workspace</span>
+  </div>
+
+  <div class="ai-messages-scroll" id="ai-messages-scroll">
+    <div class="ai-bubble assistant">
+      <p><strong>Welcome to Contract Intelligence.</strong></p>
+      <p>I am grounded in your authorized contract repository. You can ask me to analyze terms, inspect obligations, or explain Indian legal authorities.</p>
+      <div class="ai-suggestions-row">
+        <button type="button" class="ai-suggestion-chip" data-prompt="Summarize the contracts available in this portfolio.">Summarize portfolio</button>
+        <button type="button" class="ai-suggestion-chip" data-prompt="What are the standard payment terms across these agreements?">Compare payment terms</button>
+        <button type="button" class="ai-suggestion-chip" data-prompt="Which contract contains service level commitments?">Check SLA commitments</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-chat-footer">
+    <form class="ai-input-form" id="ai-chat-form">
+      <textarea id="ai-chat-input" class="ai-chat-input" rows="1" placeholder="Ask a question about this contract..."></textarea>
+      <button type="submit" id="ai-send-btn" class="ai-send-btn" disabled>Send</button>
+    </form>
+    <div class="ai-disclaimer">
+      Informational analysis grounded in contract data. Not formal legal advice.
+    </div>
+  </div>
+</aside>
+
+<script>
+(function() {
+  "use strict";
+
+  // Elements
+  var contractsTableBody = document.getElementById("contracts-table-body");
+  var contractsSearch = document.getElementById("contracts-search");
+  var contractsEmptyState = document.getElementById("contracts-empty-state");
+  var countBadge = document.getElementById("portfolio-badge-count");
+  var metricTotalContracts = document.getElementById("metric-total-contracts");
+  var metricBoundContracts = document.getElementById("metric-bound-contracts");
+  var metricSysMode = document.getElementById("metric-sys-mode");
+  var metricSysDesc = document.getElementById("metric-sys-desc");
+
+  var drawerFilename = document.getElementById("drawer-filename");
+  var drawerIdBadge = document.getElementById("drawer-id-badge");
+  var drawerVersionId = document.getElementById("drawer-version-id");
+  var drawerGraphBuild = document.getElementById("drawer-graph-build");
+  var drawerStatusBadge = document.getElementById("drawer-status-badge");
+  var drawerProvenance = document.getElementById("drawer-provenance");
+  var drawerLinkImpact = document.getElementById("drawer-link-impact");
+  var drawerLinkExplain = document.getElementById("drawer-link-explain");
+
+  var uploadForm = document.getElementById("contract-upload-form");
+  var uploadFile = document.getElementById("portfolio-upload-file");
+  var uploadSubmit = document.getElementById("btn-upload-submit");
+  var uploadDemoNote = document.getElementById("upload-demo-note");
+  var uploadStatus = document.getElementById("upload-status");
+
+  var mobileToggleBtn = document.getElementById("mobile-toggle-btn");
+  var sidebar = document.getElementById("app-sidebar");
+
+  var aiLauncher = document.getElementById("ai-chat-launcher");
+  var aiDrawer = document.getElementById("ai-chat-drawer");
+  var aiCloseBtn = document.getElementById("ai-close-btn");
+  var aiClearBtn = document.getElementById("ai-clear-btn");
+  var aiMessagesScroll = document.getElementById("ai-messages-scroll");
+  var aiChatForm = document.getElementById("ai-chat-form");
+  var aiChatInput = document.getElementById("ai-chat-input");
+  var aiSendBtn = document.getElementById("ai-send-btn");
+  var aiContextText = document.getElementById("ai-context-text");
+  var btnHeaderAi = document.getElementById("btn-header-ai");
+
+  var allContracts = [];
+  var selectedContractId = null;
+  var isDemoMode = true;
+  var chatHistory = [];
+
+  function esc(s) {
+    return String(s === undefined || s === null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return "Unavailable";
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return String(value);
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function setUploadStatus(msg, isError) {
+    if (!uploadStatus) return;
+    if (!msg) {
+      uploadStatus.style.display = "none";
+      return;
+    }
+    uploadStatus.style.display = "block";
+    uploadStatus.className = "status-line " + (isError ? "error" : "success");
+    uploadStatus.textContent = msg;
+  }
+
+  function selectContract(contract) {
+    selectedContractId = contract.contract_id;
+    if (drawerFilename) drawerFilename.textContent = contract.filename || "Untitled";
+    if (drawerIdBadge) drawerIdBadge.textContent = "ID #" + contract.contract_id;
+    if (drawerVersionId) drawerVersionId.textContent = contract.current_version_id || contract.version_id || "1";
+    if (drawerGraphBuild) drawerGraphBuild.textContent = contract.current_graph_build_id || "1";
+    if (drawerProvenance) drawerProvenance.textContent = contract.provenance_status || "Standard";
+
+    if (drawerStatusBadge) {
+      var st = (contract.processing_status || "ready").toLowerCase();
+      drawerStatusBadge.className = "badge-status " + st;
+      drawerStatusBadge.textContent = st;
+    }
+
+    if (drawerLinkImpact) {
+      drawerLinkImpact.href = "/impact-analysis?contract=" + encodeURIComponent(String(contract.contract_id));
+    }
+    if (drawerLinkExplain) {
+      drawerLinkExplain.href = "/explain?contract=" + encodeURIComponent(String(contract.contract_id));
+    }
+
+    // Update AI Assistant Context
+    if (aiContextText) {
+      aiContextText.textContent = "Context: " + (contract.filename || "Contract #" + contract.contract_id);
+    }
+
+    // Highlight row
+    if (contractsTableBody) {
+      var rows = contractsTableBody.querySelectorAll("tr");
+      rows.forEach(function(r) {
+        r.classList.toggle("is-selected", r.dataset.contractId === String(contract.contract_id));
+      });
+    }
+  }
+
+  function renderTable(contracts) {
+    if (!contractsTableBody) return;
+    contractsTableBody.innerHTML = "";
+
+    if (!contracts || contracts.length === 0) {
+      if (contractsEmptyState) contractsEmptyState.style.display = "block";
+      return;
+    }
+    if (contractsEmptyState) contractsEmptyState.style.display = "none";
+
+    contracts.forEach(function(c) {
+      var tr = document.createElement("tr");
+      tr.className = "clickable-row";
+      tr.dataset.contractId = String(c.contract_id);
+      if (String(c.contract_id) === String(selectedContractId)) {
+        tr.classList.add("is-selected");
+      }
+
+      var st = (c.processing_status || "ready").toLowerCase();
+      var timeStr = formatTimestamp(c.upload_timestamp);
+
+      tr.innerHTML =
+        '<td style="font-family: var(--mono); color: var(--text-muted);">' + esc(c.contract_id) + '</td>' +
+        '<td>' +
+          '<div class="contract-name-cell">' +
+            '<span>' + esc(c.filename || "Untitled") + '</span>' +
+            '<span class="contract-id-pill">Version ' + esc(c.current_version_id || c.version_id || 1) + '</span>' +
+          '</div>' +
+        '</td>' +
+        '<td><span class="badge-status ' + esc(st) + '">' + esc(st) + '</span></td>' +
+        '<td style="color: var(--text-muted); font-size: 0.8rem;">' + esc(timeStr) + '</td>' +
+        '<td style="text-align: right;">' +
+          '<a href="/impact-analysis?contract=' + encodeURIComponent(String(c.contract_id)) + '" class="btn-action-sm" title="Analyze Change Impact">⚡ Impact</a> ' +
+          '<a href="/explain?contract=' + encodeURIComponent(String(c.contract_id)) + '" class="btn-action-sm" title="Explain Clauses">📖 Explain</a>' +
+        '</td>';
+
+      tr.addEventListener("click", function(e) {
+        if (e.target.tagName.toLowerCase() === "a") return;
+        selectContract(c);
+      });
+
+      contractsTableBody.appendChild(tr);
+    });
+  }
+
+  function filterContracts() {
+    var q = (contractsSearch ? contractsSearch.value : "").trim().toLowerCase();
+    var filtered = allContracts.filter(function(c) {
+      if (!q) return true;
+      var name = (c.filename || "").toLowerCase();
+      var id = String(c.contract_id || "");
+      var st = (c.processing_status || "").toLowerCase();
+      return name.indexOf(q) !== -1 || id.indexOf(q) !== -1 || st.indexOf(q) !== -1;
+    });
+    renderTable(filtered);
+    if (countBadge) countBadge.textContent = filtered.length + " Documents";
+  }
+
+  function loadContracts() {
+    return fetch("/contracts", { headers: { "Accept": "application/json" } })
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        allContracts = Array.isArray(data) ? data : [];
+        if (metricTotalContracts) metricTotalContracts.textContent = String(allContracts.length);
+        if (metricBoundContracts) metricBoundContracts.textContent = String(allContracts.length);
+        if (countBadge) countBadge.textContent = allContracts.length + " Documents";
+
+        renderTable(allContracts);
+
+        if (allContracts.length > 0 && selectedContractId === null) {
+          selectContract(allContracts[0]);
+        }
+      })
+      .catch(function(err) {
+        if (contractsTableBody) {
+          contractsTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:24px;">Failed to load contracts: ' + esc(err.message) + '</td></tr>';
+        }
+      });
+  }
+
+  // Upload handler
+  if (uploadForm) {
+    uploadForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      setUploadStatus("", false);
+
+      if (isDemoMode) {
+        setUploadStatus("Uploads are unavailable in synthetic demo mode. System is operating in read-only mode.", true);
+        return;
+      }
+
+      var file = uploadFile && uploadFile.files ? uploadFile.files[0] : null;
+      if (!file) {
+        setUploadStatus("Please choose a PDF contract before submitting.", true);
+        return;
+      }
+      if (!/\.pdf$/i.test(file.name)) {
+        setUploadStatus("Only PDF documents are supported.", true);
+        return;
+      }
+
+      var formData = new FormData();
+      formData.append("file", file);
+
+      if (uploadSubmit) {
+        uploadSubmit.disabled = true;
+        uploadSubmit.textContent = "Processing PDF...";
+      }
+
+      fetch("/upload", {
+        method: "POST",
+        body: formData,
+        headers: { "Accept": "application/json" }
+      })
+        .then(function(res) {
+          return res.json().then(function(data) {
+            if (!res.ok) throw new Error(data.detail || "Upload failed");
+            return data;
+          });
+        })
+        .then(function(payload) {
+          setUploadStatus("Contract uploaded successfully. Clauses parsed: " + (payload.clauses_saved || "saved"), false);
+          if (uploadFile) uploadFile.value = "";
+          return loadContracts().then(function() {
+            if (payload.contract_id) {
+              var found = allContracts.find(function(x) { return x.contract_id === payload.contract_id; });
+              if (found) selectContract(found);
+            }
+          });
+        })
+        .catch(function(err) {
+          setUploadStatus(err.message, true);
+        })
+        .finally(function() {
+          if (uploadSubmit) {
+            uploadSubmit.disabled = false;
+            uploadSubmit.textContent = "Upload Contract →";
+          }
+        });
+    });
+  }
+
+  function initAuthContext() {
+    var container = document.getElementById("auth-status");
+    fetch("/auth/me", { headers: { "Accept": "application/json" } })
+      .then(function(res) {
+        if (!res.ok) throw new Error("Auth check failed (" + res.status + ")");
+        return res.json();
+      })
+      .then(function(data) {
+        if (!container) return;
+        isDemoMode = Boolean(data.demo);
+
+        if (uploadDemoNote) uploadDemoNote.style.display = isDemoMode ? "block" : "none";
+        if (metricSysMode) metricSysMode.textContent = isDemoMode ? "Demo Mode" : "Firm Mode";
+        if (metricSysDesc) metricSysDesc.textContent = isDemoMode ? "Synthetic read-only database" : (data.active_firm ? data.active_firm.name : "Active Firm Context");
+
+        if (isDemoMode) {
+          container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Demo Mode &middot; Read-Only</span>';
+        } else if (data.authenticated && data.active_firm) {
+          var fName = data.active_firm.name || ("Firm #" + data.active_firm.firm_id);
+          var uName = (data.user && data.user.display_name) || "User";
+          container.innerHTML =
+            '<span class="auth-pill firm" title="Active Firm Context"><span class="status-dot firm"></span><strong>' +
+            esc(fName) + '</strong> &middot; ' + esc(uName) + '</span>' +
+            '<button type="button" class="auth-logout-btn" id="btn-logout" title="Log out">Log out</button>';
+          var bOut = document.getElementById("btn-logout");
+          if (bOut) {
+            bOut.addEventListener("click", function() {
+              fetch("/auth/logout", { method: "POST" }).finally(function() { window.location.reload(); });
+            });
+          }
+        } else {
+          container.innerHTML = '<span class="auth-pill warn"><span class="status-dot warn"></span>Auth Required</span>';
+        }
+      })
+      .catch(function() {
+        if (container) container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Server Offline</span>';
+      });
+  }
+
+  /* ---------- Gemini AI Assistant Implementation ---------- */
+
+  function appendAiMessage(role, htmlContent) {
+    if (!aiMessagesScroll) return;
+    var bubble = document.createElement("div");
+    bubble.className = "ai-bubble " + (role === "user" ? "user" : "assistant");
+    bubble.innerHTML = htmlContent;
+    aiMessagesScroll.appendChild(bubble);
+    aiMessagesScroll.scrollTop = aiMessagesScroll.scrollHeight;
+    return bubble;
+  }
+
+  function showAiTyping() {
+    if (!aiMessagesScroll) return null;
+    var ind = document.createElement("div");
+    ind.className = "ai-typing-indicator";
+    ind.id = "ai-typing";
+    ind.innerHTML = '<span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span>';
+    aiMessagesScroll.appendChild(ind);
+    aiMessagesScroll.scrollTop = aiMessagesScroll.scrollHeight;
+    return ind;
+  }
+
+  function removeAiTyping() {
+    var ind = document.getElementById("ai-typing");
+    if (ind && ind.parentNode) ind.parentNode.removeChild(ind);
+  }
+
+  function formatMarkdown(text) {
+    var raw = esc(text);
+    // Bold
+    raw = raw.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Code ticks
+    raw = raw.replace(/`([^`]+)`/g, '<code style="background:#e2e8f0;padding:1px 4px;border-radius:4px;font-family:var(--mono);font-size:0.8rem;">$1</code>');
+    // Bullet lists
+    var lines = raw.split("\n");
+    var out = [];
+    var inList = false;
+    lines.forEach(function(line) {
+      var trimmed = line.trim();
+      if (/^[\*\-]\s+(.+)/.test(trimmed)) {
+        if (!inList) { out.push("<ul>"); inList = true; }
+        out.push("<li>" + trimmed.replace(/^[\*\-]\s+/, "") + "</li>");
+      } else {
+        if (inList) { out.push("</ul>"); inList = false; }
+        if (trimmed) out.push("<p>" + trimmed + "</p>");
+      }
+    });
+    if (inList) out.push("</ul>");
+    return out.join("");
+  }
+
+  function sendAiMessage(messageText) {
+    if (!messageText || !messageText.trim()) return;
+    messageText = messageText.trim();
+
+    appendAiMessage("user", esc(messageText));
+    chatHistory.push({ role: "user", content: messageText });
+    if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
+
+    if (aiChatInput) aiChatInput.value = "";
+    if (aiSendBtn) aiSendBtn.disabled = true;
+
+    var typing = showAiTyping();
+
+    var payload = {
+      message: messageText,
+      contract_id: selectedContractId,
+      clause_id: null,
+      history: chatHistory.slice(0, -1)
+    };
+
+    fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function(res) {
+        return res.json().then(function(data) {
+          if (!res.ok) throw new Error(data.detail || "Assistant request failed");
+          return data;
+        });
+      })
+      .then(function(data) {
+        removeAiTyping();
+        var replyFormatted = formatMarkdown(data.reply);
+        appendAiMessage("assistant", replyFormatted);
+        chatHistory.push({ role: "assistant", content: data.reply });
+      })
+      .catch(function(err) {
+        removeAiTyping();
+        appendAiMessage("assistant", '<p style="color:var(--danger);"><strong>Error:</strong> ' + esc(err.message) + '</p>');
+      })
+      .finally(function() {
+        if (aiSendBtn) aiSendBtn.disabled = !aiChatInput.value.trim();
+      });
+  }
+
+  function toggleAiDrawer() {
+    if (!aiDrawer) return;
+    var isHidden = aiDrawer.hasAttribute("hidden");
+    if (isHidden) {
+      aiDrawer.removeAttribute("hidden");
+      if (aiChatInput) aiChatInput.focus();
+    } else {
+      aiDrawer.setAttribute("hidden", "until-found");
+    }
+  }
+
+  // Event bindings
+  if (contractsSearch) contractsSearch.addEventListener("input", filterContracts);
+
+  if (mobileToggleBtn && sidebar) {
+    mobileToggleBtn.addEventListener("click", function() {
+      sidebar.classList.toggle("open");
+    });
+  }
+
+  if (aiLauncher) aiLauncher.addEventListener("click", toggleAiDrawer);
+  if (btnHeaderAi) btnHeaderAi.addEventListener("click", toggleAiDrawer);
+  if (aiCloseBtn) aiCloseBtn.addEventListener("click", toggleAiDrawer);
+
+  if (aiClearBtn) {
+    aiClearBtn.addEventListener("click", function() {
+      chatHistory = [];
+      if (aiMessagesScroll) {
+        aiMessagesScroll.innerHTML =
+          '<div class="ai-bubble assistant">' +
+            '<p><strong>Conversation refreshed.</strong></p>' +
+            '<p>Ask any question about this contract repository or analysis engine.</p>' +
+          '</div>';
+      }
+    });
+  }
+
+  if (aiChatInput && aiSendBtn) {
+    aiChatInput.addEventListener("input", function() {
+      aiSendBtn.disabled = !aiChatInput.value.trim();
+    });
+    aiChatInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (aiChatInput.value.trim()) sendAiMessage(aiChatInput.value);
+      }
+    });
+  }
+
+  if (aiChatForm) {
+    aiChatForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      if (aiChatInput && aiChatInput.value.trim()) sendAiMessage(aiChatInput.value);
+    });
+  }
+
+  document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("ai-suggestion-chip")) {
+      var prompt = e.target.getAttribute("data-prompt");
+      if (prompt) sendAiMessage(prompt);
+    }
+  });
+
+  // Init
+  initAuthContext();
+  loadContracts();
+})();
+</script>
 </body>
 </html>

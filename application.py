@@ -15,6 +15,7 @@ from fastapi.routing import iter_route_contexts
 import api_a
 import api_auth
 import api_b
+import api_chat
 import audit
 import auth
 import db
@@ -208,5 +209,6 @@ def create_app(
     _include_router_once(app, api_auth.router)
     _include_router_once(app, api_a.router)
     _include_router_once(app, api_b.router)
+    _include_router_once(app, api_chat.router)
 
     return app

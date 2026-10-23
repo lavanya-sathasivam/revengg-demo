@@ -6,150 +6,356 @@
 <title>Clause Explanation — Contract Intelligence</title>
 <style>
   :root {
-    --bg: #f5f7fa;
+    --bg-app: #0b1329;
+    --sidebar-bg: #0f172a;
+    --sidebar-hover: #1e293b;
+    --sidebar-active: #1e3a8a;
+    --sidebar-border: #1e293b;
+    --sidebar-text: #94a3b8;
+    --sidebar-text-active: #ffffff;
+
+    --bg-main: #f8fafc;
     --surface: #ffffff;
-    --border: #d9e0e8;
-    --text: #1f2933;
-    --muted: #5f6b7a;
-    --accent: #24507a;
-    --accent-soft: #eaf1f8;
-    --warn-bg: #fff8e6;
-    --warn-border: #e6c97a;
-    --ok: #1f6b46;
+    --surface-2: #f1f5f9;
+    --surface-card: #ffffff;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+
+    --accent: #1e40af;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --accent-border: #bfdbfe;
+
+    --ok: #15803d;
+    --ok-soft: #dcfce7;
+    --ok-border: #bbf7d0;
+
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --warn-border: #fde68a;
+
+    --danger: #b91c1c;
+    --danger-soft: #fee2e2;
+    --danger-border: #fecaca;
+
+    --radius-lg: 12px;
     --radius: 8px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
   }
 
   * { box-sizing: border-box; }
 
   body {
     margin: 0;
-    padding: 24px 16px 48px;
-    background: var(--bg);
+    padding: 0;
+    background: var(--bg-main);
     color: var(--text);
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
     font-size: 15px;
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
 
-  .page {
-    max-width: 1280px;
+  /* ---------- App Layout Shell ---------- */
+  .app-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ---------- Persistent Sidebar ---------- */
+  .app-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 100;
+    transition: transform 0.25s ease;
+  }
+
+  .sidebar-header {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .brand-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+  }
+  .brand-text { display: flex; flex-direction: column; }
+  .brand-title {
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .brand-tag {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .sidebar-nav {
+    padding: 16px 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nav-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #475569;
+    padding: 8px 12px 4px;
+    margin-top: 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 550;
+    transition: all 0.15s ease;
+  }
+  .nav-item:hover {
+    background: var(--sidebar-hover);
+    color: #ffffff;
+  }
+  .nav-item.active {
+    background: var(--sidebar-active);
+    color: var(--sidebar-text-active);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  .nav-icon {
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+  }
+
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: #090e1a;
+  }
+
+  .auth-widget { margin-bottom: 12px; }
+  .auth-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    background: #1e293b;
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .auth-pill.demo { border-color: #334155; color: #94a3b8; }
+  .auth-pill.firm { border-color: #065f46; background: #064e3b; color: #6ee7b7; }
+  .auth-pill.warn { border-color: #78350f; background: #451a03; color: #fcd34d; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+  .status-dot.firm { background: #34d399; }
+  .status-dot.warn { background: #f59e0b; }
+  .status-dot.demo { background: #60a5fa; }
+
+  .auth-logout-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #475569;
+    color: #94a3b8;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    padding: 2px 7px;
+    cursor: pointer;
+  }
+  .auth-logout-btn:hover { color: #fff; border-color: #94a3b8; }
+
+  .sidebar-docs-row a {
+    color: #64748b;
+    font-size: 0.78rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sidebar-docs-row a:hover { color: #94a3b8; text-decoration: underline; }
+
+  /* ---------- Main App Bar ---------- */
+  .app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .app-topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .mobile-toggle-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .page-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .page-tagline { color: var(--text-muted); font-size: 0.84rem; }
+
+  .topbar-actions { display: flex; align-items: center; gap: 10px; }
+  .btn-open-assistant {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    color: #ffffff;
+    border: none;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-open-assistant:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  }
+
+  .content-container {
+    padding: 24px 28px 60px;
+    max-width: 1360px;
+    width: 100%;
     margin: 0 auto;
   }
 
-  /* ---------- Header ---------- */
-  header.site-header {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px 24px;
-    margin-bottom: 16px;
-  }
-
-  header.site-header h1 {
-    margin: 0 0 6px;
-    font-size: 1.5rem;
-    letter-spacing: 0.2px;
-  }
-
-  .notice {
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.9rem;
-  }
-
   .disclaimer-banner {
-    margin-top: 14px;
-    padding: 10px 14px;
-    background: var(--warn-bg);
+    background: var(--warn-soft);
     border: 1px solid var(--warn-border);
     border-radius: var(--radius);
-    font-size: 0.88rem;
-    color: #5c4a12;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    color: #78350f;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
+  .disclaimer-banner strong { font-weight: 650; }
 
-  /* ---------- Layout ---------- */
-  .layout {
+  /* ---------- 3-Column Workspace Grid ---------- */
+  .layout-3col {
     display: grid;
-    grid-template-columns: minmax(240px, 1fr) minmax(260px, 1.2fr) minmax(320px, 1.8fr);
-    gap: 16px;
+    grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.25fr) minmax(360px, 2fr);
+    gap: 20px;
     align-items: start;
   }
 
-  .panel {
+  .card-panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
   }
 
-  .panel h2 {
-    margin: 0 0 4px;
-    font-size: 1rem;
+  .card-panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #ffffff;
+  }
+  .card-panel-header h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 750;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.05em;
     color: var(--accent);
   }
 
-  .panel .panel-hint {
-    margin: 0 0 14px;
-    font-size: 0.82rem;
-    color: var(--muted);
-  }
+  .card-panel-body { padding: 16px; }
 
-  /* ---------- Upload control ---------- */
-  .upload-block {
-    border: 1px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 16px;
-    background: #fbfcfd;
-  }
-
-  .upload-block label {
-    display: block;
-    font-size: 0.82rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-
-  .upload-block input[type="file"] {
-    display: block;
+  .filter-search-input {
     width: 100%;
-    margin-bottom: 10px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     font-size: 0.82rem;
-  }
-
-  .upload-block button {
-    padding: 7px 14px;
-    font-size: 0.85rem;
-    border: 1px solid var(--accent);
-    background: var(--accent);
-    color: #fff;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .upload-block button:hover { background: #1c3f61; }
-
-  .upload-note {
-    margin: 8px 0 0;
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-
-  /* ---------- Placeholder lists ---------- */
-  .placeholder {
-    border: 1px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 18px 14px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.85rem;
+    font-family: inherit;
     background: #fbfcfd;
+    margin-bottom: 12px;
+  }
+  .filter-search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
   }
 
-  .placeholder strong { display: block; margin-bottom: 4px; color: var(--muted); }
-
+  /* List items */
   .item-list {
     list-style: none;
     margin: 0;
@@ -157,331 +363,675 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-height: 620px;
+    overflow-y: auto;
   }
-
   .item-list li {
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     padding: 10px 12px;
     background: #fbfcfd;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
-
-  .item-list li .item-meta {
-    display: block;
-    color: var(--muted);
-    font-size: 0.75rem;
-    margin-top: 4px;
+  .item-list li:hover {
+    border-color: var(--accent);
+    background: #f4f8fc;
   }
-
-  .item-list li .item-title {
-    display: block;
-    font-weight: 600;
-  }
-
-  .item-list li[role="button"] { cursor: pointer; }
-
-  .item-list li[role="button"]:hover { border-color: var(--accent); }
-
   .item-list li.is-selected {
     border-color: var(--accent);
     background: var(--accent-soft);
+    box-shadow: 0 0 0 1px var(--accent);
   }
 
-  /* Status / progress line for list loading and uploads. */
-  .status-line {
-    margin: 10px 0 0;
-    padding: 8px 10px;
-    border-radius: 6px;
+  .item-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .item-title { font-weight: 700; color: var(--text); }
+  .item-meta { font-size: 0.75rem; color: var(--text-muted); display: block; line-height: 1.35; }
+
+  .badge-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 650;
     border: 1px solid var(--border);
-    background: #f4f7fa;
-    color: var(--muted);
+    background: #f1f4f8;
+    color: var(--text-muted);
+  }
+  .badge.badge-type { background: var(--accent-soft); color: var(--accent); border-color: #bfdbfe; }
+  .badge.badge-refs { background: #f3e8ff; color: #6b21a8; border-color: #e9d5ff; }
+  .badge.badge-verified { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-border); }
+  .badge.badge-unverified { background: var(--warn-soft); color: var(--warn); border-color: var(--warn-border); }
+
+  /* Explanation display */
+  .clause-hero-card {
+    border: 1px solid var(--border);
+    background: #fbfcfd;
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+  .clause-hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .clause-hero-title { font-size: 1.1rem; font-weight: 750; color: var(--text); }
+
+  .btn-impact-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
     font-size: 0.8rem;
+    font-weight: 650;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #ffffff;
+    text-decoration: none;
+    border: 1px solid var(--accent);
+    transition: background 0.15s ease;
+  }
+  .btn-impact-link:hover { background: var(--accent-hover); color: #ffffff; }
+
+  .clause-full-text-box {
+    margin: 10px 0 0;
+    padding: 12px 14px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-family: var(--mono);
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: #1e293b;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 180px;
+    overflow-y: auto;
   }
 
-  .status-line.is-error {
-    background: #fdecec;
-    border-color: #e7b4b4;
-    color: #8a2020;
-  }
-
-  .status-line.is-success {
-    background: #e9f5ee;
-    border-color: #bfe0ce;
-    color: var(--ok);
-  }
-
-  .upload-block button:disabled {
-    opacity: 0.65;
-    cursor: default;
-  }
-
-  /* ---------- Explanation panel ---------- */
-  .explanation-section + .explanation-section {
+  .explain-section {
     margin-top: 18px;
     padding-top: 16px;
     border-top: 1px solid var(--border);
   }
-
-  .explanation-section h3 {
-    margin: 0 0 8px;
+  .explain-section:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+  .explain-section-title {
     font-size: 0.82rem;
+    font-weight: 750;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--muted);
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin: 0 0 8px;
   }
 
-  .summary-text {
+  .bullet-box {
+    background: #fbfcfd;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px 10px 32px;
     margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text);
   }
+  .bullet-box.warning-tone {
+    background: var(--warn-soft);
+    border-color: var(--warn-border);
+    color: #78350f;
+  }
+  .bullet-box li + li { margin-top: 6px; }
 
   .authority-card {
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    background: #ffffff;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .authority-title { font-weight: 700; font-size: 0.92rem; color: var(--text); display: block; }
+  .authority-citation { color: var(--text-muted); font-size: 0.8rem; font-style: italic; display: block; margin: 2px 0 8px; }
+  .authority-why { margin-top: 8px; font-size: 0.8rem; color: #334155; }
+  .authority-summary { margin-top: 6px; font-size: 0.82rem; color: var(--text-muted); line-height: 1.45; }
+
+  .placeholder-box {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
     background: #fbfcfd;
-    margin-bottom: 8px;
   }
+  .placeholder-box strong { display: block; margin-bottom: 4px; color: var(--text); font-size: 0.92rem; }
 
-  .authority-card .authority-title {
-    display: block;
-    font-weight: 600;
+  .upload-redirect-hint {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: #f8fafc;
+    border: 1px dashed var(--border);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .upload-redirect-hint a { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+  /* ---------- Floating Gemini AI Assistant ---------- */
+  .floating-ai-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 28px;
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    padding: 12px 20px;
     font-size: 0.9rem;
+    font-weight: 650;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.28);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1000;
+    transition: all 0.2s ease;
+  }
+  .floating-ai-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(30, 58, 138, 0.4);
   }
 
-  .authority-card .authority-citation {
-    display: block;
-    color: var(--muted);
-    font-size: 0.8rem;
-    margin: 3px 0 8px;
+  .ai-chat-drawer {
+    position: fixed;
+    bottom: 84px;
+    right: 28px;
+    width: 420px;
+    max-width: calc(100vw - 36px);
+    height: 580px;
+    max-height: calc(100vh - 110px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+  }
+  .ai-chat-drawer[hidden] { display: none !important; }
+
+  .ai-drawer-header {
+    padding: 14px 16px;
+    background: #0f172a;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ai-drawer-header-left { display: flex; align-items: center; gap: 10px; }
+  .ai-bot-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #2563eb, #60a5fa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .ai-title-wrap { display: flex; flex-direction: column; }
+  .ai-drawer-title { font-size: 0.88rem; font-weight: 700; }
+  .ai-model-tag { font-size: 0.68rem; color: #94a3b8; font-family: var(--mono); }
+
+  .ai-header-controls { display: flex; align-items: center; gap: 6px; }
+  .ai-icon-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .ai-icon-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.1); }
+
+  .ai-context-strip {
+    padding: 6px 14px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    font-size: 0.74rem;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-context-dot { width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; }
+
+  .ai-messages-scroll {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f8fafc;
   }
 
-  .badge-row {
+  .ai-bubble {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    max-width: 90%;
+    word-break: break-word;
+  }
+  .ai-bubble.user {
+    background: var(--accent);
+    color: #ffffff;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+  }
+  .ai-bubble.assistant {
+    background: #ffffff;
+    color: var(--text);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .ai-bubble.assistant p { margin: 0 0 6px; }
+  .ai-bubble.assistant p:last-child { margin-bottom: 0; }
+  .ai-bubble.assistant ul { margin: 4px 0 6px; padding-left: 18px; }
+
+  .ai-typing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    align-self: flex-start;
+  }
+  .ai-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #94a3b8;
+    animation: aiPulse 1.2s infinite ease-in-out;
+  }
+  .ai-dot:nth-child(2) { animation-delay: 0.2s; }
+  .ai-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes aiPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+
+  .ai-suggestions-row {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    margin-top: 8px;
   }
-
-  .badge {
-    display: inline-block;
-    padding: 2px 8px;
+  .ai-suggestion-chip {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
     border-radius: 999px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    border: 1px solid var(--border);
-    background: #f1f4f8;
-    color: var(--muted);
+    padding: 4px 10px;
+    font-size: 0.74rem;
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 550;
+    transition: background 0.12s ease;
   }
+  .ai-suggestion-chip:hover { background: #e2e8f0; }
 
-  .badge.badge-type { background: var(--accent-soft); color: var(--accent); border-color: #c6d8ea; }
-
-  /* Deliberately muted: retrieved records are not verified. */
-  .badge.badge-unverified { background: #fdf3e3; color: #8a5a10; border-color: #ecd3a4; }
-  .badge.badge-verified { background: #e7f4ed; color: var(--ok); border-color: #bfe0ce; }
-
-  .warning-box {
-    background: var(--warn-bg);
-    border: 1px solid var(--warn-border);
-    border-radius: 6px;
+  .ai-chat-footer {
     padding: 10px 12px;
-    margin: 0;
-    padding-left: 30px;
-    font-size: 0.83rem;
-    color: #5c4a12;
+    border-top: 1px solid var(--border);
+    background: #ffffff;
   }
-
-  .warning-box li + li { margin-top: 6px; }
-
-  .final-disclaimer {
-    margin-top: 20px;
-    padding: 12px 14px;
+  .ai-input-form { display: flex; gap: 8px; }
+  .ai-chat-input {
+    flex: 1;
     border: 1px solid var(--border);
-    border-left: 4px solid var(--accent);
-    border-radius: 6px;
-    background: #f7fafd;
-    font-size: 0.8rem;
-    color: var(--muted);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    resize: none;
+    max-height: 80px;
+  }
+  .ai-chat-input:focus { outline: none; border-color: var(--accent); }
+  .ai-send-btn {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .ai-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ai-disclaimer {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 6px;
   }
 
-  .final-disclaimer strong { color: var(--text); }
-
-  /* ---------- Responsive ---------- */
-  @media (max-width: 1024px) {
-    .layout { grid-template-columns: 1fr 1fr; }
-    .panel-explanation { grid-column: 1 / -1; }
+  @media (max-width: 1080px) {
+    .layout-3col { grid-template-columns: 1fr 1fr; }
+    .panel-col-explanation { grid-column: 1 / -1; }
   }
-
-  @media (max-width: 680px) {
-    body { padding: 16px 10px 32px; font-size: 14px; }
-    .layout { grid-template-columns: 1fr; }
-    .panel-explanation { grid-column: auto; }
-    header.site-header { padding: 16px; }
+  @media (max-width: 720px) {
+    .app-sidebar { position: fixed; transform: translateX(-100%); }
+    .app-sidebar.open { transform: translateX(0); }
+    .mobile-toggle-btn { display: inline-block; }
+    .layout-3col { grid-template-columns: 1fr; }
+    .panel-col-explanation { grid-column: auto; }
+    .content-container { padding: 16px; }
   }
 </style>
 </head>
 <body>
-<div class="page">
 
-  <header class="site-header">
-    <h1>Clause Explanation</h1>
-    <p class="notice">
-      Explanations are generated from deterministic keyword matching against Indian contract law
-      authorities. They are informational only and are not legal advice.
-    </p>
-    <p class="notice">
-      <a href="/">&larr; Contract Intelligence overview</a> &nbsp;&middot;&nbsp;
-      <a id="impact-analysis-link" href="/impact-analysis">Conflict &amp; Change Impact</a>
-      &nbsp;&middot;&nbsp;
-      This page explains a single clause; the impact workspace answers what
-      breaks if a clause <em>changes</em>.
-    </p>
-    <div class="disclaimer-banner">
-      <strong>Important:</strong> This demo does not assess whether a contract is valid, invalid,
-      enforceable, breached, or unlawful. Always consult a qualified legal professional.
-    </div>
-  </header>
+<div class="app-shell">
 
-  <main class="layout">
-
-    <!-- ================= Contracts panel ================= -->
-    <section class="panel panel-contracts" aria-labelledby="contracts-heading">
-      <h2 id="contracts-heading">Contracts</h2>
-      <p class="panel-hint">Uploaded contracts stored in the local database.</p>
-
-      <form class="upload-block" aria-label="Upload a PDF contract">
-        <label for="contract-file">Upload PDF contract</label>
-        <input id="contract-file" name="file" type="file" accept="application/pdf,.pdf">
-        <button type="submit">Upload</button>
-        <p class="upload-note">PDF only, up to 10 MB. Text-based PDFs work best.</p>
-      </form>
-
-      <!-- Upload / list status and progress messages -->
-      <p id="contracts-status" class="status-line" role="status" aria-live="polite" hidden></p>
-
-      <!-- Placeholder shown until contracts are loaded -->
-      <div id="contracts-placeholder" class="placeholder" role="status">
-        <strong>No contracts loaded</strong>
-        Upload a PDF contract to begin, or wait for the list to load.
-      </div>
-
-      <!-- Populated later by the UI script -->
-      <ul id="contracts-list" class="item-list" hidden></ul>
-    </section>
-
-    <!-- ================= Clauses panel ================= -->
-    <section class="panel panel-clauses" aria-labelledby="clauses-heading">
-      <h2 id="clauses-heading">Clauses</h2>
-      <p class="panel-hint">Stored clauses for the selected contract.</p>
-
-      <div id="clauses-placeholder" class="placeholder" role="status">
-        <strong>No contract selected</strong>
-        Select a contract to view its numbered clauses.
-      </div>
-
-      <!-- Loading state placeholder -->
-      <div id="clauses-loading" class="placeholder" role="status" hidden>
-        <strong>Loading clauses</strong>
-        Fetching stored clauses for the selected contract.
-      </div>
-
-      <!-- Populated later by the UI script -->
-      <ul id="clauses-list" class="item-list" hidden></ul>
-
-      <!-- Empty state for contracts with no detected clauses -->
-      <div id="clauses-empty" class="placeholder" role="status" hidden>
-        <strong>No clauses detected</strong>
-        This contract has no stored numbered clauses, so no explanation is available.
-      </div>
-
-      <!-- Clause list / fetch status messages -->
-      <p id="clauses-status" class="status-line" role="status" aria-live="polite" hidden></p>
-    </section>
-
-    <!-- ================= Explanation panel ================= -->
-    <section class="panel panel-explanation" aria-labelledby="explanation-heading">
-      <h2 id="explanation-heading">Explanation</h2>
-      <p class="panel-hint">Select a clause to see its explanation and related authorities.</p>
-
-      <div id="explanation-placeholder" class="placeholder" role="status">
-        <strong>No clause selected</strong>
-        Choose a clause from the middle panel to request an explanation.
-      </div>
-
-      <!-- Explanation fetch errors / notices -->
-      <p id="explanation-status" class="status-line" role="status" aria-live="polite" hidden></p>
-
-      <!-- Loading state placeholder -->
-      <div id="explanation-loading" class="placeholder" role="status" hidden>
-        <strong>Generating explanation</strong>
-        Matching keywords and preparing authority notes.
-      </div>
-
-      <!-- Populated later by the UI script -->
-      <div id="explanation-content" hidden>
-
-        <div class="explanation-section">
-          <h3>Summary</h3>
-          <p id="explanation-summary" class="summary-text">No summary available.</p>
-        </div>
-
-        <div class="explanation-section">
-          <h3>Key points</h3>
-          <ul id="explanation-key-points" class="warning-box">
-            <li>Key points will appear here.</li>
-          </ul>
-        </div>
-
-        <div class="explanation-section">
-          <h3>Relevant authorities</h3>
-          <div id="explanation-authorities">
-            <div class="authority-card">
-              <span class="authority-title">Authority title</span>
-              <span class="authority-citation">Citation placeholder</span>
-              <div class="badge-row">
-                <span class="badge badge-type">Authority type</span>
-                <span class="badge badge-unverified">Retrieved — not verified</span>
-              </div>
-            </div>
+  <!-- ================= Left Navigation Sidebar ================= -->
+  <aside class="app-sidebar" id="app-sidebar">
+    <div>
+      <div class="sidebar-header">
+        <a href="/" class="brand-link" title="Contract Intelligence Home">
+          <div class="brand-icon">⚖️</div>
+          <div class="brand-text">
+            <span class="brand-title">Contract Intel</span>
+            <span class="brand-tag">Legal Risk &amp; Analysis</span>
           </div>
-        </div>
+        </a>
+      </div>
 
-        <div class="explanation-section">
-          <h3>Matched evidence</h3>
-          <ul id="explanation-evidence" class="warning-box">
-            <li>Matched keywords will appear here.</li>
-          </ul>
-        </div>
+      <nav class="sidebar-nav" aria-label="Main Navigation">
+        <div class="nav-section-title">Workspaces</div>
+        <a class="nav-item" href="/" id="nav-portfolio">
+          <span class="nav-icon">📁</span>
+          <span>Portfolio &amp; Intake</span>
+        </a>
+        <a class="nav-item" href="/impact-analysis" id="nav-impact">
+          <span class="nav-icon">⚡</span>
+          <span>Conflict &amp; Change Impact</span>
+        </a>
+        <a class="nav-item active" href="/explain" aria-current="page" id="nav-explain">
+          <span class="nav-icon">📖</span>
+          <span>Clause Explanation</span>
+        </a>
+      </nav>
+    </div>
 
-        <div class="explanation-section">
-          <h3>Topics for human review</h3>
-          <ul id="explanation-topics" class="warning-box">
-            <li>Possible topics for human review will appear here.</li>
-          </ul>
+    <div class="sidebar-footer">
+      <div class="auth-widget">
+        <div id="auth-status" class="auth-status" aria-live="polite">
+          <span class="auth-pill demo"><span class="status-dot demo"></span>Checking access...</span>
         </div>
+      </div>
+      <div class="sidebar-docs-row">
+        <a href="/docs" target="_blank" rel="noopener">
+          <span>📜</span> Developer API Docs &rarr;
+        </a>
+      </div>
+    </div>
+  </aside>
 
-        <div class="explanation-section">
-          <h3>Uncertainties and missing information</h3>
-          <ul id="explanation-uncertainties" class="warning-box">
-            <li>Uncertainty notes will appear here.</li>
-          </ul>
+  <!-- ================= Main Workspace Area ================= -->
+  <main class="app-main">
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">☰</button>
+        <div>
+          <h1 class="page-title">Clause Explanation</h1>
+          <span class="page-tagline">Deterministic legal reasoning, authority retrieval &amp; uncertainties</span>
         </div>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn-open-assistant" id="btn-header-ai">
+          <span>✨</span> Ask Gemini AI
+        </button>
+      </div>
+    </header>
 
-        <div class="final-disclaimer">
-          <strong>Disclaimer:</strong>
-          <span id="explanation-disclaimer">
-            This explanation is for informational/demo purposes only and does not constitute
-            legal advice. This is not legal advice.
-          </span>
+    <div class="content-container">
+
+      <div class="disclaimer-banner">
+        <span>⚠️</span>
+        <div>
+          <strong>Legal Disclaimer:</strong> Explanations are generated from deterministic keyword matching against Indian contract law authorities. They are informational only and are not formal legal advice.
         </div>
+      </div>
+
+      <!-- 3-Column Layout -->
+      <div class="layout-3col">
+
+        <!-- Column 1: Contracts Selection -->
+        <section class="card-panel" aria-labelledby="contracts-heading">
+          <div class="card-panel-header">
+            <h2 id="contracts-heading">Contracts</h2>
+            <span class="badge" id="contracts-count" hidden>0</span>
+          </div>
+          <div class="card-panel-body">
+            <div class="upload-redirect-hint">
+              <span>Add new document?</span>
+              <a href="/#upload-section">&larr; Upload on Home</a>
+            </div>
+
+            <input type="search" id="contracts-search" class="filter-search-input" placeholder="Search contracts..." aria-label="Search contracts">
+            <p id="contracts-status" class="status-line" role="status" aria-live="polite" hidden></p>
+
+            <div id="contracts-placeholder" class="placeholder-box">
+              <strong>Loading contracts</strong>
+              Fetching contract portfolio.
+            </div>
+
+            <ul id="contracts-list" class="item-list" hidden></ul>
+          </div>
+        </section>
+
+        <!-- Column 2: Clauses Hierarchy -->
+        <section class="card-panel" aria-labelledby="clauses-heading">
+          <div class="card-panel-header">
+            <h2 id="clauses-heading">Clauses</h2>
+            <span class="badge" id="clauses-count" hidden>0</span>
+          </div>
+          <div class="card-panel-body">
+            <input type="search" id="clauses-search" class="filter-search-input" placeholder="Filter clauses by section or name..." aria-label="Filter clauses" disabled>
+
+            <div id="clauses-placeholder" class="placeholder-box">
+              <strong>No contract selected</strong>
+              Choose a contract on the left.
+            </div>
+
+            <div id="clauses-loading" class="placeholder-box" hidden>
+              <strong>Loading clauses</strong>
+              Fetching structured clause records.
+            </div>
+
+            <ul id="clauses-list" class="item-list" hidden></ul>
+
+            <div id="clauses-empty" class="placeholder-box" hidden>
+              <strong>No clauses detected</strong>
+              This contract has no stored numbered clauses.
+            </div>
+
+            <p id="clauses-status" class="status-line" role="status" aria-live="polite" hidden></p>
+          </div>
+        </section>
+
+        <!-- Column 3: Explanation & Authorities -->
+        <section class="card-panel panel-col-explanation" aria-labelledby="explanation-heading">
+          <div class="card-panel-header">
+            <h2 id="explanation-heading">Explanation &amp; Authorities</h2>
+            <span class="badge badge-type" id="binding-tag">Grounded</span>
+          </div>
+
+          <div class="card-panel-body">
+
+            <div id="explanation-placeholder" class="placeholder-box">
+              <strong>No clause selected</strong>
+              Select a clause from the middle column to inspect its explanation and legal authorities.
+            </div>
+
+            <p id="explanation-status" class="status-line" role="status" aria-live="polite" hidden></p>
+
+            <div id="explanation-loading" class="placeholder-box" hidden>
+              <strong>Generating explanation</strong>
+              Matching Indian legal authorities and preparing reasoning traces.
+            </div>
+
+            <!-- Populated Content -->
+            <div id="explanation-content" hidden>
+
+              <!-- Clause Hero Card -->
+              <div class="clause-hero-card">
+                <div class="clause-hero-top">
+                  <div>
+                    <div id="clause-overview-title" class="clause-hero-title">Clause Details</div>
+                    <div id="clause-overview-badges" class="badge-row" style="margin-top: 6px;"></div>
+                  </div>
+                  <a id="impact-analysis-link" class="btn-impact-link" href="/impact-analysis">
+                    Analyze Change Impact &rarr;
+                  </a>
+                </div>
+                <div id="clause-overview-sha" style="font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); word-break: break-all;"></div>
+                <div class="clause-full-text-box" id="clause-full-text"></div>
+              </div>
+
+              <!-- Summary -->
+              <div class="explain-section">
+                <div class="explain-section-title">Summary</div>
+                <p id="explanation-summary" style="margin: 0; font-size: 0.94rem; font-weight: 550; color: var(--text); line-height: 1.55;">No summary available.</p>
+              </div>
+
+              <!-- Key Points -->
+              <div class="explain-section">
+                <div class="explain-section-title">Key Points</div>
+                <ul id="explanation-key-points" class="bullet-box">
+                  <li>Key points will appear here.</li>
+                </ul>
+              </div>
+
+              <!-- Relevant Authorities -->
+              <div class="explain-section">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                  <div class="explain-section-title" style="margin: 0;">Relevant Authorities</div>
+                  <span id="authorities-count" class="badge badge-type" hidden>0</span>
+                </div>
+                <div id="explanation-authorities"></div>
+              </div>
+
+              <!-- Matched Evidence -->
+              <div class="explain-section">
+                <div class="explain-section-title">Matched Evidence</div>
+                <ul id="explanation-evidence" class="bullet-box">
+                  <li>Matched keywords will appear here.</li>
+                </ul>
+              </div>
+
+              <!-- Topics for Human Review -->
+              <div class="explain-section">
+                <div class="explain-section-title">Topics for Human Review</div>
+                <ul id="explanation-topics" class="bullet-box warning-tone">
+                  <li>Possible topics for human review will appear here.</li>
+                </ul>
+              </div>
+
+              <!-- Uncertainties & Missing Information -->
+              <div class="explain-section">
+                <div class="explain-section-title">Uncertainties &amp; Missing Information</div>
+                <ul id="explanation-uncertainties" class="bullet-box warning-tone">
+                  <li>Uncertainty notes will appear here.</li>
+                </ul>
+              </div>
+
+              <!-- Disclaimer -->
+              <div style="margin-top: 20px; padding: 12px 14px; border-left: 3px solid var(--accent); background: #f8fafc; border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-muted);">
+                <strong>Disclaimer:</strong>
+                <span id="explanation-disclaimer">
+                  This explanation is for informational/demo purposes only and does not constitute legal advice.
+                </span>
+              </div>
+
+            </div>
+
+          </div>
+        </section>
 
       </div>
-    </section>
 
+    </div>
   </main>
+
 </div>
+
+<!-- ================= Floating Gemini AI Assistant ================= -->
+<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
+  <span>✨</span>
+  <span>Ask Legal AI</span>
+</button>
+
+<aside class="ai-chat-drawer" id="ai-chat-drawer" aria-label="Gemini Legal Assistant" hidden>
+  <div class="ai-drawer-header">
+    <div class="ai-drawer-header-left">
+      <div class="ai-bot-avatar">✨</div>
+      <div class="ai-title-wrap">
+        <span class="ai-drawer-title">Gemini Contract Assistant</span>
+        <span class="ai-model-tag" id="ai-model-badge">gemini-2.5-flash</span>
+      </div>
+    </div>
+    <div class="ai-header-controls">
+      <button type="button" class="ai-icon-btn" id="ai-clear-btn" title="Clear chat history">⟲</button>
+      <button type="button" class="ai-icon-btn" id="ai-close-btn" aria-label="Close Assistant">&times;</button>
+    </div>
+  </div>
+
+  <div class="ai-context-strip" id="ai-context-strip">
+    <span class="ai-context-dot"></span>
+    <span id="ai-context-text">Context: Clause Explanation Workspace</span>
+  </div>
+
+  <div class="ai-messages-scroll" id="ai-messages-scroll">
+    <div class="ai-bubble assistant">
+      <p><strong>Clause Explanation Assistant Active.</strong></p>
+      <p>I can help interpret the legal implications of this clause, evaluate statutory authorities, and identify contractual ambiguities.</p>
+      <div class="ai-suggestions-row">
+        <button type="button" class="ai-suggestion-chip" data-prompt="Explain the statutory grounding and authorities for this clause.">Explain authorities</button>
+        <button type="button" class="ai-suggestion-chip" data-prompt="What are the main ambiguities or missing items in this clause?">Identify ambiguities</button>
+        <button type="button" class="ai-suggestion-chip" data-prompt="How would this clause interact with termination or liability provisions?">Check clause interaction</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-chat-footer">
+    <form class="ai-input-form" id="ai-chat-form">
+      <textarea id="ai-chat-input" class="ai-chat-input" rows="1" placeholder="Ask about this clause..."></textarea>
+      <button type="submit" id="ai-send-btn" class="ai-send-btn" disabled>Send</button>
+    </form>
+    <div class="ai-disclaimer">
+      Informational analysis grounded in contract data. Not formal legal advice.
+    </div>
+  </div>
+</aside>
 
 <script>
 (function () {
@@ -490,11 +1040,17 @@
   var contractsList = document.getElementById("contracts-list");
   var contractsPlaceholder = document.getElementById("contracts-placeholder");
   var contractsStatus = document.getElementById("contracts-status");
+  var contractsCount = document.getElementById("contracts-count");
+  var contractsSearch = document.getElementById("contracts-search");
+
   var clausesList = document.getElementById("clauses-list");
   var clausesPlaceholder = document.getElementById("clauses-placeholder");
   var clausesLoading = document.getElementById("clauses-loading");
   var clausesEmpty = document.getElementById("clauses-empty");
   var clausesStatus = document.getElementById("clauses-status");
+  var clausesCount = document.getElementById("clauses-count");
+  var clausesSearch = document.getElementById("clauses-search");
+
   var explanationPlaceholder = document.getElementById("explanation-placeholder");
   var explanationLoading = document.getElementById("explanation-loading");
   var explanationContent = document.getElementById("explanation-content");
@@ -502,29 +1058,55 @@
   var explanationSummary = document.getElementById("explanation-summary");
   var explanationKeyPoints = document.getElementById("explanation-key-points");
   var explanationAuthorities = document.getElementById("explanation-authorities");
+  var authoritiesCount = document.getElementById("authorities-count");
   var explanationEvidence = document.getElementById("explanation-evidence");
   var explanationTopics = document.getElementById("explanation-topics");
   var explanationUncertainties = document.getElementById("explanation-uncertainties");
   var explanationDisclaimer = document.getElementById("explanation-disclaimer");
-  var uploadForm = document.querySelector(".upload-block");
-  var fileInput = document.getElementById("contract-file");
-  var uploadButton = uploadForm ? uploadForm.querySelector('button[type="submit"]') : null;
+
+  var clauseOverviewTitle = document.getElementById("clause-overview-title");
+  var clauseOverviewBadges = document.getElementById("clause-overview-badges");
+  var clauseOverviewSha = document.getElementById("clause-overview-sha");
+  var clauseFullText = document.getElementById("clause-full-text");
   var impactAnalysisLink = document.getElementById("impact-analysis-link");
 
-  // Selection state shared with the explanation step.
-  var selectedContractId = null;
-  var selectedClauseId = null;        // clause_id returned by the API
-  var selectedClauseSection = null;   // section_number used by the explanation route
-  var explanationRequestId = 0;       // guards against stale, slower responses
+  var mobileToggleBtn = document.getElementById("mobile-toggle-btn");
+  var sidebar = document.getElementById("app-sidebar");
 
-  /* ---------- small helpers ---------- */
+  var aiLauncher = document.getElementById("ai-chat-launcher");
+  var aiDrawer = document.getElementById("ai-chat-drawer");
+  var aiCloseBtn = document.getElementById("ai-close-btn");
+  var aiClearBtn = document.getElementById("ai-clear-btn");
+  var aiMessagesScroll = document.getElementById("ai-messages-scroll");
+  var aiChatForm = document.getElementById("ai-chat-form");
+  var aiChatInput = document.getElementById("ai-chat-input");
+  var aiSendBtn = document.getElementById("ai-send-btn");
+  var aiContextText = document.getElementById("ai-context-text");
+  var btnHeaderAi = document.getElementById("btn-header-ai");
+
+  var allContracts = [];
+  var allClauses = [];
+  var selectedContractId = null;
+  var selectedClauseId = null;
+  var selectedClauseSection = null;
+  var selectedClauseObj = null;
+  var explanationRequestId = 0;
+  var clausesRequestId = 0;
+  var chatHistory = [];
+
+  var initialParams = new URLSearchParams(window.location.search);
+  var targetContractParam = initialParams.get("contract");
+  var targetClauseParam = initialParams.get("clause");
+
+  function esc(s) {
+    return String(s === undefined || s === null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
 
   function setStatus(element, message, kind) {
     if (!element) return;
     element.textContent = message || "";
-    element.classList.remove("is-error", "is-success");
-    if (kind === "error") element.classList.add("is-error");
-    if (kind === "success") element.classList.add("is-success");
+    element.className = "status-line " + (kind || "");
     element.hidden = !message;
   }
 
@@ -540,256 +1122,311 @@
     }
   }
 
-  function showPlaceholder(title, detail) {
-    fillPlaceholder(contractsPlaceholder, title, detail);
+  function formatTimestamp(value) {
+    if (!value) return "Unavailable";
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return String(value);
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function truncateText(text, limit) {
+    var val = (text === null || text === undefined) ? "" : String(text);
+    val = val.replace(/\s+/g, " ").trim();
+    if (val.length <= limit) return val;
+    return val.slice(0, limit).replace(/\s+$/, "") + "\u2026";
+  }
+
+  function updateAiContext() {
+    if (!aiContextText) return;
+    var cName = "Contract #" + (selectedContractId || "None");
+    var foundC = allContracts.find(function(c) { return String(c.contract_id) === String(selectedContractId); });
+    if (foundC && foundC.filename) cName = foundC.filename;
+
+    var secName = selectedClauseSection ? " · Clause " + selectedClauseSection : "";
+    aiContextText.textContent = "Context: " + cName + secName;
   }
 
   function syncImpactLink() {
     if (!impactAnalysisLink) return;
-    impactAnalysisLink.href = selectedContractId === null || selectedContractId === undefined
+    var targetUrl = selectedContractId === null || selectedContractId === undefined
       ? "/impact-analysis"
       : "/impact-analysis?contract=" + encodeURIComponent(String(selectedContractId));
-  }
-
-  function formatTimestamp(value) {
-    if (!value || typeof value !== "string") return "timestamp unavailable";
-    var parsed = new Date(value);
-    if (isNaN(parsed.getTime())) return value;
-    try {
-      return parsed.toLocaleString();
-    } catch (error) {
-      return value; // Keep the raw ISO string if the locale call fails.
+    if (selectedContractId !== null && selectedContractId !== undefined && selectedClauseSection) {
+      targetUrl += "&clause=" + encodeURIComponent(String(selectedClauseSection));
     }
+    impactAnalysisLink.href = targetUrl;
+    updateAiContext();
   }
 
-  /* ---------- contracts rendering ---------- */
-
-  function selectContract(li, contractId) {
-    selectedContractId = contractId;
-    syncImpactLink();
-    if (contractsList) {
-      Array.prototype.forEach.call(contractsList.children, function (child) {
-        child.classList.toggle("is-selected", child === li);
-      });
-    }
-    loadClauses(contractId);
-  }
-
-  function renderContract(contract) {
+  function renderContractItem(contract) {
     var li = document.createElement("li");
     li.setAttribute("role", "button");
     li.tabIndex = 0;
     li.dataset.contractId = String(contract.contract_id);
 
+    var head = document.createElement("div");
+    head.className = "item-title-row";
     var title = document.createElement("span");
     title.className = "item-title";
-    title.textContent = contract.filename || "Untitled contract";
-    li.appendChild(title);
+    title.textContent = contract.filename || "Untitled";
+    head.appendChild(title);
+    li.appendChild(head);
 
     var meta = document.createElement("span");
     meta.className = "item-meta";
-    var parts = [
-      "ID: " + (contract.contract_id !== undefined && contract.contract_id !== null
-        ? contract.contract_id
-        : "unknown"),
-      "Status: " + (contract.processing_status || "unknown"),
-      "Uploaded: " + formatTimestamp(contract.upload_timestamp)
-    ];
-    meta.textContent = parts.join(" \u00b7 ");
+    meta.textContent = "ID #" + contract.contract_id + " \u00b7 " + (contract.processing_status || "stored") + " \u00b7 " + formatTimestamp(contract.upload_timestamp);
     li.appendChild(meta);
 
     function activate() {
       selectContract(li, contract.contract_id);
     }
     li.addEventListener("click", activate);
-    li.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        activate();
-      }
+    li.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); }
     });
 
-    if (selectedContractId === contract.contract_id) {
+    if (String(selectedContractId) === String(contract.contract_id)) {
       li.classList.add("is-selected");
     }
     return li;
   }
 
-  function loadContracts() {
-    showPlaceholder("Loading contracts", "Fetching the stored contract list.");
+  function filterContracts() {
+    var q = (contractsSearch ? contractsSearch.value : "").trim().toLowerCase();
+    var visible = 0;
+    if (!contractsList) return;
+    Array.prototype.forEach.call(contractsList.children, function (li) {
+      var t = (li.textContent || "").toLowerCase();
+      var match = !q || t.indexOf(q) !== -1;
+      li.hidden = !match;
+      if (match) visible++;
+    });
+    if (contractsCount) {
+      contractsCount.textContent = String(visible);
+      contractsCount.hidden = false;
+    }
+  }
+
+  function selectContract(li, contractId) {
+    selectedContractId = contractId;
+    syncImpactLink();
+
     if (contractsList) {
-      contractsList.hidden = true;
-      contractsList.textContent = "";
+      Array.prototype.forEach.call(contractsList.children, function(c) {
+        c.classList.toggle("is-selected", c === li);
+      });
     }
 
+    loadClauses(contractId);
+  }
+
+  function loadContracts() {
+    fillPlaceholder(contractsPlaceholder, "Loading contracts", "Fetching portfolio...");
+    if (contractsList) { contractsList.hidden = true; contractsList.textContent = ""; }
+
     return fetch("/contracts", { headers: { "Accept": "application/json" } })
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error("Could not load contracts (HTTP " + response.status + ").");
-        }
-        return response.json();
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
       })
-      .then(function (data) {
-        if (!Array.isArray(data)) {
-          throw new Error("Unexpected response format from /contracts.");
-        }
-        if (data.length === 0) {
-          showPlaceholder("No contracts yet", "Upload a PDF contract to get started.");
+      .then(function(data) {
+        allContracts = Array.isArray(data) ? data : [];
+        if (allContracts.length === 0) {
+          fillPlaceholder(contractsPlaceholder, "No contracts yet", "Upload a contract on Home to get started.");
           return;
         }
+
         var fragment = document.createDocumentFragment();
-        data.forEach(function (contract) {
-          if (contract && typeof contract === "object") {
-            fragment.appendChild(renderContract(contract));
-          }
-        });
+        allContracts.forEach(function(c) { fragment.appendChild(renderContractItem(c)); });
         contractsList.appendChild(fragment);
         contractsList.hidden = false;
         contractsPlaceholder.hidden = true;
+        if (contractsCount) { contractsCount.textContent = String(allContracts.length); contractsCount.hidden = false; }
+
+        var matched = null;
+        if (targetContractParam) {
+          matched = allContracts.find(function(c) { return String(c.contract_id) === String(targetContractParam); });
+        }
+        if (!matched && allContracts.length > 0) matched = allContracts[0];
+
+        if (matched) {
+          var targetLi = contractsList.querySelector('[data-contract-id="' + matched.contract_id + '"]');
+          selectContract(targetLi, matched.contract_id);
+        }
       })
-      .catch(function (error) {
-        showPlaceholder("Could not load contracts", "Check that the server is running, then reload the page.");
-        setStatus(contractsStatus, error.message, "error");
+      .catch(function(err) {
+        fillPlaceholder(contractsPlaceholder, "Could not load contracts", "Check connection and reload.");
+        setStatus(contractsStatus, err.message, "err");
       });
   }
 
-  /* ---------- clauses rendering ---------- */
-
-  function truncateText(text, limit) {
-    var value = (text === null || text === undefined) ? "" : String(text);
-    value = value.replace(/\s+/g, " ").trim();
-    if (value.length <= limit) return value;
-    return value.slice(0, limit).replace(/\s+$/, "") + "\u2026";
-  }
-
-  function selectClause(li, clause) {
-    selectedClauseId = clause.clause_id !== undefined && clause.clause_id !== null
-      ? clause.clause_id
-      : null;
-    selectedClauseSection = clause.section_number !== undefined && clause.section_number !== null
-      ? clause.section_number
-      : null;
-    if (clausesList) {
-      Array.prototype.forEach.call(clausesList.children, function (child) {
-        child.classList.toggle("is-selected", child === li);
-      });
-    }
-    loadExplanation();
-  }
-
-  function renderClause(clause) {
+  /* ---------- Clauses Rendering ---------- */
+  function renderClauseItem(clause) {
     var li = document.createElement("li");
     li.setAttribute("role", "button");
     li.tabIndex = 0;
-    if (clause.clause_id !== undefined && clause.clause_id !== null) {
-      li.dataset.clauseId = String(clause.clause_id);
+    var sec = clause.section_number !== undefined && clause.section_number !== null
+      ? String(clause.section_number)
+      : (clause.clause_id ? String(clause.clause_id) : "?");
+    li.dataset.section = sec;
+
+    var level = Number(clause.level) || 0;
+    if (level > 1) {
+      li.style.marginLeft = Math.min((level - 1) * 14, 42) + "px";
     }
 
-    var title = document.createElement("span");
-    title.className = "item-title";
-    var section = clause.section_number !== undefined && clause.section_number !== null
-      ? String(clause.section_number)
-      : "?";
-    title.textContent = "Clause " + section;
-    li.appendChild(title);
+    var head = document.createElement("div");
+    head.className = "item-title-row";
+    var secTag = document.createElement("span");
+    secTag.className = "item-title";
+    if (level > 1) {
+      var ind = document.createElement("span");
+      ind.style.color = "var(--text-muted)";
+      ind.textContent = "\u21b3 ";
+      secTag.appendChild(ind);
+    }
+    secTag.appendChild(document.createTextNode("Clause " + sec));
+    head.appendChild(secTag);
+
+    var badges = document.createElement("div");
+    badges.className = "badge-row";
+    if (clause.type && clause.type !== "other") {
+      var typeB = document.createElement("span");
+      typeB.className = "badge badge-type";
+      typeB.textContent = String(clause.type);
+      badges.appendChild(typeB);
+    }
+    if (Array.isArray(clause.references) && clause.references.length > 0) {
+      var refB = document.createElement("span");
+      refB.className = "badge badge-refs";
+      refB.textContent = "refs: " + clause.references.slice(0, 3).join(", ");
+      badges.appendChild(refB);
+    }
+    head.appendChild(badges);
+    li.appendChild(head);
+
+    if (clause.heading) {
+      var hEl = document.createElement("div");
+      hEl.style.fontWeight = "650";
+      hEl.style.fontSize = "0.82rem";
+      hEl.style.marginBottom = "3px";
+      hEl.textContent = String(clause.heading);
+      li.appendChild(hEl);
+    }
 
     var preview = document.createElement("span");
     preview.className = "item-meta";
-    preview.textContent = truncateText(clause.clause_text, 180) || "No clause text stored.";
+    var textVal = clause.text || clause.clause_text || "";
+    preview.textContent = truncateText(textVal, 140) || "No text stored.";
     li.appendChild(preview);
 
-    function activate() {
-      selectClause(li, clause);
-    }
+    function activate() { selectClause(li, clause); }
     li.addEventListener("click", activate);
-    li.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        activate();
-      }
+    li.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); }
     });
+
+    if (String(selectedClauseSection) === sec) li.classList.add("is-selected");
     return li;
   }
 
-  function loadClauses(contractId) {
-    // A new contract invalidates any previously selected clause.
-    selectedClauseId = null;
-    selectedClauseSection = null;
-    resetExplanation(
-      "No clause selected",
-      "Select a clause from the middle panel to request an explanation."
-    );
-    setStatus(clausesStatus, "", null);
+  function filterClauses() {
+    var q = (clausesSearch ? clausesSearch.value : "").trim().toLowerCase();
+    var visible = 0;
+    if (!clausesList) return;
+    Array.prototype.forEach.call(clausesList.children, function(li) {
+      var t = (li.textContent || "").toLowerCase();
+      var match = !q || t.indexOf(q) !== -1;
+      li.hidden = !match;
+      if (match) visible++;
+    });
+    if (clausesCount) { clausesCount.textContent = String(visible); clausesCount.hidden = false; }
+  }
+
+  function selectClause(li, clause) {
+    selectedClauseObj = clause;
+    selectedClauseId = clause.clause_id !== undefined && clause.clause_id !== null ? clause.clause_id : null;
+    selectedClauseSection = clause.section_number !== undefined && clause.section_number !== null
+      ? String(clause.section_number)
+      : (clause.clause_id ? String(clause.clause_id) : null);
+
+    syncImpactLink();
 
     if (clausesList) {
-      clausesList.hidden = true;
-      clausesList.textContent = "";
+      Array.prototype.forEach.call(clausesList.children, function(c) {
+        c.classList.toggle("is-selected", c === li);
+      });
     }
+
+    loadExplanation();
+  }
+
+  function loadClauses(contractId) {
+    selectedClauseId = null;
+    selectedClauseSection = null;
+    selectedClauseObj = null;
+    allClauses = [];
+
+    var thisFetchId = ++clausesRequestId;
+    resetExplanation("No clause selected", "Choose a clause from the middle column.");
+    setStatus(clausesStatus, "", null);
+
+    if (clausesList) { clausesList.hidden = true; clausesList.textContent = ""; }
     if (clausesEmpty) clausesEmpty.hidden = true;
     if (clausesPlaceholder) clausesPlaceholder.hidden = true;
     if (clausesLoading) clausesLoading.hidden = false;
+    if (clausesSearch) clausesSearch.disabled = true;
 
-    var url = "/contracts/" + encodeURIComponent(String(contractId)) + "/clauses";
-
-    return fetch(url, { headers: { "Accept": "application/json" } })
-      .then(function (response) {
-        return response.json()
-          .catch(function () { return null; })
-          .then(function (payload) {
-            if (!response.ok) {
-              var detail = payload && payload.detail
-                ? String(payload.detail)
-                : "Could not load clauses (HTTP " + response.status + ").";
-              throw new Error(detail);
-            }
-            return payload;
-          });
+    return fetch("/clauses/" + encodeURIComponent(String(contractId)), { headers: { "Accept": "application/json" } })
+      .then(function(res) {
+        if (!res.ok) {
+          return fetch("/contracts/" + encodeURIComponent(String(contractId)) + "/clauses", {
+            headers: { "Accept": "application/json" }
+          }).then(function(fb) { return fb.json(); });
+        }
+        return res.json();
       })
-      .then(function (payload) {
+      .then(function(payload) {
+        if (thisFetchId !== clausesRequestId) return;
         if (clausesLoading) clausesLoading.hidden = true;
-        if (!payload || !Array.isArray(payload.clauses)) {
-          throw new Error("Unexpected response format from the clauses endpoint.");
-        }
-        if (payload.clauses.length === 0) {
-          fillPlaceholder(
-            clausesEmpty,
-            "No clauses detected",
-            "This contract has no stored numbered clauses, so no explanation is available."
-          );
+
+        var clauses = payload.clauses || [];
+        allClauses = clauses;
+
+        if (clauses.length === 0) {
+          fillPlaceholder(clausesEmpty, "No clauses detected", "This contract has no stored numbered clauses.");
           return;
         }
+
         var fragment = document.createDocumentFragment();
-        payload.clauses.forEach(function (clause) {
-          if (clause && typeof clause === "object") {
-            fragment.appendChild(renderClause(clause));
-          }
-        });
-        if (!fragment.childNodes.length) {
-          fillPlaceholder(
-            clausesEmpty,
-            "No clauses detected",
-            "This contract has no stored numbered clauses, so no explanation is available."
-          );
-          return;
-        }
+        clauses.forEach(function(c) { fragment.appendChild(renderClauseItem(c)); });
         clausesList.appendChild(fragment);
         clausesList.hidden = false;
+        if (clausesCount) { clausesCount.textContent = String(clauses.length); clausesCount.hidden = false; }
+        if (clausesSearch) { clausesSearch.disabled = false; clausesSearch.value = ""; }
+
+        var matchedClause = null;
+        if (targetClauseParam) {
+          matchedClause = clauses.find(function(x) { return String(x.section_number || x.clause_id) === String(targetClauseParam); });
+          targetClauseParam = null;
+        }
+        if (!matchedClause && clauses.length > 0) matchedClause = clauses[0];
+
+        if (matchedClause) {
+          var secId = matchedClause.section_number || matchedClause.clause_id;
+          var targetLi = clausesList.querySelector('[data-section="' + secId + '"]');
+          selectClause(targetLi, matchedClause);
+        }
       })
-      .catch(function (error) {
+      .catch(function(err) {
+        if (thisFetchId !== clausesRequestId) return;
         if (clausesLoading) clausesLoading.hidden = true;
-        if (clausesEmpty) clausesEmpty.hidden = true;
-        setStatus(clausesStatus, error.message, "error");
+        setStatus(clausesStatus, err.message, "err");
       });
   }
 
-  /* ---------- explanation rendering ---------- */
-
-  function clearElement(element) {
-    if (element) element.textContent = "";
-  }
-
+  /* ---------- Explanation Rendering ---------- */
   function resetExplanation(messageTitle, messageDetail) {
-    // Invalidate any in-flight request so its result is ignored.
     explanationRequestId += 1;
     if (explanationLoading) explanationLoading.hidden = true;
     if (explanationContent) explanationContent.hidden = true;
@@ -806,7 +1443,7 @@
     element.textContent = "";
     var values = Array.isArray(items) ? items : [];
     var rendered = 0;
-    values.forEach(function (item) {
+    values.forEach(function(item) {
       var text = (item === null || item === undefined) ? "" : String(item);
       if (!text.trim()) return;
       var li = document.createElement("li");
@@ -821,176 +1458,146 @@
     }
   }
 
-  function renderAuthorities(authorities, evidence) {
+  function renderAuthorities(authorities) {
     if (!explanationAuthorities) return;
-    clearElement(explanationAuthorities);
-
+    explanationAuthorities.textContent = "";
     var list = Array.isArray(authorities) ? authorities : [];
+    if (authoritiesCount) { authoritiesCount.textContent = String(list.length); authoritiesCount.hidden = false; }
+
     if (list.length === 0) {
-      fillPlaceholder(
-        explanationAuthorities,
-        "No relevant authorities",
-        "Keyword matching found no authorities in the dataset for this clause."
-      );
+      fillPlaceholder(explanationAuthorities, "No relevant authorities", "Keyword retrieval matched no statutory or precedent authorities for this text.");
       return;
     }
 
-    list.forEach(function (authority) {
-      if (!authority || typeof authority !== "object") return;
-
+    list.forEach(function(auth) {
+      if (!auth || typeof auth !== "object") return;
       var card = document.createElement("div");
       card.className = "authority-card";
 
       var title = document.createElement("span");
       title.className = "authority-title";
-      title.textContent = authority.title
-        ? String(authority.title)
-        : "Untitled authority";
+      title.textContent = auth.title || "Untitled Authority";
       card.appendChild(title);
 
-      var citation = document.createElement("span");
-      citation.className = "authority-citation";
-      citation.textContent = authority.citation
-        ? String(authority.citation)
-        : "Citation not provided";
-      card.appendChild(citation);
+      var cit = document.createElement("span");
+      cit.className = "authority-citation";
+      cit.textContent = auth.citation || "Citation not specified";
+      card.appendChild(cit);
 
       var badges = document.createElement("div");
       badges.className = "badge-row";
+      var typeB = document.createElement("span");
+      typeB.className = "badge badge-type";
+      typeB.textContent = auth.authority_type ? String(auth.authority_type).replace(/_/g, " ") : "Authority";
+      badges.appendChild(typeB);
 
-      var typeBadge = document.createElement("span");
-      typeBadge.className = "badge badge-type";
-      typeBadge.textContent = authority.authority_type
-        ? String(authority.authority_type).replace(/_/g, " ")
-        : "authority";
-      badges.appendChild(typeBadge);
-
-      // Only a confirmed record may be shown as Verified.
-      var verifiedBadge = document.createElement("span");
-      if (authority.is_verified === true) {
-        verifiedBadge.className = "badge badge-verified";
-        verifiedBadge.textContent = "Verified";
+      var vBadge = document.createElement("span");
+      if (auth.is_verified === true) {
+        vBadge.className = "badge badge-verified";
+        vBadge.textContent = "\u2713 Verified Statute / Precedent";
       } else {
-        verifiedBadge.className = "badge badge-unverified";
-        verifiedBadge.textContent = "Not verified";
+        vBadge.className = "badge badge-unverified";
+        vBadge.textContent = "\u26a0 Retrieved \u2014 Unverified Match";
       }
-      badges.appendChild(verifiedBadge);
-
+      badges.appendChild(vBadge);
       card.appendChild(badges);
 
-      if (authority.why_matched) {
-        var why = document.createElement("span");
-        why.className = "item-meta";
-        why.textContent = String(authority.why_matched);
+      if (auth.why_matched) {
+        var why = document.createElement("div");
+        why.className = "authority-why";
+        why.textContent = String(auth.why_matched);
         card.appendChild(why);
       }
-
+      if (auth.summary) {
+        var sum = document.createElement("div");
+        sum.className = "authority-summary";
+        sum.textContent = String(auth.summary);
+        card.appendChild(sum);
+      }
       explanationAuthorities.appendChild(card);
     });
-
-    if (!explanationAuthorities.childNodes.length) {
-      fillPlaceholder(
-        explanationAuthorities,
-        "No relevant authorities",
-        "Keyword matching found no authorities in the dataset for this clause."
-      );
-    }
   }
 
   function renderEvidence(evidence, authorities) {
     if (!explanationEvidence) return;
     explanationEvidence.textContent = "";
-
     var titlesById = {};
     if (Array.isArray(authorities)) {
-      authorities.forEach(function (authority) {
-        if (authority && authority.id !== undefined && authority.id !== null) {
-          titlesById[String(authority.id)] = authority.title ? String(authority.title) : "";
-        }
-      });
+      authorities.forEach(function(a) { if (a && a.id) titlesById[String(a.id)] = a.title || ""; });
     }
-
     var list = Array.isArray(evidence) ? evidence : [];
     var rendered = 0;
-    list.forEach(function (item) {
+    list.forEach(function(item) {
       if (!item || typeof item !== "object") return;
-      var terms = Array.isArray(item.matched_terms)
-        ? item.matched_terms.map(function (term) { return String(term); }).join(", ")
-        : "";
+      var terms = Array.isArray(item.matched_terms) ? item.matched_terms.join(", ") : "";
       if (!terms) return;
-
-      var label = item.authority_id !== undefined && item.authority_id !== null
-        ? String(item.authority_id)
-        : "unknown authority";
-      var title = titlesById[label] || "";
+      var authLabel = titlesById[String(item.authority_id)] || item.authority_id || "curated authority";
       var li = document.createElement("li");
-      li.textContent = (title ? title + ": " : "") + "matched " + terms + ".";
-
+      li.textContent = authLabel + ": matched [" + terms + "].";
       if (item.normalized_snippet) {
-        var snippet = document.createElement("span");
-        snippet.className = "item-meta";
-        snippet.textContent = String(item.normalized_snippet);
-        li.appendChild(snippet);
+        var snip = document.createElement("div");
+        snip.style.color = "var(--text-muted)";
+        snip.style.fontSize = "0.76rem";
+        snip.style.marginTop = "3px";
+        snip.textContent = '"' + String(item.normalized_snippet) + '"';
+        li.appendChild(snip);
       }
       explanationEvidence.appendChild(li);
-      rendered += 1;
+      rendered++;
     });
-
     if (rendered === 0) {
-      var empty = document.createElement("li");
-      empty.textContent = "No keyword match evidence was returned for this clause.";
-      explanationEvidence.appendChild(empty);
+      var emptyLi = document.createElement("li");
+      emptyLi.textContent = "No keyword match evidence was returned for this clause.";
+      explanationEvidence.appendChild(emptyLi);
     }
   }
 
   function renderExplanation(payload) {
-    if (payload === null || typeof payload !== "object") {
-      throw new Error("Unexpected response format from the explanation endpoint.");
+    var sec = selectedClauseSection || (selectedClauseObj ? selectedClauseObj.section_number : "?");
+    var heading = selectedClauseObj && selectedClauseObj.heading ? selectedClauseObj.heading : "";
+    if (clauseOverviewTitle) clauseOverviewTitle.textContent = "Clause " + sec + (heading ? ": " + heading : "");
+
+    if (clauseOverviewBadges) {
+      clauseOverviewBadges.textContent = "";
+      if (selectedClauseObj && selectedClauseObj.type && selectedClauseObj.type !== "other") {
+        var b = document.createElement("span");
+        b.className = "badge badge-type";
+        b.textContent = "Category: " + selectedClauseObj.type;
+        clauseOverviewBadges.appendChild(b);
+      }
+      if (selectedClauseObj && selectedClauseObj.clause_sha256) {
+        var hB = document.createElement("span");
+        hB.className = "badge";
+        hB.textContent = "SHA-256 Fingerprinted";
+        clauseOverviewBadges.appendChild(hB);
+      }
     }
 
-    if (explanationSummary) {
-      explanationSummary.textContent = payload.summary
-        ? String(payload.summary)
-        : "No summary was returned.";
+    if (clauseOverviewSha) {
+      clauseOverviewSha.textContent = selectedClauseObj && selectedClauseObj.clause_sha256 ? ("Fingerprint: " + selectedClauseObj.clause_sha256) : "";
     }
+
+    var fullText = (payload.input && payload.input.text) || (selectedClauseObj ? (selectedClauseObj.text || selectedClauseObj.clause_text) : "");
+    if (clauseFullText) clauseFullText.textContent = fullText || "No clause text available.";
+
+    if (explanationSummary) explanationSummary.textContent = payload.summary || "No summary was returned.";
+
     renderBulletList(explanationKeyPoints, payload.key_points, "No key points were returned.");
-    renderAuthorities(payload.relevant_authorities, payload.matched_evidence);
+    renderAuthorities(payload.relevant_authorities);
     renderEvidence(payload.matched_evidence, payload.relevant_authorities);
-    renderBulletList(explanationTopics, payload.possible_legal_relevance, "No topics for human review were returned.");
-    renderBulletList(
-      explanationUncertainties,
-      payload.uncertainties_and_missing_information,
-      "No uncertainty notes were returned."
-    );
-    if (explanationDisclaimer) {
-      explanationDisclaimer.textContent = payload.disclaimer
-        ? String(payload.disclaimer)
-        : "This is not legal advice.";
-    }
+    renderBulletList(explanationTopics, payload.possible_legal_relevance, "No legal relevance topics were identified.");
+    renderBulletList(explanationUncertainties, payload.uncertainties_and_missing_information, "No specific uncertainties or missing information flags were returned.");
+
+    if (explanationDisclaimer) explanationDisclaimer.textContent = payload.disclaimer || "This is not legal advice.";
 
     if (explanationPlaceholder) explanationPlaceholder.hidden = true;
     if (explanationLoading) explanationLoading.hidden = true;
     if (explanationContent) explanationContent.hidden = false;
-
-    if (payload.meta && payload.meta.retrieval_error === true) {
-      setStatus(
-        explanationStatus,
-        "Retrieval failed while preparing this explanation, so no authorities could be matched.",
-        "error"
-      );
-    }
   }
 
   function loadExplanation() {
-    if (selectedContractId === null || selectedContractId === undefined ||
-        selectedClauseSection === null || selectedClauseSection === undefined) {
-      return;
-    }
-
-    // Each request gets an increasing id; only the newest may update the panel.
-    var requestId = explanationRequestId + 1;
-    explanationRequestId = requestId;
-
+    if (selectedContractId === null || selectedClauseSection === null) return;
+    var thisRequestId = ++explanationRequestId;
     setStatus(explanationStatus, "", null);
     if (explanationPlaceholder) explanationPlaceholder.hidden = true;
     if (explanationContent) explanationContent.hidden = true;
@@ -1000,130 +1607,207 @@
       "/clauses/" + encodeURIComponent(String(selectedClauseSection)) + "/explanation";
 
     fetch(url, { headers: { "Accept": "application/json" } })
-      .then(function (response) {
-        return response.json()
-          .catch(function () { return null; })
-          .then(function (payload) {
-            if (requestId !== explanationRequestId) return null; // stale
-            if (!response.ok) {
-              var detail = payload && payload.detail
-                ? String(payload.detail)
-                : "Could not load the explanation (HTTP " + response.status + ").";
-              throw new Error(detail);
-            }
-            return payload;
-          });
+      .then(function(res) {
+        return res.json().then(function(data) {
+          if (thisRequestId !== explanationRequestId) return null;
+          if (!res.ok) throw new Error(data.detail || "Could not load explanation");
+          return data;
+        });
       })
-      .then(function (payload) {
-        if (requestId !== explanationRequestId || payload === null) return;
+      .then(function(payload) {
+        if (thisRequestId !== explanationRequestId || !payload) return;
         renderExplanation(payload);
       })
-      .catch(function (error) {
-        if (requestId !== explanationRequestId) return; // stale error, ignore
+      .catch(function(err) {
+        if (thisRequestId !== explanationRequestId) return;
         if (explanationLoading) explanationLoading.hidden = true;
-        if (explanationContent) explanationContent.hidden = true;
-        if (explanationPlaceholder) {
-          fillPlaceholder(
-            explanationPlaceholder,
-            "Could not load explanation",
-            "Select the clause again to retry."
-          );
-        }
-        setStatus(explanationStatus, error.message, "error");
+        if (explanationPlaceholder) fillPlaceholder(explanationPlaceholder, "Could not load explanation", "Select the clause again to retry.");
+        setStatus(explanationStatus, err.message, "err");
       });
   }
 
-  /* ---------- PDF upload ---------- */
-
-  if (uploadForm) {
-    uploadForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      var file = fileInput && fileInput.files ? fileInput.files[0] : null;
-      if (!file) {
-        setStatus(contractsStatus, "Choose a PDF file before uploading.", "error");
-        return;
-      }
-      if (!/\.pdf$/i.test(file.name || "")) {
-        setStatus(contractsStatus, "Only PDF files are accepted.", "error");
-        return;
-      }
-
-      var formData = new FormData();
-      formData.append("file", file, file.name);
-
-      setStatus(contractsStatus, "Uploading " + file.name + " \u2026", null);
-      if (uploadButton) {
-        uploadButton.disabled = true;
-        uploadButton.textContent = "Uploading\u2026";
-      }
-
-      fetch("/upload", {
-        method: "POST",
-        body: formData,
-        headers: { "Accept": "application/json" }
+  function initAuthContext() {
+    var container = document.getElementById("auth-status");
+    fetch("/auth/me", { headers: { "Accept": "application/json" } })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (!container) return;
+        if (data.demo) {
+          container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Demo Mode &middot; Read-Only</span>';
+        } else if (data.authenticated && data.active_firm) {
+          var fName = data.active_firm.name || ("Firm #" + data.active_firm.firm_id);
+          var uName = (data.user && data.user.display_name) || "User";
+          container.innerHTML =
+            '<span class="auth-pill firm"><span class="status-dot firm"></span><strong>' +
+            esc(fName) + '</strong> &middot; ' + esc(uName) + '</span>' +
+            '<button type="button" class="auth-logout-btn" id="btn-logout" title="Log out">Log out</button>';
+          var bOut = document.getElementById("btn-logout");
+          if (bOut) bOut.addEventListener("click", function() { fetch("/auth/logout", { method: "POST" }).finally(function() { window.location.reload(); }); });
+        } else {
+          container.innerHTML = '<span class="auth-pill warn"><span class="status-dot warn"></span>Auth Required</span>';
+        }
       })
-        .then(function (response) {
-          return response.json()
-            .catch(function () { return null; })
-            .then(function (payload) {
-              if (!response.ok) {
-                var detail = payload && payload.detail
-                  ? String(payload.detail)
-                  : "Upload failed (HTTP " + response.status + ").";
-                throw new Error(detail);
-              }
-              return payload;
-            });
-        })
-        .then(function (payload) {
-          var message = payload && payload.message
-            ? String(payload.message)
-            : "Upload complete.";
-          var clauses = payload && payload.clauses_saved !== undefined
-            ? payload.clauses_saved
-            : "unknown";
-          var successText = message + " Clauses stored: " + clauses + ".";
+      .catch(function() {
+        if (container) container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Server Offline</span>';
+      });
+  }
 
-          if (payload && payload.contract_id !== undefined) {
-            selectedContractId = payload.contract_id;
-            syncImpactLink();
-          }
-          if (fileInput) fileInput.value = "";
+  /* ---------- Gemini AI Assistant ---------- */
+  function appendAiMessage(role, htmlContent) {
+    if (!aiMessagesScroll) return;
+    var bubble = document.createElement("div");
+    bubble.className = "ai-bubble " + (role === "user" ? "user" : "assistant");
+    bubble.innerHTML = htmlContent;
+    aiMessagesScroll.appendChild(bubble);
+    aiMessagesScroll.scrollTop = aiMessagesScroll.scrollHeight;
+  }
 
-          return loadContracts().then(function () {
-            // loadContracts clears the status line, so set success afterwards.
-            setStatus(contractsStatus, successText, "success");
-            // Show the new contract's clauses immediately when available.
-            if (selectedContractId !== null && selectedContractId !== undefined) {
-              loadClauses(selectedContractId);
-            }
-          });
-        })
-        .catch(function (error) {
-          var detail = error.message;
-          var match = detail.match(/contract\s*\(id=(\d+)\)/i);
-          if (!match) {
-            setStatus(contractsStatus, detail, "error");
-            return;
-          }
-          selectedContractId = Number(match[1]);
-          return loadContracts().then(function () {
-            syncImpactLink();
-            setStatus(contractsStatus, detail, "error");
-            loadClauses(selectedContractId);
-          });
-        })
-        .then(function () {
-          if (uploadButton) {
-            uploadButton.disabled = false;
-            uploadButton.textContent = "Upload";
-          }
+  function showAiTyping() {
+    if (!aiMessagesScroll) return null;
+    var ind = document.createElement("div");
+    ind.className = "ai-typing-indicator";
+    ind.id = "ai-typing";
+    ind.innerHTML = '<span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span>';
+    aiMessagesScroll.appendChild(ind);
+    aiMessagesScroll.scrollTop = aiMessagesScroll.scrollHeight;
+  }
+
+  function removeAiTyping() {
+    var ind = document.getElementById("ai-typing");
+    if (ind && ind.parentNode) ind.parentNode.removeChild(ind);
+  }
+
+  function formatMarkdown(text) {
+    var raw = esc(text);
+    raw = raw.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    raw = raw.replace(/`([^`]+)`/g, '<code style="background:#e2e8f0;padding:1px 4px;border-radius:4px;font-family:var(--mono);font-size:0.8rem;">$1</code>');
+    var lines = raw.split("\n");
+    var out = [];
+    var inList = false;
+    lines.forEach(function(line) {
+      var trimmed = line.trim();
+      if (/^[\*\-]\s+(.+)/.test(trimmed)) {
+        if (!inList) { out.push("<ul>"); inList = true; }
+        out.push("<li>" + trimmed.replace(/^[\*\-]\s+/, "") + "</li>");
+      } else {
+        if (inList) { out.push("</ul>"); inList = false; }
+        if (trimmed) out.push("<p>" + trimmed + "</p>");
+      }
+    });
+    if (inList) out.push("</ul>");
+    return out.join("");
+  }
+
+  function sendAiMessage(messageText) {
+    if (!messageText || !messageText.trim()) return;
+    messageText = messageText.trim();
+
+    appendAiMessage("user", esc(messageText));
+    chatHistory.push({ role: "user", content: messageText });
+    if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
+
+    if (aiChatInput) aiChatInput.value = "";
+    if (aiSendBtn) aiSendBtn.disabled = true;
+
+    showAiTyping();
+
+    var payload = {
+      message: messageText,
+      contract_id: selectedContractId ? parseInt(selectedContractId, 10) : null,
+      clause_id: selectedClauseSection || null,
+      history: chatHistory.slice(0, -1)
+    };
+
+    fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function(res) {
+        return res.json().then(function(data) {
+          if (!res.ok) throw new Error(data.detail || "Assistant request failed");
+          return data;
         });
+      })
+      .then(function(data) {
+        removeAiTyping();
+        var replyFormatted = formatMarkdown(data.reply);
+        appendAiMessage("assistant", replyFormatted);
+        chatHistory.push({ role: "assistant", content: data.reply });
+      })
+      .catch(function(err) {
+        removeAiTyping();
+        appendAiMessage("assistant", '<p style="color:var(--danger);"><strong>Error:</strong> ' + esc(err.message) + '</p>');
+      })
+      .finally(function() {
+        if (aiSendBtn) aiSendBtn.disabled = !aiChatInput.value.trim();
+      });
+  }
+
+  function toggleAiDrawer() {
+    if (!aiDrawer) return;
+    var isHidden = aiDrawer.hasAttribute("hidden");
+    if (isHidden) {
+      aiDrawer.removeAttribute("hidden");
+      if (aiChatInput) aiChatInput.focus();
+    } else {
+      aiDrawer.setAttribute("hidden", "until-found");
+    }
+  }
+
+  // Event bindings
+  if (contractsSearch) contractsSearch.addEventListener("input", filterContracts);
+  if (clausesSearch) clausesSearch.addEventListener("input", filterClauses);
+
+  if (mobileToggleBtn && sidebar) {
+    mobileToggleBtn.addEventListener("click", function() { sidebar.classList.toggle("open"); });
+  }
+
+  if (aiLauncher) aiLauncher.addEventListener("click", toggleAiDrawer);
+  if (btnHeaderAi) btnHeaderAi.addEventListener("click", toggleAiDrawer);
+  if (aiCloseBtn) aiCloseBtn.addEventListener("click", toggleAiDrawer);
+
+  if (aiClearBtn) {
+    aiClearBtn.addEventListener("click", function() {
+      chatHistory = [];
+      if (aiMessagesScroll) {
+        aiMessagesScroll.innerHTML =
+          '<div class="ai-bubble assistant">' +
+            '<p><strong>Conversation refreshed.</strong></p>' +
+            '<p>Ask any question about this clause or related statutory authorities.</p>' +
+          '</div>';
+      }
     });
   }
 
-  // Initial load.
+  if (aiChatInput && aiSendBtn) {
+    aiChatInput.addEventListener("input", function() {
+      aiSendBtn.disabled = !aiChatInput.value.trim();
+    });
+    aiChatInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (aiChatInput.value.trim()) sendAiMessage(aiChatInput.value);
+      }
+    });
+  }
+
+  if (aiChatForm) {
+    aiChatForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      if (aiChatInput && aiChatInput.value.trim()) sendAiMessage(aiChatInput.value);
+    });
+  }
+
+  document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("ai-suggestion-chip")) {
+      var p = e.target.getAttribute("data-prompt");
+      if (p) sendAiMessage(p);
+    }
+  });
+
+  // Init
+  initAuthContext();
   loadContracts();
 })();
 </script>

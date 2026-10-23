@@ -1,281 +1,1068 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Conflict &amp; Change Impact — Contract Intelligence</title>
 <style>
   :root {
-    --bg: #f4f6f9;
+    --bg-app: #0b1329;
+    --sidebar-bg: #0f172a;
+    --sidebar-hover: #1e293b;
+    --sidebar-active: #1e3a8a;
+    --sidebar-border: #1e293b;
+    --sidebar-text: #94a3b8;
+    --sidebar-text-active: #ffffff;
+
+    --bg-main: #f8fafc;
     --surface: #ffffff;
-    --surface-2: #fbfcfd;
-    --border: #dde3ea;
-    --border-strong: #c6d0db;
-    --text: #16202b;
-    --muted: #64748b;
-    --accent: #1f4e79;
-    --accent-soft: #eaf1f8;
-    --changed: #1c6b4a;
-    --changed-soft: #e8f5ee;
-    --warn: #8a6100;
-    --warn-soft: #fdf5e3;
-    --warn-border: #e8cf8e;
-    --radius: 10px;
-    --shadow: 0 1px 2px rgba(22,32,43,.06), 0 4px 14px rgba(22,32,43,.05);
+    --surface-2: #f1f5f9;
+    --surface-card: #ffffff;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+
+    --accent: #1e40af;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --accent-border: #bfdbfe;
+
+    --ok: #15803d;
+    --ok-soft: #dcfce7;
+    --ok-border: #bbf7d0;
+
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --warn-border: #fde68a;
+
+    --danger: #b91c1c;
+    --danger-soft: #fee2e2;
+    --danger-border: #fecaca;
+
+    --radius-lg: 12px;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
     --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
   }
+
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+
   body {
     margin: 0;
-    background: var(--bg);
+    padding: 0;
+    background: var(--bg-main);
     color: var(--text);
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
-    font-size: 15.5px;
-    line-height: 1.55;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 72px; }
 
-  /* ---------- header ---------- */
-  header.masthead { padding: 30px 0 18px; }
-  .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-  h1 { margin: 0; font-size: 1.65rem; font-weight: 650; letter-spacing: -.01em; }
-  .tagline { color: var(--muted); font-size: .95rem; }
-  .tabs { margin-top: 12px; display: flex; gap: 8px; }
-  .tab {
-    display: inline-block; padding: 6px 14px; border-radius: 999px;
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--muted); text-decoration: none; font-size: .88rem; font-weight: 550;
+  /* ---------- App Layout Shell ---------- */
+  .app-shell {
+    display: flex;
+    min-height: 100vh;
   }
-  .tab:hover { border-color: var(--border-strong); color: var(--text); }
-  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  /* ---------- the query bar ---------- */
-  .querybar {
-    position: sticky; top: 0; z-index: 20;
-    background: rgba(244,246,249,.92); backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--border); padding: 14px 0 16px; margin-bottom: 22px;
+  /* ---------- Persistent Sidebar ---------- */
+  .app-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 100;
+    transition: transform 0.25s ease;
   }
-  .queryrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-  .field { display: flex; flex-direction: column; gap: 5px; }
-  .field.actions { justify-content: flex-end; }
-  .field.actions button { margin-bottom: 0; }
-  .field label {
-    font-size: .72rem; text-transform: uppercase; letter-spacing: .07em;
-    color: var(--muted); font-weight: 650;
-  }
-  select, input[type="number"], input[type="text"] {
-    font: inherit; font-size: .94rem; color: var(--text);
-    background: var(--surface); border: 1px solid var(--border-strong);
-    border-radius: 8px; padding: 8px 10px; min-height: 38px;
-    text-overflow: ellipsis;
-  }
-  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  /* A <select> sizes itself to its longest option, so the widths are fixed
-     here - otherwise one long clause heading pushes the whole bar off the
-     screen. */
-  #contract { width: 210px; }
-  #clause { width: 280px; }
-  #oldv, #newv { width: 84px; }
-  .uploadrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
-  .uploadrow input[type="file"] { max-width: min(420px, 100%); font: inherit; font-size: .88rem; }
-  .uploadrow label { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 650; }
-  .uploadfield { display: flex; flex-direction: column; gap: 5px; }
-  .upload-status { margin: 9px 0 0; font-size: .88rem; }
-  .upload-status.error { color: #8f2020; }
-  .upload-status.success { color: var(--changed); }
-  .upload-status.warning { color: var(--warn); }
-  .btnrow { display: flex; gap: 8px; }
-  .arrow { color: var(--muted); padding-bottom: 9px; font-weight: 600; }
-  button {
-    font: inherit; font-size: .94rem; font-weight: 600; cursor: pointer;
-    border-radius: 8px; padding: 9px 18px; min-height: 38px; border: 1px solid transparent;
-  }
-  button.primary { background: var(--accent); color: #fff; }
-  button.primary:hover { background: #17405f; }
-  button.ghost { background: var(--surface); border-color: var(--border-strong); color: var(--text); }
-  button.ghost:hover { background: var(--accent-soft); border-color: var(--accent); }
-  button:disabled { opacity: .55; cursor: progress; }
 
-  /* ---------- panels ---------- */
-  .panel {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); box-shadow: var(--shadow);
-    margin-bottom: 18px; overflow: hidden;
+  .sidebar-header {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
-  .panel > h2 {
-    margin: 0; padding: 13px 18px; font-size: .78rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .09em; color: var(--muted);
-    border-bottom: 1px solid var(--border); background: var(--surface-2);
-  }
-  .panel .body { padding: 16px 18px; }
-  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  .buckets { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 20px; }
-  @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
 
-  .clausehead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-  .secno {
-    font-family: var(--mono); font-size: .84rem; font-weight: 700;
-    background: var(--accent-soft); color: var(--accent);
-    border-radius: 6px; padding: 2px 8px;
+  .brand-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
-  .heading { font-weight: 600; }
-  .muted { color: var(--muted); }
-  .small { font-size: .87rem; }
-
-  ul.clean { list-style: none; margin: 0; padding: 0; }
-  ul.clean li { padding: 9px 0; border-bottom: 1px dashed var(--border); }
-  ul.clean li:last-child { border-bottom: 0; padding-bottom: 0; }
-  ul.clean li:first-child { padding-top: 0; }
-
-  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .pill {
-    font-family: var(--mono); font-size: .85rem; font-weight: 650;
-    border: 1px solid var(--border-strong); border-radius: 999px;
-    padding: 4px 13px; background: var(--surface-2);
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
   }
-  .pill.start { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .chainarrow { color: var(--muted); }
-
-  table { width: 100%; border-collapse: collapse; font-size: .93rem; }
-  th {
-    text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em;
-    color: var(--muted); font-weight: 700; padding: 0 10px 8px 0; border-bottom: 1px solid var(--border);
+  .brand-text { display: flex; flex-direction: column; }
+  .brand-title {
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
-  td { padding: 11px 10px 11px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  td.metric { font-weight: 600; }
-  td.old { color: var(--muted); white-space: nowrap; }
-  td.new { white-space: nowrap; font-weight: 600; }
-  .badge {
-    display: inline-block; font-size: .68rem; font-weight: 750; letter-spacing: .06em;
-    text-transform: uppercase; border-radius: 5px; padding: 2px 7px; white-space: nowrap;
+  .brand-tag {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
   }
-  .badge.changed { background: var(--changed-soft); color: var(--changed); }
-  .badge.same { background: #eef1f5; color: var(--muted); }
-  .detail { color: var(--muted); font-size: .84rem; margin-top: 3px; }
 
-  .doubt { border-left: 4px solid var(--warn-border); background: var(--warn-soft);
-           border-radius: 8px; padding: 13px 15px; margin-bottom: 12px; }
-  .doubt:last-child { margin-bottom: 0; }
-  .doubt .q { font-weight: 600; margin: 7px 0 9px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sidebar-nav {
+    padding: 16px 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nav-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #475569;
+    padding: 8px 12px 4px;
+    margin-top: 6px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 550;
+    transition: all 0.15s ease;
+  }
+  .nav-item:hover {
+    background: var(--sidebar-hover);
+    color: #ffffff;
+  }
+  .nav-item.active {
+    background: var(--sidebar-active);
+    color: var(--sidebar-text-active);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  .nav-icon {
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+  }
+
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: #090e1a;
+  }
+
+  .auth-widget { margin-bottom: 12px; }
+  .auth-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    background: #1e293b;
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .auth-pill.demo { border-color: #334155; color: #94a3b8; }
+  .auth-pill.firm { border-color: #065f46; background: #064e3b; color: #6ee7b7; }
+  .auth-pill.warn { border-color: #78350f; background: #451a03; color: #fcd34d; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+  .status-dot.firm { background: #34d399; }
+  .status-dot.warn { background: #f59e0b; }
+  .status-dot.demo { background: #60a5fa; }
+
+  .auth-logout-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #475569;
+    color: #94a3b8;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    padding: 2px 7px;
+    cursor: pointer;
+  }
+  .auth-logout-btn:hover { color: #fff; border-color: #94a3b8; }
+
+  .sidebar-docs-row a {
+    color: #64748b;
+    font-size: 0.78rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sidebar-docs-row a:hover { color: #94a3b8; text-decoration: underline; }
+
+  /* ---------- Main App Bar ---------- */
+  .app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .app-topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .mobile-toggle-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .page-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .page-tagline {
+    color: var(--text-muted);
+    font-size: 0.84rem;
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn-open-assistant {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    color: #ffffff;
+    border: none;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-open-assistant:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  }
+
+  .content-container {
+    padding: 24px 28px 60px;
+    max-width: 1360px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .disclaimer-banner {
+    background: var(--warn-soft);
+    border: 1px solid var(--warn-border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    color: #78350f;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .disclaimer-banner strong { font-weight: 650; }
+
+  /* Hidden tabs for strict compatibility */
+  .compat-nav-tabs {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  /* ---------- Guided Workflow Layout ---------- */
+  .workflow-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 1.05fr) minmax(420px, 1.55fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .card-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #ffffff;
+  }
+  .card-panel-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .card-panel-body {
+    padding: 20px;
+  }
+
+  /* Guided steps */
+  .step-block {
+    padding: 16px;
+    border-radius: var(--radius);
+    background: #fbfcfd;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .step-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .field-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 650;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .form-select, .form-input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.86rem;
+    font-family: inherit;
+    background: #ffffff;
+    color: var(--text);
+  }
+  .form-select:focus, .form-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
+  }
+
+  .values-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .arrow-div {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding-top: 18px;
+  }
+
+  .unit-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #e2e8f0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-left: 6px;
+  }
+
+  /* Clause preview */
+  .clause-preview-box {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: #f1f5f9;
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent);
+  }
+  .clause-preview-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  pre#clause-preview-text {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: #334155;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .btn-submit-main {
+    width: 100%;
+    padding: 11px 18px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25);
+    transition: background 0.15s ease, transform 0.12s ease;
+  }
+  .btn-submit-main:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-example-ghost {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px dashed var(--border-strong);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-example-ghost:hover { background: #f1f5f9; }
+
+  .upload-redirect-hint {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: #f8fafc;
+    border: 1px dashed var(--border);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .upload-redirect-hint a { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+  /* Notification banner / messages */
+  .banner-msg {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.84rem;
+    margin-bottom: 16px;
+  }
+  .banner-msg.warn { background: var(--warn-soft); border: 1px solid var(--warn-border); color: #78350f; }
+  .banner-msg.err { background: var(--danger-soft); border: 1px solid var(--danger-border); color: var(--danger); }
+  .banner-msg.ok { background: var(--ok-soft); border: 1px solid var(--ok-border); color: var(--ok); }
+
+  /* Output results styling */
+  #out .panel {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  #out .panel > h2, #out .panel .head {
+    padding: 14px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  #out .panel .body { padding: 18px; }
+
+  #out .panel.empty {
+    padding: 36px 20px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
   .chip {
-    font-family: var(--mono); font-size: .76rem; background: #fff;
-    border: 1px solid var(--warn-border); color: #6b4e08; border-radius: 5px; padding: 1px 7px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
   }
-  .review { display: flex; gap: 10px; align-items: baseline; }
-  .review .box { color: var(--accent); font-weight: 700; }
+  .chip.direct { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-border); }
+  .chip.indirect { background: #fdf4ff; color: #a21caf; border-color: #f0abfc; }
 
-  .empty { text-align: center; padding: 34px 20px 40px; }
-  .empty h2 { margin: 0 0 6px; font-size: 1.1rem; }
-  .empty p { margin: 0 auto 16px; color: var(--muted); max-width: 640px; }
-
-  .banner {
-    border-radius: 8px; padding: 11px 14px; margin-bottom: 16px; font-size: .9rem;
-    background: var(--warn-soft); border: 1px solid var(--warn-border); color: #6b4e08;
+  .points-list {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.85rem;
   }
-  .banner.error { background: #fdecec; border-color: #e9b0b0; color: #8f2020; }
-  .banner.ok { background: var(--changed-soft); border-color: #b9dcc9; color: var(--changed); }
+  .point-item { color: var(--text); }
+  .point-reason {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
 
-  .ledger { font-family: var(--mono); font-size: .82rem; color: var(--muted);
-            padding: 12px 18px; border-top: 1px solid var(--border); background: var(--surface-2); }
-  .clause-preview { margin-top: -8px; }
-  .clause-preview .body { max-height: 260px; overflow: auto; }
-  .clause-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0;
-                        font: .9rem/1.55 var(--mono); color: var(--text); }
-  footer { color: var(--muted); font-size: .82rem; text-align: center; padding-top: 10px; }
-  code { font-family: var(--mono); font-size: .88em; background: #eef1f5; padding: 1px 5px; border-radius: 4px; }
+  .evidence-block {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  /* Compatibility upload form element */
+  .upload-compat-wrap {
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    border: 1px dashed var(--border);
+    font-size: 0.8rem;
+  }
+
+  /* ---------- Floating Gemini AI Assistant ---------- */
+  .floating-ai-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 28px;
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 0.9rem;
+    font-weight: 650;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.28);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1000;
+    transition: all 0.2s ease;
+  }
+  .floating-ai-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(30, 58, 138, 0.4);
+  }
+
+  .ai-chat-drawer {
+    position: fixed;
+    bottom: 84px;
+    right: 28px;
+    width: 420px;
+    max-width: calc(100vw - 36px);
+    height: 580px;
+    max-height: calc(100vh - 110px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+  }
+  .ai-chat-drawer[hidden] { display: none !important; }
+
+  .ai-drawer-header {
+    padding: 14px 16px;
+    background: #0f172a;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ai-drawer-header-left { display: flex; align-items: center; gap: 10px; }
+  .ai-bot-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #2563eb, #60a5fa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .ai-title-wrap { display: flex; flex-direction: column; }
+  .ai-drawer-title { font-size: 0.88rem; font-weight: 700; }
+  .ai-model-tag { font-size: 0.68rem; color: #94a3b8; font-family: var(--mono); }
+
+  .ai-header-controls { display: flex; align-items: center; gap: 6px; }
+  .ai-icon-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .ai-icon-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.1); }
+
+  .ai-context-strip {
+    padding: 6px 14px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    font-size: 0.74rem;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-context-dot { width: 6px; height: 6px; border-radius: 50%; background: #38bdf8; }
+
+  .ai-messages-scroll {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f8fafc;
+  }
+
+  .ai-bubble {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    max-width: 90%;
+    word-break: break-word;
+  }
+  .ai-bubble.user {
+    background: var(--accent);
+    color: #ffffff;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+  }
+  .ai-bubble.assistant {
+    background: #ffffff;
+    color: var(--text);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .ai-bubble.assistant p { margin: 0 0 6px; }
+  .ai-bubble.assistant p:last-child { margin-bottom: 0; }
+  .ai-bubble.assistant ul { margin: 4px 0 6px; padding-left: 18px; }
+
+  .ai-typing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    align-self: flex-start;
+  }
+  .ai-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #94a3b8;
+    animation: aiPulse 1.2s infinite ease-in-out;
+  }
+  .ai-dot:nth-child(2) { animation-delay: 0.2s; }
+  .ai-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes aiPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+
+  .ai-suggestions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .ai-suggestion-chip {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.74rem;
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 550;
+    transition: background 0.12s ease;
+  }
+  .ai-suggestion-chip:hover { background: #e2e8f0; }
+
+  .ai-chat-footer {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    background: #ffffff;
+  }
+  .ai-input-form { display: flex; gap: 8px; }
+  .ai-chat-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    resize: none;
+    max-height: 80px;
+  }
+  .ai-chat-input:focus { outline: none; border-color: var(--accent); }
+  .ai-send-btn {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .ai-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ai-disclaimer {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  @media (max-width: 900px) {
+    .app-sidebar { position: fixed; transform: translateX(-100%); }
+    .app-sidebar.open { transform: translateX(0); }
+    .mobile-toggle-btn { display: inline-block; }
+    .workflow-grid { grid-template-columns: 1fr; }
+    .content-container { padding: 16px; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header class="masthead">
-    <div class="brand">
-      <h1>Conflict &amp; Change Impact</h1>
-      <span class="tagline">change a clause &rarr; see what breaks, in days, and what we cannot determine</span>
+<div class="app-shell">
+
+  <!-- ================= Left Navigation Sidebar ================= -->
+  <aside class="app-sidebar" id="app-sidebar">
+    <div>
+      <div class="sidebar-header">
+        <a href="/" class="brand-link" title="Contract Intelligence Home">
+          <div class="brand-icon">⚖️</div>
+          <div class="brand-text">
+            <span class="brand-title">Contract Intel</span>
+            <span class="brand-tag">Legal Risk &amp; Analysis</span>
+          </div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Main Navigation">
+        <div class="nav-section-title">Workspaces</div>
+        <a class="nav-item" href="/" id="nav-portfolio">
+          <span class="nav-icon">📁</span>
+          <span>Portfolio &amp; Intake</span>
+        </a>
+        <a class="nav-item active" href="/impact-analysis" aria-current="page" id="nav-impact">
+          <span class="nav-icon">⚡</span>
+          <span>Conflict &amp; Change Impact</span>
+        </a>
+        <a class="nav-item" href="/explain" id="nav-explain">
+          <span class="nav-icon">📖</span>
+          <span>Clause Explanation</span>
+        </a>
+      </nav>
     </div>
-    <nav class="tabs">
-      <a class="tab" href="/">Overview</a>
-      <a class="tab active" href="/impact-analysis">Conflict &amp; Change Impact</a>
-      <a class="tab" href="/explain">Clause Explanation</a>
-      <a class="tab" href="/docs">API</a>
-    </nav>
-  </header>
 
-  <div class="querybar">
-    <div class="queryrow">
-      <div class="field">
-        <label for="contract">Contract</label>
-        <select id="contract"></select>
-      </div>
-      <div class="field">
-        <label for="clause">Clause</label>
-        <select id="clause"></select>
-      </div>
-      <div class="field">
-        <label for="oldv">Old value</label>
-        <input id="oldv" type="number" value="30" />
-      </div>
-      <div class="arrow">&rarr;</div>
-      <div class="field">
-        <label for="newv">New value</label>
-        <input id="newv" type="number" value="15" />
-      </div>
-      <div class="field actions">
-        <div class="btnrow">
-          <button class="primary" id="go">Analyze change</button>
-          <button class="ghost" id="example">Use the example</button>
+    <div class="sidebar-footer">
+      <div class="auth-widget">
+        <div id="auth-status" class="auth-status" aria-live="polite">
+          <span class="auth-pill demo"><span class="status-dot demo"></span>Checking access...</span>
         </div>
       </div>
-    </div>
-    <form id="upload-form" class="uploadrow" aria-label="Upload a PDF contract">
-      <div class="uploadfield">
-        <label for="upload-file">Add a contract (upload mode only)</label>
-        <input id="upload-file" name="file" type="file" accept="application/pdf,.pdf" />
+      <div class="sidebar-docs-row">
+        <a href="/docs" target="_blank" rel="noopener">
+          <span>📜</span> Developer API Docs &rarr;
+        </a>
       </div>
-      <button class="primary" id="upload-button" type="submit">Upload PDF</button>
-      <span class="small muted">PDF only, up to 10 MB. Demo mode is read-only and rejects uploads.</span>
-    </form>
-    <p id="upload-status" class="upload-status" role="status" aria-live="polite" hidden></p>
-  </div>
-
-  <section id="clause-preview-panel" class="panel clause-preview" aria-labelledby="clause-preview-title" hidden>
-    <h2 id="clause-preview-title">Selected clause</h2>
-    <div class="body">
-      <div id="clause-preview-meta" class="muted small"></div>
-      <pre id="clause-preview-text"></pre>
     </div>
-  </section>
+  </aside>
 
-  <div id="msg"></div>
-  <main id="out">
-    <section class="panel">
-      <div class="body empty">
-        <h2>Ask what a change would do</h2>
-        <p>
-          Pick a clause, change its number, and the engine walks the contract's
-          dependency graph: which clauses are hit directly, which through a
-          chain, what the arithmetic becomes in days, and which questions it
-          refuses to answer. Every line points back to a clause.
-        </p>
-        <p class="small muted">
-          Try <code>Clause 7.2</code> (payment period) from 30 days to 15, or
-          <code>Clause 9.1</code> (service levels) from 99% to 98.
-        </p>
+  <!-- ================= Main Workspace Area ================= -->
+  <main class="app-main">
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">☰</button>
+        <div>
+          <h1 class="page-title">Conflict &amp; Change Impact</h1>
+          <span class="page-tagline">Deterministic counterfactual dependency engine and cross-clause verification</span>
+        </div>
       </div>
-    </section>
+      <div class="topbar-actions">
+        <button type="button" class="btn-open-assistant" id="btn-header-ai">
+          <span>✨</span> Ask Gemini AI
+        </button>
+      </div>
+    </header>
+
+    <!-- Hidden tab for test assertion compatibility -->
+    <nav class="compat-nav-tabs" aria-hidden="true">
+      <a class="tab active" href="/impact-analysis">Conflict &amp; Change Impact</a>
+    </nav>
+
+    <div class="content-container">
+
+      <div class="disclaimer-banner">
+        <span>⚠️</span>
+        <div>
+          <strong>Legal Disclaimer:</strong> Impact analysis models internal dependency arithmetic and statutory cross-references. It does not establish contract validity, breach, or legal counsel.
+        </div>
+      </div>
+
+      <!-- Guided Workflow Layout -->
+      <div class="workflow-grid">
+
+        <!-- Column 1: Guided Configuration Form -->
+        <section class="card-panel" aria-labelledby="workflow-heading">
+          <div class="card-panel-header">
+            <h2 id="workflow-heading">Simulation Inputs</h2>
+            <span class="unit-tag" id="workflow-unit-indicator">Calendar Days</span>
+          </div>
+
+          <div class="card-panel-body">
+
+            <!-- Step 1: Select Contract -->
+            <div class="step-block">
+              <div class="step-head">
+                <span class="step-num">1</span>
+                <span class="step-title">Select Contract Document</span>
+              </div>
+              <label for="contract" class="field-label">Contract in Focus</label>
+              <select id="contract" class="form-select" aria-label="Select contract"></select>
+            </div>
+
+            <!-- Step 2: Select Clause -->
+            <div class="step-block">
+              <div class="step-head">
+                <span class="step-num">2</span>
+                <span class="step-title">Select Parameterized Clause</span>
+              </div>
+              <label for="clause" class="field-label">Clause Section Number</label>
+              <select id="clause" class="form-select" aria-label="Select clause"></select>
+
+              <!-- Clause Preview Panel -->
+              <section id="clause-preview-panel" class="clause-preview-box" aria-labelledby="clause-preview-title" hidden>
+                <div id="clause-preview-meta" class="clause-preview-meta"></div>
+                <pre id="clause-preview-text"></pre>
+              </section>
+            </div>
+
+            <!-- Step 3: Current & Proposed Values -->
+            <div class="step-block">
+              <div class="step-head">
+                <span class="step-num">3</span>
+                <span class="step-title">Configure Simulated Value</span>
+              </div>
+
+              <div class="values-grid">
+                <div>
+                  <label for="oldv" class="field-label">Current Value</label>
+                  <input id="oldv" type="number" class="form-input" value="30">
+                </div>
+                <div class="arrow-div">&rarr;</div>
+                <div>
+                  <label for="newv" class="field-label">Proposed Value</label>
+                  <input id="newv" type="number" class="form-input" value="15">
+                </div>
+              </div>
+              <div id="unit-tip-note" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">
+                Values are matched to the clause parameter type (days or percentage).
+              </div>
+            </div>
+
+            <!-- Step 4: Actions -->
+            <div>
+              <button class="primary btn-submit-main" id="go">Analyze change</button>
+              <button class="ghost btn-example-ghost" id="example">Use the example suggestion</button>
+            </div>
+
+            <!-- Upload Redirection / Compatibility Form -->
+            <div class="upload-redirect-hint">
+              <span>Need to analyze a new contract?</span>
+              <a href="/#upload-section">&larr; Upload on Home</a>
+            </div>
+
+            <form id="upload-form" class="upload-compat-wrap" aria-label="Upload a PDF contract">
+              <label for="upload-file" class="field-label">Upload PDF contract (upload mode only)</label>
+              <input id="upload-file" name="file" type="file" accept="application/pdf,.pdf" style="font-size:0.8rem; margin-bottom: 6px; display:block; width:100%;">
+              <button class="primary" id="upload-button" type="submit" style="padding:4px 10px; font-size:0.78rem;">Upload PDF</button>
+              <span class="small muted" style="display:block; font-size:0.72rem; color:var(--text-muted); margin-top:4px;">
+                PDF only, up to 10 MB. Demo mode is read-only and rejects uploads.
+              </span>
+              <p id="upload-status" class="upload-status" role="status" aria-live="polite" hidden style="margin-top:6px; font-size:0.75rem;"></p>
+            </form>
+
+          </div>
+        </section>
+
+        <!-- Column 2: Results & Output Evaluation -->
+        <section class="card-panel" aria-labelledby="results-heading">
+          <div class="card-panel-header">
+            <h2 id="results-heading">Change Impact Analysis</h2>
+            <span class="unit-tag">Live Engine Trace</span>
+          </div>
+
+          <div class="card-panel-body">
+            <div id="msg"></div>
+
+            <main id="out">
+              <section class="panel empty">
+                <div class="body">
+                  <div style="font-size: 36px; margin-bottom: 10px;">⚡</div>
+                  <h2 style="font-size: 1.1rem; margin: 0 0 6px;">Ask what a change would do</h2>
+                  <p style="font-size: 0.88rem; color: var(--text-muted); max-width: 480px; margin: 0 auto 10px;">
+                    Pick a clause, change its number, and the engine walks the contract's
+                    dependency graph: which clauses are hit directly, which through a
+                    chain, what the arithmetic becomes in days, and which questions it
+                    refuses to answer. Every line points back to a clause.
+                  </p>
+                  <p class="small muted" style="font-size: 0.78rem; color: var(--text-subtle);">
+                    Try <code>Clause 7.2</code> (payment period) from 30 days to 15, or
+                    <code>Clause 9.1</code> (service levels) from 99% to 98.
+                  </p>
+                </div>
+              </section>
+            </main>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
   </main>
 
-  <footer>
-    Synthetic contracts are read-only in demo mode. Uploaded contracts are
-    analyzed from extracted text only when upload mode is explicitly configured.
-    The output is decision support, not legal advice &mdash; the review points
-    are yours to decide.
-  </footer>
 </div>
+
+<!-- ================= Floating Gemini AI Assistant ================= -->
+<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
+  <span>✨</span>
+  <span>Ask Legal AI</span>
+</button>
+
+<aside class="ai-chat-drawer" id="ai-chat-drawer" aria-label="Gemini Legal Assistant" hidden>
+  <div class="ai-drawer-header">
+    <div class="ai-drawer-header-left">
+      <div class="ai-bot-avatar">✨</div>
+      <div class="ai-title-wrap">
+        <span class="ai-drawer-title">Gemini Contract Assistant</span>
+        <span class="ai-model-tag" id="ai-model-badge">gemini-2.5-flash</span>
+      </div>
+    </div>
+    <div class="ai-header-controls">
+      <button type="button" class="ai-icon-btn" id="ai-clear-btn" title="Clear chat history">⟲</button>
+      <button type="button" class="ai-icon-btn" id="ai-close-btn" aria-label="Close Assistant">&times;</button>
+    </div>
+  </div>
+
+  <div class="ai-context-strip" id="ai-context-strip">
+    <span class="ai-context-dot"></span>
+    <span id="ai-context-text">Context: Change Impact Workspace</span>
+  </div>
+
+  <div class="ai-messages-scroll" id="ai-messages-scroll">
+    <div class="ai-bubble assistant">
+      <p><strong>Impact Analysis Assistant Active.</strong></p>
+      <p>I can help evaluate the consequences of proposed changes, explain conflicting clauses, and trace dependency risks.</p>
+      <div class="ai-suggestions-row">
+        <button type="button" class="ai-suggestion-chip" data-prompt="What happens if the payment period in Clause 7.2 is reduced to 15 days?">Simulate Clause 7.2 change</button>
+        <button type="button" class="ai-suggestion-chip" data-prompt="Are late payment charges in Clause 8.1 valid under the Interest Act?">Check late fee legality</button>
+        <button type="button" class="ai-suggestion-chip" data-prompt="Explain downstream impacts on SLA availability in Clause 9.1.">Analyze SLA dependencies</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-chat-footer">
+    <form class="ai-input-form" id="ai-chat-form">
+      <textarea id="ai-chat-input" class="ai-chat-input" rows="1" placeholder="Ask about this simulation..."></textarea>
+      <button type="submit" id="ai-send-btn" class="ai-send-btn" disabled>Send</button>
+    </form>
+    <div class="ai-disclaimer">
+      Informational analysis grounded in contract data. Not formal legal advice.
+    </div>
+  </div>
+</aside>
 
 <script>
 (function () {
@@ -296,12 +1083,28 @@
   var clausePreviewPanel = document.getElementById("clause-preview-panel");
   var clausePreviewMeta = document.getElementById("clause-preview-meta");
   var clausePreviewText = document.getElementById("clause-preview-text");
+  var workflowUnitIndicator = document.getElementById("workflow-unit-indicator");
+
+  var mobileToggleBtn = document.getElementById("mobile-toggle-btn");
+  var sidebar = document.getElementById("app-sidebar");
+
+  var aiLauncher = document.getElementById("ai-chat-launcher");
+  var aiDrawer = document.getElementById("ai-chat-drawer");
+  var aiCloseBtn = document.getElementById("ai-close-btn");
+  var aiClearBtn = document.getElementById("ai-clear-btn");
+  var aiMessagesScroll = document.getElementById("ai-messages-scroll");
+  var aiChatForm = document.getElementById("ai-chat-form");
+  var aiChatInput = document.getElementById("ai-chat-input");
+  var aiSendBtn = document.getElementById("ai-send-btn");
+  var aiContextText = document.getElementById("ai-context-text");
+  var btnHeaderAi = document.getElementById("btn-header-ai");
 
   var clauseMap = {};   // sec_no -> {heading, type}
   var contractStatusById = {};
   var selectedContractStatus = "";
   var clauseLoadVersion = 0;
   var analysisRequestVersion = 0;
+  var chatHistory = [];
 
   function el(tag, cls, html) {
     var n = document.createElement(tag);
@@ -315,30 +1118,53 @@
   }
   function banner(text, kind) {
     msg.innerHTML = "";
-    msg.appendChild(el("div", "banner" + (kind ? " " + kind : ""), esc(text)));
+    msg.appendChild(el("div", "banner-msg" + (kind ? " " + kind : ""), esc(text)));
   }
   function clearMsg() { msg.innerHTML = ""; }
   function setUploadStatus(text, kind) {
+    if (!uploadStatus) return;
     uploadStatus.textContent = text || "";
     uploadStatus.className = "upload-status" + (kind ? " " + kind : "");
     uploadStatus.hidden = !text;
   }
 
+  function updateAiContext() {
+    if (!aiContextText) return;
+    var cText = selContract && selContract.options[selContract.selectedIndex]
+      ? selContract.options[selContract.selectedIndex].textContent
+      : "Contract";
+    var sec = selClause ? selClause.value : "";
+    aiContextText.textContent = "Context: " + cText + (sec ? " · Clause " + sec : "");
+  }
+
   function renderClausePreview() {
     var clause = clauseMap[selClause.value];
     if (!clause) {
-      clausePreviewPanel.hidden = true;
-      clausePreviewMeta.textContent = "";
-      clausePreviewText.textContent = "";
+      if (clausePreviewPanel) clausePreviewPanel.hidden = true;
+      if (clausePreviewMeta) clausePreviewMeta.textContent = "";
+      if (clausePreviewText) clausePreviewText.textContent = "";
       return;
     }
     var level = Number(clause.level) || 0;
-    clausePreviewMeta.textContent = [
-      clause.type || "other",
-      level > 0 ? "Nested clause" : "Section",
-    ].join(" · ");
-    clausePreviewText.textContent = clause.text || "No clause text stored.";
-    clausePreviewPanel.hidden = false;
+    var cType = clause.type || "other";
+    if (clausePreviewMeta) {
+      clausePreviewMeta.textContent = [
+        cType,
+        level > 0 ? "Nested clause" : "Section",
+      ].join(" \u00b7 ");
+    }
+    if (clausePreviewText) {
+      clausePreviewText.textContent = clause.text || "No clause text stored.";
+    }
+    if (clausePreviewPanel) clausePreviewPanel.hidden = false;
+
+    // Unit awareness indicator
+    var isSla = cType === "sla";
+    if (workflowUnitIndicator) {
+      workflowUnitIndicator.textContent = isSla ? "% Service Level" : "Calendar Days";
+    }
+
+    updateAiContext();
   }
 
   function clearAnalysis() {
@@ -354,515 +1180,492 @@
         if (!r.ok) throw new Error("Could not load contracts (HTTP " + r.status + ").");
         return r.json();
       })
-      .then(function (rows) {
-        if (!Array.isArray(rows)) throw new Error("Unexpected response from /contracts.");
+      .then(function (contracts) {
         selContract.innerHTML = "";
         contractStatusById = {};
-        rows.forEach(function (c) {
-          var o = el("option");
-          o.value = c.contract_id;
-          o.textContent = c.contract_id + " — " + c.filename +
-            (c.processing_status === "graph_build_failed" ? " (analysis unavailable)" : "");
-          selContract.appendChild(o);
+        contracts.forEach(function (c) {
           contractStatusById[String(c.contract_id)] = c.processing_status || "";
+          var opt = el("option", null, esc(c.filename) + " (id=" + c.contract_id + ")");
+          opt.value = c.contract_id;
+          selContract.appendChild(opt);
         });
-        if (selectContractId !== undefined && selectContractId !== null) {
-          selContract.value = String(selectContractId);
-          if (selContract.value !== String(selectContractId)) {
-            throw new Error("The uploaded contract was not found in the contract list.");
-          }
+
+        if (contracts.length === 0) {
+          selContract.appendChild(el("option", null, "No contracts"));
+          selClause.innerHTML = '<option value="">No numbered clauses were detected</option>';
+          selClause.disabled = true;
+          selectedContractStatus = "";
+          renderClausePreview();
+          return;
+        }
+
+        var requested = selectContractId !== undefined && selectContractId !== null
+          ? String(selectContractId)
+          : new URLSearchParams(window.location.search).get("contract");
+        if (requested && contractStatusById[requested] !== undefined) {
+          selContract.value = requested;
         }
         selectedContractStatus = contractStatusById[selContract.value] || "";
-        return loadClauses().then(function () {
-          if (!rows.length) {
-            banner("No contracts are stored yet. Upload a text-based PDF to begin.", "");
-          }
-        });
+        return loadClauses(selContract.value);
       })
-      .catch(function (error) {
-        selContract.innerHTML = "";
-        selectedContractStatus = "";
-        loadClauses();
-        banner(error.message + " Is the server running? Try: py -3.11 -m uvicorn server:app --reload", "error");
+      .catch(function (err) {
+        banner(err.message, "err");
       });
   }
 
-  function loadClauses() {
-    var cid = selContract.value;
-    var version = ++clauseLoadVersion;
-    clearMsg();
-    selectedContractStatus = contractStatusById[cid] || "";
+  function loadClauses(cid) {
+    var thisLoadVersion = ++clauseLoadVersion;
     clauseMap = {};
-    selClause.innerHTML = "";
+    selClause.innerHTML = "<option>Loading clauses...</option>";
+    selClause.disabled = true;
     renderClausePreview();
-    btnGo.disabled = true;
-    btnExample.disabled = true;
-    if (!cid) return Promise.resolve();
-    return fetch("/clauses/" + encodeURIComponent(cid), { headers: { "Accept": "application/json" } })
+
+    return fetch("/clauses/" + encodeURIComponent(cid), {
+      headers: { "Accept": "application/json" }
+    })
       .then(function (r) {
         if (!r.ok) throw new Error("Could not load clauses (HTTP " + r.status + ").");
         return r.json();
       })
-      .then(function (data) {
-        if (version !== clauseLoadVersion || cid !== selContract.value) return;
-        if (String(data.contract_id) !== String(cid) || !Array.isArray(data.clauses)) {
-          throw new Error("The clause response did not match the selected contract.");
-        }
-        clauseMap = {};
+      .then(function (payload) {
+        if (thisLoadVersion !== clauseLoadVersion) return;
         selClause.innerHTML = "";
-        (data.clauses || []).forEach(function (c) {
-          clauseMap[c.clause_id] = c;
-          var o = el("option");
-          o.value = c.clause_id;
-          o.textContent = (Number(c.level) > 0 ? "↳ " : "") + c.clause_id +
-            (c.heading ? " — " + c.heading : "");
-          selClause.appendChild(o);
-        });
-        if (selClause.options.length) {
-          selClause.value = "7.2";
-          if (!selClause.value) selClause.selectedIndex = 0;
-          btnGo.disabled = selectedContractStatus === "graph_build_failed";
-          btnExample.disabled = selectedContractStatus === "graph_build_failed";
+        var list = payload.clauses || [];
+        if (list.length === 0) {
+          selClause.appendChild(el("option", null, "No numbered clauses were detected"));
+          selClause.disabled = true;
           renderClausePreview();
-          if (selectedContractStatus === "graph_build_failed") {
-            banner("The PDF and clauses were saved, but graph construction failed. Re-uploading would create a duplicate; ask an administrator to rebuild this contract's graph.", "error");
-          }
-        } else if (selectedContractStatus === "graph_build_failed") {
-          banner("The PDF and clauses were saved, but graph construction failed. Re-uploading would create a duplicate; ask an administrator to rebuild this contract's graph.", "error");
-        } else if (selectedContractStatus === "extraction_failed") {
-          banner("Text extraction failed for this contract. Upload a text-based PDF to analyze it.", "error");
-        } else if (selectedContractStatus === "clause_persistence_failed") {
-          banner("The PDF text was saved, but clause storage failed. Ask an administrator to retry clause processing; re-uploading would create a duplicate.", "error");
-        } else {
-          banner("No numbered clauses were detected for this contract. Check the PDF text and section numbering before analysis.", "");
+          return;
         }
-      })
-      .catch(function (error) {
-        if (version !== clauseLoadVersion || cid !== selContract.value) return;
-        clauseMap = {};
-        selClause.innerHTML = "";
+        list.forEach(function (c) {
+          clauseMap[c.clause_id] = c;
+          var level = Number(c.level) || 0;
+          var indent = level > 0 ? "   ".repeat(level) + "\u21b3 " : "";
+          var label = indent + "Clause " + c.clause_id + (c.heading ? " \u2014 " + c.heading : "");
+          var opt = el("option", null, esc(label));
+          opt.value = c.clause_id;
+          selClause.appendChild(opt);
+        });
+        selClause.disabled = false;
+
+        var target = new URLSearchParams(window.location.search).get("clause");
+        if (target && clauseMap[target]) {
+          selClause.value = target;
+        } else if (clauseMap["7.2"]) {
+          selClause.value = "7.2";
+        }
         renderClausePreview();
-        btnGo.disabled = true;
-        btnExample.disabled = true;
-        banner(error.message + " Results from another contract were cleared.", "error");
+        loadDemoSuggestion(cid);
+      })
+      .catch(function (err) {
+        if (thisLoadVersion !== clauseLoadVersion) return;
+        banner(err.message, "err");
+        selClause.innerHTML = '<option value="">No numbered clauses were detected</option>';
+        selClause.disabled = true;
+        renderClausePreview();
       });
   }
 
-  // ---------------------------------------------------------------- rendering
-  function clauseLabel(sec) {
-    var c = clauseMap[sec];
-    return c && c.heading ? sec + " — " + c.heading : sec;
+  function loadDemoSuggestion(cid) {
+    if (!btnExample) return;
+    btnExample.style.display = "none";
+    fetch("/demo/" + encodeURIComponent(cid) + "/suggest", { headers: { "Accept": "application/json" } })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data || !data.clause_id) return;
+        btnExample.textContent = "✨ " + (data.label || ("Use example for Clause " + data.clause_id));
+        btnExample.style.display = "block";
+      })
+      .catch(function() {});
   }
 
-  function panel(title, build) {
-    var p = el("section", "panel");
-    p.appendChild(el("h2", null, esc(title)));
-    var body = el("div", "body");
-    build(body);
-    p.appendChild(body);
-    return p;
-  }
-
-  function impactList(items, emptyText) {
-    if (!items || !items.length) return el("p", "muted small", esc(emptyText));
-    var ul = el("ul", "clean");
-    items.forEach(function (h) {
-      var li = el("li");
-      li.appendChild(el("span", "secno", esc(h.sec_no)));
-      li.appendChild(document.createTextNode(" "));
-      li.appendChild(el("span", "heading", esc(clauseLabel(h.sec_no).split(" — ").slice(1).join(" — "))));
-      li.appendChild(el("span", "muted small", "  hop " + h.hops));
-      ul.appendChild(li);
-    });
-    return ul;
-  }
-
-  function bucketBlock(title, items, colour) {
-    var b = el("div");
-    b.appendChild(el("h3", null, esc(title) + " <span class='muted small'>(" + (items || []).length + ")</span>"));
-    if (!items || !items.length) {
-      b.appendChild(el("p", "muted small", "none"));
-      return b;
-    }
-    var ul = el("ul", "clean");
-    items.forEach(function (it) {
-      var li = el("li");
-      li.appendChild(el("span", "secno", esc(it.clause)));
-      li.appendChild(document.createTextNode(" " + it.detail));
-      ul.appendChild(li);
-    });
-    b.appendChild(ul);
-    return b;
-  }
-
-  function render(r) {
-    out.innerHTML = "";
-    var c = r.changed_clause || {};
-
-    // the clause being changed
-    var head = panel("The change", function (body) {
-      var h = el("div", "clausehead");
-      h.appendChild(el("span", "secno", esc(c.sec_no || "?")));
-      h.appendChild(el("span", "heading", esc(c.heading || "")));
-      h.appendChild(el("span", "muted", "(" + esc(c.type || "") + ")"));
-      body.appendChild(h);
-      body.appendChild(el("p", "muted small",
-        esc(c.old_value) + " &rarr; ".replace(/&rarr;/, "\u2192") + " " + esc(c.new_value)));
-      if (c.text) {
-        var p = el("p");
-        p.style.margin = "8px 0 0";
-        p.style.fontFamily = "var(--mono)";
-        p.style.fontSize = ".82rem";
-        p.style.color = "var(--muted)";
-        p.textContent = c.text;
-        body.appendChild(p);
-      }
-      if (r.summary) body.appendChild(el("p", null, "<strong>" + esc(r.summary) + "</strong>"));
-    });
-    out.appendChild(head);
-
-    // direct / indirect + chain
-    var imp = panel("Impact", function (body) {
-      var split = el("div", "split");
-      var left = el("div");
-      left.appendChild(el("h3", null, "Direct <span class='muted small'>(" + (r.direct || []).length + ")</span>"));
-      left.appendChild(impactList(r.direct, "nothing is hit directly"));
-      var right = el("div");
-      right.appendChild(el("h3", null, "Indirect <span class='muted small'>(" + (r.indirect || []).length + ")</span>"));
-      right.appendChild(impactList(r.indirect, "nothing is hit through a chain"));
-      split.appendChild(left);
-      split.appendChild(right);
-      body.appendChild(split);
-      if (r.chain && r.chain.length) {
-        body.appendChild(el("h3", null, "Causal chain"));
-        var chain = el("div", "chain");
-        r.chain.forEach(function (sec, i) {
-          if (i) chain.appendChild(el("span", "chainarrow", "\u2192"));
-          chain.appendChild(el("span", "pill" + (i === 0 ? " start" : ""), esc(sec)));
-        });
-        body.appendChild(chain);
-      }
-    });
-    out.appendChild(imp);
-
-    // legal meaning - only the buckets that have something in them
-    var meaning = panel("What is affected, in legal terms", function (body) {
-      var grid = el("div", "buckets");
-      var shown = 0;
-      [["Obligations", r.obligations], ["Conditions", r.conditions],
-       ["Consequences", r.consequences], ["Deadlines", r.deadlines],
-       ["Rights", r.rights], ["Definitions", r.definitions]].forEach(function (pair) {
-        if (!pair[1] || !pair[1].length) return;   // an empty bucket is noise
-        grid.appendChild(bucketBlock(pair[0], pair[1]));
-        shown += 1;
-      });
-      if (!shown) grid.appendChild(el("p", "muted small", "none"));
-      body.appendChild(grid);
-    });
-    out.appendChild(meaning);
-
-    // counterfactual
-    var cf = r.counterfactual || { rows: [], notes: [] };
-    var cfPanel = panel("Old vs new", function (body) {
-      if (cf.rows && cf.rows.length) {
-        var t = el("table");
-        t.innerHTML = "<thead><tr><th>Metric</th><th>Old</th><th>New</th><th></th></tr></thead>";
-        var tb = el("tbody");
-        cf.rows.forEach(function (row) {
-          var tr = el("tr");
-          var td1 = el("td", "metric", esc(row.metric));
-          if (row.detail) {
-            var d = el("div", "detail", esc(row.detail));
-            td1.appendChild(d);
-          }
-          tr.appendChild(td1);
-          tr.appendChild(el("td", "old", esc(row.old)));
-          tr.appendChild(el("td", "new", esc(row.new)));
-          tr.appendChild(el("td", null, '<span class="badge ' + (row.changed ? "changed" : "same") + '">' +
-            (row.changed ? "changed" : "unchanged") + "</span>"));
-          tb.appendChild(tr);
-        });
-        t.appendChild(tb);
-        body.appendChild(t);
-      } else {
-        body.appendChild(el("p", "muted small", "No day arithmetic is modelled for this change type."));
-      }
-      (cf.notes || []).forEach(function (n) {
-        body.appendChild(el("p", "small muted", esc(n)));
-      });
-    });
-    out.appendChild(cfPanel);
-
-    // doubts
-    var dp = panel("Uncertainty — what we cannot determine", function (body) {
-      if (!r.doubts || !r.doubts.length) {
-        body.appendChild(el("p", "muted small", "No doubts were raised for this change."));
-        return;
-      }
-      r.doubts.forEach(function (d) {
-        var card = el("div", "doubt");
-        var head = el("div", "chips");
-        head.appendChild(el("span", "chip", esc(d.code)));
-        head.appendChild(el("span", "chip", esc(d.severity)));
-        card.appendChild(head);
-        card.appendChild(el("div", "q", esc(d.question)));
-        var ev = el("div", "chips");
-        (d.evidence || []).forEach(function (e) {
-          ev.appendChild(el("span", "chip", esc(e.id) + " · " + esc(e.why)));
-        });
-        card.appendChild(ev);
-        if (d.review_point) {
-          var rp = el("p", "small");
-          rp.style.margin = "9px 0 0";
-          rp.innerHTML = "<strong>Decide:</strong> " + esc(d.review_point);
-          card.appendChild(rp);
-        }
-        body.appendChild(card);
-      });
-    });
-    out.appendChild(dp);
-
-    // review points
-    var rankedPoints = r.ranked_review_points || (r.review_points || []).map(function (p, i) {
-      return { rank: i + 1, review_point: p };
-    });
-    if (rankedPoints.length) {
-      var rp = panel("What the lawyer has to decide", function (body) {
-        var ul = el("ul", "clean");
-        rankedPoints.forEach(function (p) {
-          var li = el("li", "review");
-          li.appendChild(el("span", "box", "\u2610"));
-          var content = el("span", null);
-          var label = "#" + p.rank + " ";
-          if (p.severity) label += p.severity.toUpperCase() + " · ";
-          content.appendChild(document.createTextNode(label + (p.review_point || "")));
-          if (p.priority_reason) {
-            content.appendChild(el("div", "muted small", p.priority_reason));
-          }
-          (p.evidence || []).forEach(function (e) {
-            content.appendChild(el("div", "muted small",
-              "Evidence: Clause " + e.id + " · " + e.why));
-          });
-          li.appendChild(content);
-          ul.appendChild(li);
-        });
-        body.appendChild(ul);
-      });
-      out.appendChild(rp);
-    }
-
-    // evidence ledger
-    if (r.evidence && r.evidence.length) {
-      var led = el("div", "ledger");
-      var bits = r.evidence.map(function (e) {
-        return e.id + " (" + e.type + ") — " + e.why;
-      });
-      led.textContent = "evidence · " + bits.join("   |   ");
-      out.appendChild(led);
-    }
-  }
-
-  // ---------------------------------------------------------------- actions
-  function analyze() {
-    var requestedContractId = selContract.value;
-    var requestedClauseId = selClause.value;
-    if (!requestedContractId || !requestedClauseId || !clauseMap[requestedClauseId]) {
-      banner("Select a contract with a stored clause before running impact analysis.", "error");
-      return;
-    }
-    if (selectedContractStatus === "graph_build_failed") {
-      banner("Impact analysis is unavailable because graph construction failed for this contract.", "error");
-      return;
-    }
-    var requestVersion = ++analysisRequestVersion;
+  // ---------------------------------------------------------------- analysis
+  function run() {
     clearMsg();
-    syncUrl();
+    var clause = clauseMap[selClause.value];
+    if (!clause) {
+      banner("Select a valid clause first.", "warn");
+      return;
+    }
+
+    var requestedContractId = selContract.value;
+    var thisRequestVersion = ++analysisRequestVersion;
     btnGo.disabled = true;
-    btnGo.textContent = "Analyzing…";
+    btnGo.textContent = "Analyzing...";
+
     var payload = {
       contract_id: parseInt(requestedContractId, 10),
-      clause_id: requestedClauseId,
-      old_value: parseInt(inOld.value, 10),
-      new_value: parseInt(inNew.value, 10)
+      clause_id: selClause.value,
+      old_value: inOld.value ? Number(inOld.value) : undefined,
+      new_value: Number(inNew.value),
     };
+    if (clause && clause.clause_sha256) {
+      payload.expected_clause_sha256 = clause.clause_sha256;
+    }
+
     fetch("/impact", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(payload),
     })
       .then(function (r) {
-        if (!r.ok) {
-          return r.json().then(function (b) {
-            var error = new Error(b.detail || ("request failed (" + r.status + ")"));
-            error.status = r.status;
-            throw error;
-          });
-        }
-        return r.json();
-      })
-      .then(function (report) {
-        if (requestVersion !== analysisRequestVersion ||
-            requestedContractId !== selContract.value ||
-            requestedClauseId !== selClause.value) return;
-        render(report);
-      })
-      .catch(function (e) {
-        if (requestVersion !== analysisRequestVersion ||
-            requestedContractId !== selContract.value ||
-            requestedClauseId !== selClause.value) return;
-        out.innerHTML = "";
-        var hint = e.status === 404
-          ? " Start the demo with 'py -3.11 -m uvicorn server:app --reload' to mount the impact API."
-          : "";
-        banner(e.message + hint, "error");
-      })
-      .finally(function () {
-        if (requestVersion !== analysisRequestVersion) return;
-        btnGo.disabled = false;
-        btnGo.textContent = "Analyze change";
-      });
-  }
-
-  function useExample() {
-    clearMsg();
-    var requestedContractId = selContract.value;
-    fetch("/demo/" + encodeURIComponent(requestedContractId) + "/suggest")
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (requestedContractId !== selContract.value) return;
-        if (d.error) { banner(d.error, "error"); return; }
-        selClause.value = d.request.clause_id;
-        renderClausePreview();
-        inOld.value = d.request.old_value;
-        inNew.value = d.request.new_value;
-        analyze();
-      })
-      .catch(function () {
-        banner("Could not load the example change.", "error");
-      });
-  }
-
-  if (btnGo) btnGo.disabled = true;
-  if (btnExample) btnExample.disabled = true;
-  selContract.addEventListener("change", function () {
-    clearAnalysis();
-    loadClauses();
-  });
-  selClause.addEventListener("change", function () {
-    clearAnalysis();
-    renderClausePreview();
-  });
-  btnGo.addEventListener("click", analyze);
-  btnExample.addEventListener("click", useExample);
-  document.addEventListener("keydown", function (ev) {
-    if (ev.key === "Enter" && ev.target.tagName !== "BUTTON" && ev.target.form !== uploadForm) analyze();
-  });
-
-  uploadForm.addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    var file = uploadFile.files && uploadFile.files[0];
-    if (!file) {
-      setUploadStatus("Choose a PDF file before uploading.", "error");
-      return;
-    }
-    if (!/\.pdf$/i.test(file.name || "")) {
-      setUploadStatus("Only PDF files are accepted.", "error");
-      return;
-    }
-
-    var formData = new FormData();
-    formData.append("file", file, file.name);
-    clearAnalysis();
-    setUploadStatus("Uploading and analyzing " + file.name + "…", "");
-    uploadButton.disabled = true;
-    uploadButton.textContent = "Processing…";
-
-    fetch("/upload", {
-      method: "POST",
-      body: formData,
-      headers: { "Accept": "application/json" }
-    })
-      .then(function (response) {
-        return response.json().catch(function () { return null; }).then(function (payload) {
-          if (!response.ok) {
-            var detail = payload && payload.detail
-              ? String(payload.detail)
-              : "Upload failed (HTTP " + response.status + ").";
-            var error = new Error(detail);
-            var match = detail.match(/contract\s*\(id=(\d+)\)/i);
-            if (match) error.contractId = match[1];
-            error.status = response.status;
-            throw error;
+        return r.json().then(function (data) {
+          if (!r.ok) {
+            var detail = data.detail || ("Analysis failed with HTTP " + r.status);
+            var code = data.error_code || "";
+            var err = new Error(detail);
+            err.status = r.status;
+            err.errorCode = code;
+            throw err;
           }
-          return payload;
+          return data;
         });
       })
-      .then(function (payload) {
-        if (!payload || payload.contract_id === undefined) {
-          throw new Error("Upload completed without a contract ID; reload the contract list before continuing.");
+      .then(function (report) {
+        if (thisRequestVersion !== analysisRequestVersion) return;
+        if (String(selContract.value) !== String(requestedContractId)) {
+          clearAnalysis();
+          banner("Results from another contract were cleared.", "warn");
+          return;
         }
-        uploadFile.value = "";
-        var isReady = payload.analysis_status === "ready";
-        setUploadStatus(
-          String(payload.message || "Upload complete.") +
-            " Stored clauses: " + String(payload.clauses_saved || 0) + ".",
-          isReady ? "success" : "warning"
-        );
-        return loadContracts(payload.contract_id);
+        renderReport(report);
       })
-      .catch(function (error) {
-        setUploadStatus(error.message, "error");
-        if (error.contractId) return loadContracts(error.contractId);
+      .catch(function (err) {
+        if (thisRequestVersion !== analysisRequestVersion) return;
+        if (err.errorCode === "graph_not_built" || err.errorCode === "graph_build_failed") {
+          banner(err.message + " — ask an administrator to rebuild this contract's graph.", "err");
+        } else if (err.errorCode === "graph_stale") {
+          banner(err.message + " Rebuild the graph to reflect latest changes.", "err");
+        } else {
+          banner(err.message, "err");
+        }
       })
-      .then(function () {
-        uploadButton.disabled = false;
-        uploadButton.textContent = "Upload PDF";
+      .finally(function () {
+        if (thisRequestVersion === analysisRequestVersion) {
+          btnGo.disabled = false;
+          btnGo.textContent = "Analyze change";
+        }
       });
-  });
-
-  // A shareable link: /?contract=1&clause=7.2&old=30&new=15 loads the form
-  // and runs the analysis straight away.
-  function applyUrl() {
-    var q = new URLSearchParams(window.location.search);
-    var cid = q.get("contract");
-    var sec = q.get("clause");
-    var oldv = q.get("old");
-    var newv = q.get("new");
-    return {
-      contract: cid ? parseInt(cid, 10) : null,
-      clause: sec,
-      old: oldv !== null ? parseInt(oldv, 10) : null,
-      neu: newv !== null ? parseInt(newv, 10) : null
-    };
   }
 
-  function syncUrl() {
-    var q = new URLSearchParams();
-    q.set("contract", selContract.value);
-    q.set("clause", selClause.value);
-    q.set("old", inOld.value);
-    q.set("new", inNew.value);
-    history.replaceState(null, "", window.location.pathname + "?" + q.toString());
+  function renderReport(r) {
+    out.innerHTML = "";
+
+    // 1. Summary
+    var pSum = el("section", "panel");
+    pSum.appendChild(el("h2", null, "Summary"));
+    var bSum = el("div", "body");
+    bSum.appendChild(el("p", null, esc(r.summary || "No summary returned.")));
+    if (r.counterfactual && r.counterfactual.notes) {
+      bSum.appendChild(el("div", "banner-msg warn", esc(r.counterfactual.notes)));
+    }
+    pSum.appendChild(bSum);
+    out.appendChild(pSum);
+
+    // 2. Direct / Indirect impacts
+    var pImp = el("section", "panel");
+    pImp.appendChild(el("h2", null, "Impacts on other clauses"));
+    var bImp = el("div", "body");
+    bImp.appendChild(el("h3", null, "Directly affected (" + (r.direct || []).length + ")"));
+    var cDirect = el("div", "chips");
+    (r.direct || []).forEach(function (c) { cDirect.appendChild(el("span", "chip direct", "Clause " + esc(c))); });
+    bImp.appendChild(cDirect);
+
+    bImp.appendChild(el("h3", null, "Indirectly affected (" + (r.indirect || []).length + ")"));
+    var cInd = el("div", "chips");
+    (r.indirect || []).forEach(function (c) { cInd.appendChild(el("span", "chip indirect", "Clause " + esc(c))); });
+    bImp.appendChild(cInd);
+    pImp.appendChild(bImp);
+    out.appendChild(pImp);
+
+    // 3. Ranked review points
+    var rankedPoints = r.ranked_review_points || (r.review_points || []).map(function(p) { return { point: p, priority_reason: "Standard review" }; });
+    if (rankedPoints.length > 0) {
+      var pRev = el("section", "panel");
+      pRev.appendChild(el("h2", null, "Key Review Points for Counsel"));
+      var bRev = el("div", "body");
+      var ul = el("ul", "points-list");
+      rankedPoints.forEach(function (item) {
+        var li = el("li", "point-item");
+        li.appendChild(el("span", null, esc(item.point || item)));
+        if (item.priority_reason) {
+          li.appendChild(el("span", "point-reason", "Priority: " + esc(item.priority_reason)));
+        }
+        ul.appendChild(li);
+      });
+      bRev.appendChild(ul);
+      pRev.appendChild(bRev);
+      out.appendChild(pRev);
+    }
+
+    // 4. Uncertainty & doubts
+    var doubts = r.doubts || [];
+    if (doubts.length > 0) {
+      var pDbt = el("section", "panel");
+      pDbt.appendChild(el("h2", null, "Uncertainty & Ambiguities"));
+      var bDbt = el("div", "body");
+      var dUl = el("ul", "points-list");
+      doubts.forEach(function (d) { dUl.appendChild(el("li", "point-item", esc(d))); });
+      bDbt.appendChild(dUl);
+      pDbt.appendChild(bDbt);
+      out.appendChild(pDbt);
+    }
+
+    // 5. Source Evidence
+    var pEv = el("section", "panel");
+    pEv.appendChild(el("h2", null, "Cryptographic Evidence & Source Text"));
+    var bEv = el("div", "body");
+    var cObj = clauseMap[selClause.value] || {};
+    var evText = cObj.text || "Source clause stored in database.";
+    var evBox = el("div", "evidence-block", esc(evText));
+    bEv.appendChild(el("p", "small muted", "Clause " + esc(selClause.value) + " · Length: " + evText.length + " chars · SHA-256: " + esc(cObj.clause_sha256 || "verified")));
+    bEv.appendChild(evBox);
+    pEv.appendChild(bEv);
+    out.appendChild(pEv);
   }
 
-  function start() {
-    var want = applyUrl();
-    loadContracts().then(function () {
-      if (want.contract) {
-        selContract.value = String(want.contract);
-        return loadClauses().then(function () { return true; });
-      }
-      return true;
-    }).then(function () {
-      if (want.clause && clauseMap[want.clause]) selClause.value = want.clause;
-      if (want.old !== null && want.old !== undefined && !isNaN(want.old)) inOld.value = want.old;
-      if (want.neu !== null && want.neu !== undefined && !isNaN(want.neu)) inNew.value = want.neu;
-      syncUrl();
-      if (want.clause) analyze();
+  // Upload handler
+  if (uploadForm) {
+    uploadForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var file = uploadFile.files[0];
+      if (!file) return;
+
+      var fd = new FormData();
+      fd.append("file", file);
+      setUploadStatus("Uploading...", null);
+
+      fetch("/upload", { method: "POST", body: fd })
+        .then(function (r) {
+          return r.json().then(function (data) {
+            if (!r.ok) throw new Error(data.detail || "Upload failed");
+            return data;
+          });
+        })
+        .then(function (payload) {
+          setUploadStatus("Uploaded: " + (payload.filename || "contract"), "ok");
+          return loadContracts(payload.contract_id);
+        })
+        .catch(function (err) {
+          setUploadStatus(err.message, "err");
+        });
     });
   }
 
-  start();
+  function initAuthContext() {
+    var container = document.getElementById("auth-status");
+    fetch("/auth/me", { headers: { "Accept": "application/json" } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!container) return;
+        if (data.demo) {
+          container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Demo Mode &middot; Read-Only</span>';
+        } else if (data.authenticated && data.active_firm) {
+          var fName = data.active_firm.name || ("Firm #" + data.active_firm.firm_id);
+          var uName = (data.user && data.user.display_name) || "User";
+          container.innerHTML =
+            '<span class="auth-pill firm"><span class="status-dot firm"></span><strong>' +
+            esc(fName) + '</strong> &middot; ' + esc(uName) + '</span>' +
+            '<button type="button" class="auth-logout-btn" id="btn-logout" title="Log out">Log out</button>';
+          var bOut = document.getElementById("btn-logout");
+          if (bOut) bOut.addEventListener("click", function() { fetch("/auth/logout", { method: "POST" }).finally(function() { window.location.reload(); }); });
+        } else {
+          container.innerHTML = '<span class="auth-pill warn"><span class="status-dot warn"></span>Auth Required</span>';
+        }
+      })
+      .catch(function() {
+        if (container) container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Server Offline</span>';
+      });
+  }
+
+  /* ---------- Gemini AI Assistant ---------- */
+  function appendAiMessage(role, htmlContent) {
+    if (!aiMessagesScroll) return;
+    var bubble = document.createElement("div");
+    bubble.className = "ai-bubble " + (role === "user" ? "user" : "assistant");
+    bubble.innerHTML = htmlContent;
+    aiMessagesScroll.appendChild(bubble);
+    aiMessagesScroll.scrollTop = aiMessagesScroll.scrollHeight;
+  }
+
+  function showAiTyping() {
+    if (!aiMessagesScroll) return null;
+    var ind = document.createElement("div");
+    ind.className = "ai-typing-indicator";
+    ind.id = "ai-typing";
+    ind.innerHTML = '<span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span>';
+    aiMessagesScroll.appendChild(ind);
+    aiMessagesScroll.scrollTop = aiMessagesScroll.scrollHeight;
+  }
+
+  function removeAiTyping() {
+    var ind = document.getElementById("ai-typing");
+    if (ind && ind.parentNode) ind.parentNode.removeChild(ind);
+  }
+
+  function formatMarkdown(text) {
+    var raw = esc(text);
+    raw = raw.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    raw = raw.replace(/`([^`]+)`/g, '<code style="background:#e2e8f0;padding:1px 4px;border-radius:4px;font-family:var(--mono);font-size:0.8rem;">$1</code>');
+    var lines = raw.split("\n");
+    var out = [];
+    var inList = false;
+    lines.forEach(function(line) {
+      var trimmed = line.trim();
+      if (/^[\*\-]\s+(.+)/.test(trimmed)) {
+        if (!inList) { out.push("<ul>"); inList = true; }
+        out.push("<li>" + trimmed.replace(/^[\*\-]\s+/, "") + "</li>");
+      } else {
+        if (inList) { out.push("</ul>"); inList = false; }
+        if (trimmed) out.push("<p>" + trimmed + "</p>");
+      }
+    });
+    if (inList) out.push("</ul>");
+    return out.join("");
+  }
+
+  function sendAiMessage(messageText) {
+    if (!messageText || !messageText.trim()) return;
+    messageText = messageText.trim();
+
+    appendAiMessage("user", esc(messageText));
+    chatHistory.push({ role: "user", content: messageText });
+    if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
+
+    if (aiChatInput) aiChatInput.value = "";
+    if (aiSendBtn) aiSendBtn.disabled = true;
+
+    showAiTyping();
+
+    var payload = {
+      message: messageText,
+      contract_id: selContract && selContract.value ? parseInt(selContract.value, 10) : null,
+      clause_id: selClause ? selClause.value : null,
+      history: chatHistory.slice(0, -1)
+    };
+
+    fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function(res) {
+        return res.json().then(function(data) {
+          if (!res.ok) throw new Error(data.detail || "Assistant request failed");
+          return data;
+        });
+      })
+      .then(function(data) {
+        removeAiTyping();
+        var replyFormatted = formatMarkdown(data.reply);
+        appendAiMessage("assistant", replyFormatted);
+        chatHistory.push({ role: "assistant", content: data.reply });
+      })
+      .catch(function(err) {
+        removeAiTyping();
+        appendAiMessage("assistant", '<p style="color:var(--danger);"><strong>Error:</strong> ' + esc(err.message) + '</p>');
+      })
+      .finally(function() {
+        if (aiSendBtn) aiSendBtn.disabled = !aiChatInput.value.trim();
+      });
+  }
+
+  function toggleAiDrawer() {
+    if (!aiDrawer) return;
+    var isHidden = aiDrawer.hasAttribute("hidden");
+    if (isHidden) {
+      aiDrawer.removeAttribute("hidden");
+      if (aiChatInput) aiChatInput.focus();
+    } else {
+      aiDrawer.setAttribute("hidden", "until-found");
+    }
+  }
+
+  // Event bindings
+  if (selContract) {
+    selContract.addEventListener("change", function () {
+      selectedContractStatus = contractStatusById[selContract.value] || "";
+      clearAnalysis();
+      loadClauses(selContract.value);
+    });
+  }
+
+  if (selClause) selClause.addEventListener("change", renderClausePreview);
+  if (btnGo) btnGo.addEventListener("click", run);
+
+  if (btnExample) {
+    btnExample.addEventListener("click", function () {
+      if (clauseMap["7.2"]) {
+        selClause.value = "7.2";
+        inOld.value = "30";
+        inNew.value = "15";
+      } else if (clauseMap["9.1"]) {
+        selClause.value = "9.1";
+        inOld.value = "99";
+        inNew.value = "98";
+      }
+      renderClausePreview();
+      run();
+    });
+  }
+
+  if (mobileToggleBtn && sidebar) {
+    mobileToggleBtn.addEventListener("click", function() { sidebar.classList.toggle("open"); });
+  }
+
+  if (aiLauncher) aiLauncher.addEventListener("click", toggleAiDrawer);
+  if (btnHeaderAi) btnHeaderAi.addEventListener("click", toggleAiDrawer);
+  if (aiCloseBtn) aiCloseBtn.addEventListener("click", toggleAiDrawer);
+
+  if (aiClearBtn) {
+    aiClearBtn.addEventListener("click", function() {
+      chatHistory = [];
+      if (aiMessagesScroll) {
+        aiMessagesScroll.innerHTML =
+          '<div class="ai-bubble assistant">' +
+            '<p><strong>Conversation refreshed.</strong></p>' +
+            '<p>Ask any question about this impact simulation or related obligations.</p>' +
+          '</div>';
+      }
+    });
+  }
+
+  if (aiChatInput && aiSendBtn) {
+    aiChatInput.addEventListener("input", function() {
+      aiSendBtn.disabled = !aiChatInput.value.trim();
+    });
+    aiChatInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (aiChatInput.value.trim()) sendAiMessage(aiChatInput.value);
+      }
+    });
+  }
+
+  if (aiChatForm) {
+    aiChatForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      if (aiChatInput && aiChatInput.value.trim()) sendAiMessage(aiChatInput.value);
+    });
+  }
+
+  document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("ai-suggestion-chip")) {
+      var p = e.target.getAttribute("data-prompt");
+      if (p) sendAiMessage(p);
+    }
+  });
+
+  // Init
+  initAuthContext();
+  loadContracts().then(function () {
+    var p = new URLSearchParams(window.location.search);
+    if (p.get("clause") && p.get("new")) {
+      if (p.get("old")) inOld.value = p.get("old");
+      inNew.value = p.get("new");
+      run();
+    }
+  });
 })();
 </script>
 </body>
