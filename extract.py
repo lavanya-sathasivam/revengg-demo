@@ -1,7 +1,101 @@
 import os
 import re
+from time import monotonic as _monotonic
 
 import pymupdf  # PyMuPDF
+
+PDF_MAGIC = b"%PDF-"
+
+
+class PDFValidationError(ValueError):
+    """A PDF was rejected for a defined, client-safe reason.
+
+    ``code`` is stable enough to use in audit metadata; ``public_message`` is
+    safe to return to the caller and never contains parser internals, file
+    paths, or document text.
+    """
+
+    code = "pdf_validation_failed"
+    status_code = 422
+    public_message = "The PDF could not be processed."
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        code: str | None = None,
+        status_code: int | None = None,
+    ):
+        if code is not None:
+            self.code = code
+        if status_code is not None:
+            self.status_code = status_code
+        self.public_message = message or self.public_message
+        super().__init__(self.public_message)
+
+
+class UnsupportedFileTypeError(PDFValidationError):
+    code = "not_a_pdf"
+    # A .pdf-named upload with non-PDF bytes has passed the extension check and
+    # is treated as a malformed PDF, not as an unsupported extension.
+    status_code = 422
+    public_message = "The uploaded file does not contain PDF data."
+
+
+class MalformedPDFError(PDFValidationError):
+    code = "malformed_pdf"
+    public_message = (
+        "The PDF is malformed or structurally damaged and cannot be processed."
+    )
+
+
+class EncryptedPDFError(PDFValidationError):
+    code = "encrypted_pdf"
+    public_message = (
+        "Encrypted PDFs are not supported. Upload an unencrypted, "
+        "text-selectable PDF."
+    )
+
+
+class PDFPageLimitError(PDFValidationError):
+    code = "page_limit_exceeded"
+    status_code = 413
+    public_message = "The PDF exceeds the configured page limit."
+
+
+class PDFTextLimitError(PDFValidationError):
+    code = "text_limit_exceeded"
+    status_code = 413
+    public_message = "The PDF text exceeds the configured processing limit."
+
+
+class PDFProcessingTimeoutError(PDFValidationError):
+    code = "processing_timeout"
+    public_message = "PDF processing exceeded the configured time limit."
+
+
+class PDFExtractionFailedError(PDFValidationError):
+    code = "extraction_failed"
+    public_message = "Text could not be extracted from the PDF."
+
+
+class NoExtractableTextError(PDFValidationError):
+    code = "no_extractable_text"
+    public_message = (
+        "No usable extractable text was found. The PDF may be a scanned "
+        "document and require OCR, which is outside the current scope."
+    )
+
+
+def _check_positive_limit(name: str, value):
+    if value is not None and value <= 0:
+        raise ValueError(f"{name} must be greater than zero.")
+
+
+def _check_deadline(deadline):
+    if deadline is not None and _monotonic() > deadline:
+        raise PDFProcessingTimeoutError()
+
 
 # --- Detection rules for split_clauses() -------------------------------------
 # 1. A candidate heading line starts with a 1-2 digit number followed by '.'
@@ -24,46 +118,111 @@ _SIGNATURE_RE = re.compile(r"^\s*IN\s+WITNESS\s+WHEREOF", re.IGNORECASE)
 _LOOKAHEAD_LINES = 3
 
 
-def extract_text(pdf_path):
-    """
-    Extract text from a PDF file, page by page.
+def extract_text(
+    pdf_path,
+    *,
+    max_pages=None,
+    max_extracted_chars=None,
+    max_processing_seconds=None,
+):
+    """Extract text from a text-selectable PDF, with bounded processing.
 
-    Returns a single string containing all page text joined with newlines
-    between pages. Raises clear exceptions on missing, invalid, or unreadable
-    PDFs. Raises ValueError when no extractable text is found (e.g. scanned
-    PDFs that require OCR).
+    Validation is layered: the file must start with the PDF magic bytes, the
+    parser must open it, it must not be encrypted or structurally repaired, it
+    must contain at least one page, and it must yield usable text.  Optional
+    limits cap the page count, the accumulated extracted characters, and the
+    elapsed processing time.
+
+    The time limit is cooperative: it is checked before opening, between
+    pages, and after the last page.  It cannot interrupt a single hung parser
+    call; a hard preemptive timeout would require a separate worker process.
+
+    Raises a ``PDFValidationError`` subclass for defined rejections.  Messages
+    contain no parser internals, no file paths, and no document text.
     """
-    if not os.path.isfile(pdf_path):
-        raise FileNotFoundError(f"PDF file not found: {os.path.basename(pdf_path)}")
+    _check_positive_limit("max_pages", max_pages)
+    _check_positive_limit("max_extracted_chars", max_extracted_chars)
+    _check_positive_limit("max_processing_seconds", max_processing_seconds)
+
+    path = os.fspath(pdf_path)
+    if not os.path.isfile(path):
+        raise FileNotFoundError("PDF file not found.")
+
+    deadline = None
+    if max_processing_seconds is not None:
+        deadline = _monotonic() + max_processing_seconds
+    _check_deadline(deadline)
+
+    # Read the already size-bounded staged file once and parse from memory.
+    # Passing a path to PyMuPDF can leave a Windows file handle behind when a
+    # malformed document fails to open, which would prevent deleting rejected
+    # bytes. The upload route enforces the size limit before this point.
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+    except OSError as exc:
+        raise PDFExtractionFailedError() from exc
+    if not data.startswith(PDF_MAGIC):
+        raise UnsupportedFileTypeError()
+    _check_deadline(deadline)
 
     try:
-        doc = pymupdf.open(pdf_path)
+        doc = pymupdf.open(stream=data, filetype="pdf")
     except Exception as exc:
-        raise ValueError(
-            f"Unable to open PDF. The file may be corrupted or not a valid PDF: {os.path.basename(pdf_path)}"
-        ) from exc
+        raise MalformedPDFError() from exc
 
     try:
-        pages = []
-        for page in doc:
-            pages.append(page.get_text("text"))
-        text = "\n".join(pages).strip()
-        if not text:
-            raise ValueError(
-                f"No extractable text found in PDF: {os.path.basename(pdf_path)}. "
-                "The PDF may be a scanned document and require OCR, which is "
-                "outside the initial scope."
+        # Reject every encrypted document, including one that would open with
+        # an empty password.  Do not attempt password authentication.
+        if doc.needs_pass or getattr(doc, "is_encrypted", False):
+            raise EncryptedPDFError()
+
+        page_count = doc.page_count
+        if page_count <= 0:
+            raise NoExtractableTextError()
+        if max_pages is not None and page_count > max_pages:
+            raise PDFPageLimitError(
+                f"The PDF has {page_count} pages; the maximum allowed is "
+                f"{max_pages}."
             )
+
+        # A structurally repaired file is malformed input.  Rejecting it
+        # avoids treating a partially reconstructed document as authoritative.
+        if getattr(doc, "is_repaired", False):
+            raise MalformedPDFError()
+
+        parts = []
+        total_chars = 0
+        for index in range(page_count):
+            _check_deadline(deadline)
+            try:
+                page_text = doc.load_page(index).get_text("text")
+            except Exception as exc:
+                raise PDFExtractionFailedError() from exc
+
+            separator = 1 if parts else 0
+            total_chars += len(page_text) + separator
+            if (
+                max_extracted_chars is not None
+                and total_chars > max_extracted_chars
+            ):
+                raise PDFTextLimitError(
+                    "The PDF text exceeds the configured maximum of "
+                    f"{max_extracted_chars} characters."
+                )
+            parts.append(page_text)
+
+        _check_deadline(deadline)
+        text = "\n".join(parts).strip()
+        if not text or not any(character.isalnum() for character in text):
+            raise NoExtractableTextError()
         return text
-    except ValueError:
-        # Re-raise the clear "no extractable text" error unchanged
+    except PDFValidationError:
         raise
     except Exception as exc:
-        raise ValueError(
-            f"Failed while reading pages from PDF: {os.path.basename(pdf_path)}"
-        ) from exc
+        raise PDFExtractionFailedError() from exc
     finally:
-        # Always close the document, even if an error occurred above
+        # Always close the document, even if an error occurred above.
         doc.close()
 
 

@@ -9,7 +9,9 @@ import hashlib
 import logging
 import os
 import re
+import tempfile
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
@@ -18,29 +20,126 @@ import audit
 import auth
 import clauses as clause_tools
 import db
+from app_config import DEFAULT_UPLOAD_MAX_BYTES
 from db import (
     get_conn,
     list_clauses,
     save_clauses,
 )
-from extract import extract_text
+from extract import PDFValidationError, extract_text
 import graph
 from reasoning import explain_with_retrieval
 
 logger = logging.getLogger("app")
 
-# Reasonable upload size limit (10 MB)
-MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+# The historical constant remains for callers that import it. The actual
+# per-request value comes from AppSettings and is configurable.
+MAX_UPLOAD_SIZE = DEFAULT_UPLOAD_MAX_BYTES
 CHUNK_SIZE = 1024 * 1024  # copy uploads in 1 MB chunks to avoid big memory use
+TEMP_PREFIX = ".upload-"
+TEMP_SUFFIX = ".part"
 
 router = APIRouter(tags=["contracts"])
 
 
+class UploadValidationError(HTTPException):
+    """An HTTP rejection with a stable reason code for audit metadata."""
+
+    def __init__(self, status_code: int, detail: str, *, reason: str):
+        super().__init__(status_code=status_code, detail=detail)
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class StagedUpload:
+    """A validated-size upload in temporary storage, not yet published."""
+
+    temp_path: Path
+    original_name: str
+    size_bytes: int
+    sha256: str
+
+
 def sanitize_filename(filename: str) -> str:
-    """Return a safe filename: no folders, only simple characters, .pdf kept."""
-    name = os.path.basename(filename or "")
+    """Return a safe display filename: no folders, only simple characters.
+
+    The result is metadata only. It is never used as a filesystem path; storage
+    names are generated independently.
+    """
+    name = str(filename or "").replace("\\", "/")
+    name = os.path.basename(name)
     name = re.sub(r"[^A-Za-z0-9._-]", "_", name)
+    if len(name) > 255:
+        stem, dot, suffix = name.rpartition(".")
+        if dot and 0 < len(suffix) <= 10:
+            name = stem[: 255 - len(suffix) - 1] + "." + suffix
+        else:
+            name = name[:255]
     return name or "contract.pdf"
+
+
+def _format_size_limit(max_bytes: int) -> str:
+    if max_bytes >= 1024 * 1024:
+        return f"{max_bytes // (1024 * 1024)} MB"
+    if max_bytes >= 1024:
+        return f"{max_bytes // 1024} KB"
+    return f"{max_bytes} bytes"
+
+
+def _is_within_root(root, candidate) -> bool:
+    try:
+        root_path = os.path.normcase(str(Path(root).resolve()))
+        candidate_path = os.path.normcase(str(Path(candidate).resolve()))
+        return os.path.commonpath([root_path, candidate_path]) == root_path
+    except (OSError, ValueError):
+        return False
+
+
+def _confined_path(root, candidate) -> Path:
+    if not _is_within_root(root, candidate):
+        raise UploadValidationError(
+            500,
+            "The configured upload storage is not usable.",
+            reason="storage_path_invalid",
+        )
+    return Path(candidate).resolve()
+
+
+def _firm_storage_dir(root: Path, firm_id: int) -> Path:
+    if not isinstance(firm_id, int) or isinstance(firm_id, bool):
+        raise UploadValidationError(
+            500,
+            "The configured upload storage is not usable.",
+            reason="storage_firm_invalid",
+        )
+    return _confined_path(root, Path(root) / ("firm-%d" % firm_id))
+
+
+def _delete_file(path) -> None:
+    try:
+        Path(path).unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Could not remove an upload file")
+
+
+def cleanup_stale_upload_temps(upload_dir) -> int:
+    """Remove abandoned staging files on startup.
+
+    Only files created by this application's staging prefix are removed. The
+    database and accepted documents are never touched.
+    """
+    root = Path(upload_dir)
+    if not root.is_dir():
+        return 0
+    removed = 0
+    for path in root.glob(TEMP_PREFIX + "*" + TEMP_SUFFIX):
+        try:
+            if path.is_file():
+                path.unlink()
+                removed += 1
+        except OSError:
+            logger.warning("Could not remove an abandoned upload staging file")
+    return removed
 
 
 def _file_sha256(path) -> str:
@@ -59,6 +158,59 @@ def _actor_fields(principal):
     if principal is not None and principal.authenticated and not principal.demo:
         return {"actor_user_id": principal.user_id, "actor_type": "user"}
     return {"actor_type": "system"}
+
+
+def _record_upload_event(
+    action,
+    outcome,
+    principal,
+    firm_id,
+    *,
+    metadata=None,
+    correlation_id=None,
+):
+    """Record a non-success upload event without turning it into a 500."""
+    audit.record_event(
+        action,
+        outcome,
+        firm_id=firm_id,
+        target_type="upload",
+        correlation_id=correlation_id,
+        metadata=metadata or {},
+        swallow=True,
+        **_actor_fields(principal),
+    )
+
+
+def _record_upload_rejection(
+    principal,
+    firm_id,
+    original_name,
+    reason,
+    *,
+    status_code=None,
+    declared_mime=None,
+    size_bytes=None,
+    sha256=None,
+    correlation_id=None,
+):
+    metadata = {"reason": reason, "filename": original_name}
+    if status_code is not None:
+        metadata["status_code"] = status_code
+    if declared_mime:
+        metadata["declared_mime"] = str(declared_mime)[:120]
+    if size_bytes is not None:
+        metadata["size_bytes"] = size_bytes
+    if sha256:
+        metadata["source_sha256"] = sha256
+    _record_upload_event(
+        "upload.rejected",
+        "failure",
+        principal,
+        firm_id,
+        metadata=metadata,
+        correlation_id=correlation_id,
+    )
 
 
 def _upload_settings(request: Request):
@@ -86,48 +238,126 @@ def _upload_settings(request: Request):
     return settings
 
 
-def save_upload(upload: UploadFile, upload_dir: Path) -> tuple[str, str]:
+def stage_upload(
+    upload: UploadFile,
+    upload_dir: Path,
+    *,
+    max_bytes: int = MAX_UPLOAD_SIZE,
+    original_name: str | None = None,
+) -> StagedUpload:
+    """Stream an upload into a temporary file under the storage root.
+
+    The filename is never used as a path. The temp file is created with a
+    server-generated name, and the caller must publish it only after content
+    validation succeeds. On any failure the temp file is removed.
     """
-    Stream the uploaded file to upload_dir/ in 1 MB chunks.
+    display_name = sanitize_filename(
+        original_name if original_name is not None else upload.filename
+    )
+    if not display_name.lower().endswith(".pdf"):
+        raise UploadValidationError(
+            400, "Only PDF files are accepted.", reason="unsupported_extension"
+        )
 
-    Returns (saved_path, safe_original_name). Raises HTTPException on empty
-    filename or if the file exceeds MAX_UPLOAD_SIZE (partial file is removed).
-    """
-    original_name = sanitize_filename(upload.filename)
-    if not original_name.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
+    try:
+        root = Path(upload_dir).expanduser().resolve()
+        root.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise UploadValidationError(
+            500, "Upload storage is not available.", reason="storage_unavailable"
+        ) from exc
 
-    unique_name = f"{uuid.uuid4().hex[:12]}_{original_name}"
-    saved_path = Path(upload_dir) / unique_name
+    try:
+        descriptor, temp_name = tempfile.mkstemp(
+            prefix=TEMP_PREFIX, suffix=TEMP_SUFFIX, dir=root
+        )
+    except OSError as exc:
+        raise UploadValidationError(
+            500, "Upload storage is not available.", reason="storage_unavailable"
+        ) from exc
 
+    temp_path = Path(temp_name)
+    digest = hashlib.sha256()
     total = 0
     try:
-        saved_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(saved_path, "wb") as out:
+        try:
+            out = os.fdopen(descriptor, "wb")
+        except Exception:
+            os.close(descriptor)
+            raise
+        with out:
             while True:
                 chunk = upload.file.read(CHUNK_SIZE)
                 if not chunk:
                     break
                 total += len(chunk)
-                if total > MAX_UPLOAD_SIZE:
-                    raise HTTPException(
-                        status_code=413,
-                        detail=f"File too large. Maximum allowed size is {MAX_UPLOAD_SIZE // (1024 * 1024)} MB.",
+                if total > max_bytes:
+                    raise UploadValidationError(
+                        413,
+                        "File too large. Maximum allowed size is "
+                        f"{_format_size_limit(max_bytes)}.",
+                        reason="file_too_large",
                     )
+                digest.update(chunk)
                 out.write(chunk)
-    except HTTPException:
-        saved_path.unlink(missing_ok=True)
+        if total == 0:
+            raise UploadValidationError(
+                400, "Uploaded file is empty.", reason="empty_file"
+            )
+        return StagedUpload(
+            temp_path=temp_path,
+            original_name=display_name,
+            size_bytes=total,
+            sha256=digest.hexdigest(),
+        )
+    except UploadValidationError:
+        _delete_file(temp_path)
         raise
-    except OSError:
-        saved_path.unlink(missing_ok=True)
-        logger.exception("Failed to save uploaded file")
-        raise HTTPException(status_code=500, detail="Could not save the uploaded file.")
+    except OSError as exc:
+        _delete_file(temp_path)
+        logger.exception("Could not stage the uploaded file")
+        raise UploadValidationError(
+            500, "Could not save the uploaded file.", reason="storage_write_failed"
+        ) from exc
+    except Exception:
+        _delete_file(temp_path)
+        raise
 
-    if total == 0:
-        saved_path.unlink(missing_ok=True)
-        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    return str(saved_path), original_name
+def publish_staged_upload(
+    staged: StagedUpload, upload_dir: Path, firm_id: int
+) -> Path:
+    """Move a staged file to its firm-scoped, server-named final path."""
+    root = Path(upload_dir).expanduser().resolve()
+    _confined_path(root, staged.temp_path)
+    firm_dir = _firm_storage_dir(root, firm_id)
+    try:
+        firm_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise UploadValidationError(
+            500, "Upload storage is not available.", reason="storage_unavailable"
+        ) from exc
+
+    final_path = _confined_path(root, firm_dir / ("%s.pdf" % uuid.uuid4().hex))
+    try:
+        os.replace(staged.temp_path, final_path)
+    except OSError as exc:
+        _delete_file(staged.temp_path)
+        raise UploadValidationError(
+            500, "Could not publish the uploaded file.", reason="storage_publish_failed"
+        ) from exc
+    return final_path
+
+
+def save_upload(upload: UploadFile, upload_dir: Path) -> tuple[str, str]:
+    """Backward-compatible staging helper.
+
+    Returns the temporary path and safe display name. Callers that accept an
+    upload must validate it and then call ``publish_staged_upload``. The route
+    uses ``stage_upload`` directly so it can also inspect the hash and size.
+    """
+    staged = stage_upload(upload, upload_dir, max_bytes=MAX_UPLOAD_SIZE)
+    return str(staged.temp_path), staged.original_name
 
 
 def save_contract_with_trace(
@@ -150,6 +380,7 @@ def save_contract_with_trace(
     clause_splitter_version=None,
     audit_action=None,
     audit_outcome="success",
+    audit_metadata=None,
     correlation_id=None,
 ) -> int:
     """
@@ -212,6 +443,17 @@ def save_contract_with_trace(
             (contract_id, action, details, now),
         )
         if audit_action:
+            metadata = {
+                "filename": filename,
+                "processing_status": status,
+                "version_id": version_id,
+                "source_sha256": source_sha256,
+                "source_size_bytes": source_size_bytes,
+                "source_mime": source_mime,
+                "extraction_status": extraction_status,
+            }
+            if audit_metadata:
+                metadata.update(audit_metadata)
             audit.record_event(
                 conn=conn,
                 commit=False,
@@ -223,15 +465,7 @@ def save_contract_with_trace(
                 target_type="contract",
                 target_id=contract_id,
                 correlation_id=correlation_id,
-                metadata={
-                    "filename": filename,
-                    "processing_status": status,
-                    "version_id": version_id,
-                    "source_sha256": source_sha256,
-                    "source_size_bytes": source_size_bytes,
-                    "source_mime": source_mime,
-                    "extraction_status": extraction_status,
-                },
+                metadata=metadata,
             )
         conn.commit()
         return contract_id
@@ -400,86 +634,231 @@ def health() -> dict:
 
 @router.post("/upload")
 def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
-    """
-    Accept a PDF contract, extract its text, and store both in SQLite.
+    """Accept, validate, persist, and analyze one text-selectable PDF.
 
-    On success: stores status 'extracted' + trace, splits the text into
-    clauses, classifies them, builds the contract graph, and returns its ID
-    and processing summary.
-    On extraction failure (e.g. scanned/empty PDF): stores status
-    'extraction_failed' + trace, then returns HTTP 422 with a clear message.
-    Clauses are only ever saved after a successful extraction.
+    Authorization is checked before any upload bytes are staged or stored.
+    The upload is streamed to a temporary file, validated for content and
+    resource limits, and only then published under a server-generated path in
+    the active firm's storage directory. A failed validation never publishes a
+    file or a successful lifecycle event; a parse-stage failure records a
+    failed version with provenance but no stored bytes.
     """
     settings = _upload_settings(request)
     principal = auth.principal_from_request(request)
     firm_id = auth.require_upload_permission(principal)
 
-    content_length = request.headers.get("content-length")
-    if content_length and content_length.isdigit() and int(content_length) > MAX_UPLOAD_SIZE + 1024:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large. Maximum allowed size is {MAX_UPLOAD_SIZE // (1024 * 1024)} MB.",
-        )
-
-    saved_path, original_name = save_upload(file, settings.upload_dir)
-
-    try:
-        source_sha256 = _file_sha256(saved_path)
-        source_size_bytes = os.path.getsize(saved_path)
-    except OSError:
-        Path(saved_path).unlink(missing_ok=True)
-        logger.exception("Could not hash the saved upload %s", saved_path)
-        raise HTTPException(
-            status_code=500, detail="Could not read the uploaded file after saving it."
-        )
-
+    max_bytes = getattr(settings, "upload_max_bytes", MAX_UPLOAD_SIZE)
+    max_pages = getattr(settings, "upload_max_pages", None)
+    max_extracted_chars = getattr(
+        settings, "upload_max_extracted_chars", None
+    )
+    max_processing_seconds = getattr(
+        settings, "upload_max_processing_seconds", None
+    )
     correlation_id = uuid.uuid4().hex
-    source_mime = "application/pdf"
+    original_name = sanitize_filename(file.filename)
+
+    if not original_name.lower().endswith(".pdf"):
+        _record_upload_rejection(
+            principal,
+            firm_id,
+            original_name,
+            "unsupported_extension",
+            status_code=400,
+            declared_mime=file.content_type,
+            correlation_id=correlation_id,
+        )
+        raise UploadValidationError(
+            400, "Only PDF files are accepted.", reason="unsupported_extension"
+        )
+
+    content_length = request.headers.get("content-length")
+    if (
+        content_length
+        and content_length.isdigit()
+        and int(content_length) > max_bytes + 1024
+    ):
+        _record_upload_rejection(
+            principal,
+            firm_id,
+            original_name,
+            "file_too_large",
+            status_code=413,
+            declared_mime=file.content_type,
+            correlation_id=correlation_id,
+        )
+        raise UploadValidationError(
+            413,
+            "File too large. Maximum allowed size is "
+            f"{_format_size_limit(max_bytes)}.",
+            reason="file_too_large",
+        )
 
     try:
-        text = extract_text(saved_path)
-    except (FileNotFoundError, ValueError) as exc:
-        # Extraction failed: record the failed version and trace, then tell the
-        # client clearly. No clauses are saved on this path.
+        staged = stage_upload(
+            file,
+            settings.upload_dir,
+            max_bytes=max_bytes,
+            original_name=original_name,
+        )
+    except UploadValidationError as exc:
+        _record_upload_rejection(
+            principal,
+            firm_id,
+            original_name,
+            exc.reason,
+            status_code=exc.status_code,
+            declared_mime=file.content_type,
+            correlation_id=correlation_id,
+        )
+        raise
+    except Exception:
+        logger.exception("Unexpected error while staging the upload")
+        _record_upload_event(
+            "upload.processing_failed",
+            "failure",
+            principal,
+            firm_id,
+            metadata={
+                "reason": "upload_read_failed",
+                "filename": original_name,
+            },
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="Could not save the uploaded file."
+        )
+
+    try:
+        text = extract_text(
+            staged.temp_path,
+            max_pages=max_pages,
+            max_extracted_chars=max_extracted_chars,
+            max_processing_seconds=max_processing_seconds,
+        )
+    except PDFValidationError as exc:
+        _delete_file(staged.temp_path)
+        # Every failure after staging is content- or parser-related: the
+        # extension and size checks already passed. Keep a failed version for
+        # provenance, but do not retain the rejected bytes.
         try:
             save_contract_with_trace(
-                filename=original_name,
+                filename=staged.original_name,
                 status="extraction_failed",
                 raw_text=None,
                 action="upload",
-                details=f"Text extraction failed for {original_name}: {exc}",
+                details=(
+                    "Text extraction failed for "
+                    f"{staged.original_name}: {exc.code}"
+                ),
                 firm_id=firm_id,
                 provenance_status=db.PROVENANCE_VERIFIED,
                 created_by=principal.user_id,
-                source_path=saved_path,
-                source_sha256=source_sha256,
-                source_size_bytes=source_size_bytes,
-                source_mime=source_mime,
+                source_path=None,
+                source_sha256=staged.sha256,
+                source_size_bytes=staged.size_bytes,
+                source_mime="application/pdf",
                 extracted_text_sha256=None,
                 extraction_status=db.EXTRACTION_STATUS_FAILED,
                 version_status=db.VERSION_STATUS_FAILED,
                 audit_action="contract.extraction_failed",
                 audit_outcome="failure",
+                audit_metadata={"reason_code": exc.code},
                 correlation_id=correlation_id,
             )
         except Exception:
             logger.exception("Could not record extraction failure")
-            raise HTTPException(status_code=500, detail="Could not save the contract record.")
-        raise HTTPException(
-            status_code=422,
-            detail=f"Could not extract text from '{original_name}': {exc}",
-        )
-    except Exception:
+            _record_upload_event(
+                "upload.processing_failed",
+                "failure",
+                principal,
+                firm_id,
+                metadata={
+                    "reason": "failure_record_write_failed",
+                    "filename": staged.original_name,
+                },
+                correlation_id=correlation_id,
+            )
+            raise HTTPException(
+                status_code=500, detail="Could not save the contract record."
+            )
+        raise UploadValidationError(
+            exc.status_code,
+            f"Could not process '{staged.original_name}': "
+            f"{exc.public_message}",
+            reason=exc.code,
+        ) from exc
+    except Exception as exc:
+        _delete_file(staged.temp_path)
         logger.exception("Unexpected error during PDF extraction")
-        raise HTTPException(status_code=500, detail="Unexpected error while processing the PDF.")
+        _record_upload_event(
+            "upload.processing_failed",
+            "failure",
+            principal,
+            firm_id,
+            metadata={
+                "reason": "parser_exception",
+                "filename": staged.original_name,
+                "error_type": type(exc).__name__,
+            },
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error while processing the PDF.",
+        )
+
+    try:
+        published_path = publish_staged_upload(
+            staged, settings.upload_dir, firm_id
+        )
+    except UploadValidationError as exc:
+        _delete_file(staged.temp_path)
+        _record_upload_event(
+            "upload.processing_failed",
+            "failure",
+            principal,
+            firm_id,
+            metadata={
+                "reason": exc.reason,
+                "filename": staged.original_name,
+            },
+            correlation_id=correlation_id,
+        )
+        raise
+    except Exception:
+        _delete_file(staged.temp_path)
+        logger.exception("Unexpected error while publishing the upload")
+        _record_upload_event(
+            "upload.processing_failed",
+            "failure",
+            principal,
+            firm_id,
+            metadata={
+                "reason": "storage_publish_failed",
+                "filename": staged.original_name,
+            },
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="Could not publish the uploaded file."
+        )
+
+    source_sha256 = staged.sha256
+    source_size_bytes = staged.size_bytes
+    source_mime = "application/pdf"
+    saved_path = str(published_path)
 
     try:
         contract_id = save_contract_with_trace(
-            filename=original_name,
+            filename=staged.original_name,
             status="extracted",
             raw_text=text,
             action="upload",
-            details=f"Uploaded and extracted text from {original_name} ({len(text)} characters).",
+            details=(
+                "Uploaded and extracted text from "
+                f"{staged.original_name} ({len(text)} characters)."
+            ),
             firm_id=firm_id,
             provenance_status=db.PROVENANCE_VERIFIED,
             created_by=principal.user_id,
@@ -495,8 +874,24 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
             correlation_id=correlation_id,
         )
     except Exception:
-        raise HTTPException(status_code=500, detail="Could not save the contract record.")
+        _delete_file(published_path)
+        logger.exception("Could not persist the accepted upload")
+        _record_upload_event(
+            "upload.processing_failed",
+            "failure",
+            principal,
+            firm_id,
+            metadata={
+                "reason": "contract_record_failed",
+                "filename": staged.original_name,
+            },
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="Could not save the contract record."
+        )
 
+    original_name = staged.original_name
     version_id = db.get_current_version_id(contract_id)
     if version_id is None:
         logger.error("Contract %s has no current version after intake", contract_id)

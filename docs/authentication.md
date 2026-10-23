@@ -58,6 +58,16 @@ REVENGG_SESSION_COOKIE_SECURE=true
 REVENGG_SESSION_TTL_SECONDS=28800
 ```
 
+Upload-processing limits (upload mode only):
+
+```text
+# Local/test defaults, not approved production policy (OQ-04).
+# REVENGG_UPLOAD_MAX_BYTES=10485760
+# REVENGG_UPLOAD_MAX_PAGES=200
+# REVENGG_UPLOAD_MAX_EXTRACTED_CHARS=1000000
+# REVENGG_UPLOAD_MAX_PROCESSING_SECONDS=30
+```
+
 No session signing secret is required because tokens are random and stored server-side as hashes. Do not add an authentication secret to `.env.example` or source control.
 
 ## 5. Local setup
@@ -111,6 +121,9 @@ Authentication and authorization semantics:
 - Foreign contract or clause → `404 Contract not found` (same as nonexistent, no metadata leak).
 - Insufficient upload role → `403`.
 - Switching to a firm without membership → `403`, and the previous active firm remains in force.
+- Upload extension/empty/oversized-body rejection → `400`/`413`, audit only, no contract row and no stored bytes.
+- Defined PDF content/parse rejection (non-PDF bytes, malformed/repaired, encrypted, no text, page/text limit, timeout) → `422`/`413`, a failed contract version with hash/size/name but no stored bytes, and a failure audit event. The client receives a stable, sanitized message.
+- Unexpected parser or storage failure → `500` with a generic message; no parser internals, paths or document text are returned.
 
 ## 7. Security assumptions
 
@@ -119,6 +132,7 @@ Authentication and authorization semantics:
 - Cookie-authenticated state changes rely on `SameSite=Lax` in this phase. A separate CSRF token is not implemented; do not add permissive CORS or cross-site embedding.
 - SQLite is local/test storage, not production multi-tenant storage. There is no PostgreSQL or row-level security in this phase.
 - Filesystem access to the SQLite database or upload directory is outside the HTTP authorization boundary.
+- Uploaded PDFs are size/page/text bounded and content-checked, but there is no parser sandbox, malware scanner, antivirus integration, hard pre-emptive timeout, or hard memory quota. The processing deadline is cooperative only.
 - No rate limiting, account lockout, MFA, SSO, or session rotation on privilege change is implemented yet.
 - The audit trail is append-only at the SQLite trigger level, but there is no audit viewer, export endpoint, retention job, access-review workflow, or protection against a database owner who can drop triggers. See `docs/phase5_integrity.md`.
 - No production identity provider is selected. Do not treat local provisioning as production login.
@@ -133,6 +147,7 @@ Authentication and authorization semantics:
 - Approve PostgreSQL and RLS before claiming database-enforced tenant isolation.
 - Approve the exact audit access roles, export controls, audit-retention period, and access-review cadence (OQ-13). Restricted audit access and exports are approved policy, but no in-app viewer/export role enforcement exists yet. Whether stronger tamper evidence is required remains open (OQ-16).
 - Decide whether matter-level/ethical-wall permissions are required at launch (OQ-06).
+- Approve production PDF size/page/text limits, malware-scanning approach, encrypted-PDF policy, and partial-extraction rules (OQ-04). The local/test defaults are not production policy.
 - Add session rotation, absolute/idle timeouts, device/session management, and revocation tooling.
 - Decide legacy-record reviewer authorization and evidence requirements; human review with recorded evidence is approved, and uncertain rows remain unclassified (OQ-11). Rows with `firm_id IS NULL` are never visible to firm members.
 
@@ -142,6 +157,7 @@ Focused authorization tests:
 
 ```powershell
 py -3.11 -m unittest discover -s tests -p "test_auth_authorization.py" -v
+py -3.11 -m unittest discover -s tests -p "test_phase6_upload_hardening.py" -v
 ```
 
 Existing relevant suites:
@@ -154,4 +170,4 @@ py -3.11 -m unittest discover -s tests -v
 git diff --check
 ```
 
-The authorization suite covers anonymous access, cross-firm contract/clause/graph/impact/comparison/suggestion/explanation attacks, role restrictions, firm switching without membership, membership removal, expired/revoked sessions, and demo/firm separation. It does not prove production multi-tenant isolation because PostgreSQL/RLS, the identity provider, and production session policy are out of scope.
+The authorization suite covers anonymous access, cross-firm contract/clause/graph/impact/comparison/suggestion/explanation attacks, role restrictions, firm switching without membership, membership removal, expired/revoked sessions, and demo/firm separation. The Phase 6 suite covers content-based PDF validation, size/page/text/time limits, failed-version provenance, sanitized errors, temp cleanup, storage naming, and last-known-good graph preservation. Neither suite proves production multi-tenant isolation because PostgreSQL/RLS, the identity provider, and production session policy are out of scope.

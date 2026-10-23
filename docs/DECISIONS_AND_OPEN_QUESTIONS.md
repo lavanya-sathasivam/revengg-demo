@@ -2,9 +2,9 @@
 
 **Status:** Living architecture decision record. Explicitly marked Phase 5 decisions are approved; open questions remain unapproved. This document does not authorize production deployment.
 
-**Scope:** Phase 1 planning through the Phase 5 integrity and audit decision updates.
+**Scope:** Phase 1 planning through the Phase 6 upload-hardening decision updates.
 
-**Basis:** The approved Phase 1 architecture decisions, the Phase 0 source-level audit, the repository documentation, and the Phase 5 implementation and verification evidence in `docs/phase5_integrity.md`. Earlier Phase 1 statements about existing behaviour remain descriptions of documentation and audit evidence; the Phase 5 statements were checked against the inspected implementation and executed tests.
+**Basis:** The approved Phase 1 architecture decisions, the Phase 0 source-level audit, the repository documentation, and the Phase 5 and Phase 6 implementation and verification evidence in `docs/phase5_integrity.md` and `docs/phase6_upload_hardening.md`. Earlier Phase 1 statements about existing behaviour remain descriptions of documentation and audit evidence; the Phase 5 and Phase 6 statements were checked against the inspected implementation and executed tests.
 
 ---
 
@@ -130,6 +130,7 @@ The first release uses firm-level roles. The schema and authorization design mus
 - A partially extracted PDF may proceed only with visible warnings and limited analysis.
 - Extraction failure must never be reported as a successful import.
 - The original file, its hash, storage reference, uploader, source kind, extraction version, warnings, and lifecycle state are preserved.
+- For local/test use, the approved configurable defaults are 10 MiB per upload, 200 pages, 1,000,000 extracted characters, and a 30-second cooperative processing deadline. These are not production limits; production values and malware scanning remain open (D14, OQ-04).
 - The existing uploaded-PDF path is documented as producing section-level clauses rather than the full sub-clause hierarchy; that is a known limitation to address as proposed work, not a completed capability.
 
 ### 5.2 Contract versions and clauses
@@ -299,8 +300,11 @@ The Phase 0 audit also reports a forced `demo.db`, possible route divergence, un
 | D11 | Unverified legal authorities are never presented as verified; legal-review ownership is required. | Agreed |
 | D12 | Maintain README and architecture documentation; test claims require actual execution evidence. | Agreed |
 | D13 | The Phase 5 additive SQLite schema and append-only audit design are approved for local/test implementation. | Approved; production PostgreSQL/RLS and stronger tamper-evidence remain separate decisions. |
+| D14 | For local/test only, upload processing is bounded at 10 MiB, 200 pages, 1,000,000 extracted characters, and a 30-second cooperative deadline. PDF content must be unencrypted and text-selectable; rejected bytes are deleted, and defined parse failures retain a failed version without stored bytes. | Approved for local/test implementation; production limits, malware scanning, encrypted-PDF policy, and partial-extraction rules remain open (OQ-04). |
 
 **Phase 5 approval record (2026-10-23):** The additive schema/audit design, configurable retention, legal-hold authority limited to designated authorized personnel, restricted audit access and exports, and human-reviewed legacy reclassification were approved through the Phase 5 acceptance instruction. The named approver was not provided; record it when available. No policy value beyond the wording above was approved.
+
+**Phase 6 approval record (2026-10-23):** The local/test upload limits (10 MiB, 200 pages, 1,000,000 extracted characters, 30-second cooperative deadline), staged firm-scoped storage, deletion of rejected bytes, and failed-version provenance were approved through the Phase 6 acceptance instruction. These are local/test values only. The named approver was not provided; record it when available. No malware-scanning, sandboxing, OCR, hard-timeout, or production-limit claim was approved or implemented.
 
 ---
 
@@ -313,7 +317,7 @@ No named approvers or vendors have been recorded. The Phase 5 approval in sectio
 | OQ-01 | Which hosting environment, data region, PostgreSQL service, object storage, queue, and key-management service will be used? | Determines encryption, residency, backup, network, and operational controls. | Hosting/platform lead with security | Production deployment and Stage 2 |
 | OQ-02 | Which identity provider, session mechanism, MFA policy, and optional SSO arrangements apply? | Authentication is a prerequisite for firm membership and authorization. | Security lead with product | Stage 2 |
 | OQ-03 | What are the default and maximum retention periods, the deletion SLA, and which specific personnel are designated to place or release legal holds? | Directly affects legal compliance and irreversible deletion. | Legal counsel with security | Stages 2 and 9 |
-| OQ-04 | What PDF size/page limits, malware-scanning approach, encrypted-PDF policy, and partial-extraction acceptance rules apply? | Determines safe ingestion and user-facing failure behaviour. | Product with security | Stage 3 |
+| OQ-04 | What production PDF size/page/text/time limits, malware-scanning approach, encrypted-PDF policy, and partial-extraction acceptance rules apply? Local/test defaults are documented but are not production policy. | Determines safe ingestion and user-facing failure behaviour. | Product with security | Stage 3 |
 | OQ-05 | Which jurisdictions, business-day calendars, month-end conventions, rounding rules, and currency-conversion policy apply? | Prevents incorrect deadlines and financial calculations. | Product with legal | Stage 6 |
 | OQ-06 | Are matter-level access restrictions or ethical walls required in the first release? | Affects authorization schema and contract-level access checks. | Legal with product | Stage 2 schema |
 | OQ-07 | Who owns incident response and backup/restore, and what are the RPO/RTO, backup lifecycle, restore-testing cadence, and breach-notification process? | Required for security operations and recovery claims. | Security with hosting/legal | Stage 9 and release |
@@ -340,6 +344,7 @@ This document does not select:
 - jurisdiction-specific calculation rules;
 - whether external AI is permitted;
 - whether matter-level access is required at launch;
+- production upload size/page/text/time limits, malware scanning, or partial-extraction policy;
 - legal disclaimers or client-consent language;
 - production deployment of the Phase 5 additive SQLite design or a production release date.
 

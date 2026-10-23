@@ -45,7 +45,14 @@ def _lifespan(settings: AppSettings):
             try:
                 db.init_db()
                 if settings.upload_dir is not None:
-                    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+                    upload_root = Path(settings.upload_dir)
+                    upload_root.mkdir(parents=True, exist_ok=True)
+                    removed = api_a.cleanup_stale_upload_temps(upload_root)
+                    if removed:
+                        logger.info(
+                            "Removed %d abandoned upload staging file(s)",
+                            removed,
+                        )
             finally:
                 db.reset_database_config(token)
         yield

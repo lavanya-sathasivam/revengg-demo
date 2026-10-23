@@ -29,8 +29,20 @@ UPLOAD_DIR_ENV = "REVENGG_UPLOAD_DIR"
 MODE_ENV = "REVENGG_MODE"
 SESSION_COOKIE_SECURE_ENV = "REVENGG_SESSION_COOKIE_SECURE"
 SESSION_TTL_ENV = "REVENGG_SESSION_TTL_SECONDS"
+UPLOAD_MAX_BYTES_ENV = "REVENGG_UPLOAD_MAX_BYTES"
+UPLOAD_MAX_PAGES_ENV = "REVENGG_UPLOAD_MAX_PAGES"
+UPLOAD_MAX_EXTRACTED_CHARS_ENV = "REVENGG_UPLOAD_MAX_EXTRACTED_CHARS"
+UPLOAD_MAX_PROCESSING_SECONDS_ENV = "REVENGG_UPLOAD_MAX_PROCESSING_SECONDS"
 
 DEFAULT_SESSION_TTL_SECONDS = 8 * 60 * 60
+
+# Local/test defaults only. Production upload limits remain an open policy
+# decision (OQ-04); these values are configurable and must not be represented
+# as approved production policy.
+DEFAULT_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+DEFAULT_UPLOAD_MAX_PAGES = 200
+DEFAULT_UPLOAD_MAX_EXTRACTED_CHARS = 1_000_000
+DEFAULT_UPLOAD_MAX_PROCESSING_SECONDS = 30
 
 
 class ConfigurationError(RuntimeError):
@@ -48,6 +60,10 @@ class AppSettings:
     upload_dir: Path | None
     session_cookie_secure: bool = True
     session_ttl_seconds: int = DEFAULT_SESSION_TTL_SECONDS
+    upload_max_bytes: int = DEFAULT_UPLOAD_MAX_BYTES
+    upload_max_pages: int = DEFAULT_UPLOAD_MAX_PAGES
+    upload_max_extracted_chars: int = DEFAULT_UPLOAD_MAX_EXTRACTED_CHARS
+    upload_max_processing_seconds: int = DEFAULT_UPLOAD_MAX_PROCESSING_SECONDS
 
 
 def _resolved_path(value) -> Path:
@@ -85,6 +101,36 @@ def _session_settings() -> tuple[bool, int]:
                 f"{SESSION_TTL_ENV} must be greater than zero."
             )
     return secure, ttl
+
+
+def _positive_int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ConfigurationError(
+            f"{name} must be an integer, got {raw!r}."
+        ) from exc
+    if value <= 0:
+        raise ConfigurationError(f"{name} must be greater than zero.")
+    return value
+
+
+def _upload_limits() -> tuple[int, int, int, int]:
+    return (
+        _positive_int_env(UPLOAD_MAX_BYTES_ENV, DEFAULT_UPLOAD_MAX_BYTES),
+        _positive_int_env(UPLOAD_MAX_PAGES_ENV, DEFAULT_UPLOAD_MAX_PAGES),
+        _positive_int_env(
+            UPLOAD_MAX_EXTRACTED_CHARS_ENV,
+            DEFAULT_UPLOAD_MAX_EXTRACTED_CHARS,
+        ),
+        _positive_int_env(
+            UPLOAD_MAX_PROCESSING_SECONDS_ENV,
+            DEFAULT_UPLOAD_MAX_PROCESSING_SECONDS,
+        ),
+    )
 
 
 def _demo_path() -> Path:
@@ -134,6 +180,12 @@ def load_settings(mode=None, database_path=None, upload_dir=None) -> AppSettings
 
         chosen_upload_dir = upload_dir or os.environ.get(UPLOAD_DIR_ENV, "").strip()
         upload_dir_path = _resolved_path(chosen_upload_dir or DEFAULT_UPLOAD_DIR)
+        (
+            upload_max_bytes,
+            upload_max_pages,
+            upload_max_extracted_chars,
+            upload_max_processing_seconds,
+        ) = _upload_limits()
         return AppSettings(
             mode=MODE_UPLOAD,
             database_path=upload_path,
@@ -142,6 +194,10 @@ def load_settings(mode=None, database_path=None, upload_dir=None) -> AppSettings
             upload_dir=upload_dir_path,
             session_cookie_secure=session_cookie_secure,
             session_ttl_seconds=session_ttl_seconds,
+            upload_max_bytes=upload_max_bytes,
+            upload_max_pages=upload_max_pages,
+            upload_max_extracted_chars=upload_max_extracted_chars,
+            upload_max_processing_seconds=upload_max_processing_seconds,
         )
 
     raise ConfigurationError(

@@ -115,6 +115,40 @@ assumptions.
 | `GET /compare/{a}/{b}` | cross-contract comparison + portfolio anomaly |
 | `GET /demo/{id}/suggest` | a ready-made example change (one click) |
 
+### Upload validation and resource limits (Phase 6)
+
+Upload mode now validates the file content, not just the filename or the
+client-declared MIME type. The accepted format is an unencrypted,
+text-selectable PDF. The upload is streamed to a temporary staging file, and
+only an accepted document is published under a server-generated name:
+
+```text
+<REVENGG_UPLOAD_DIR>/firm-<firm_id>/<uuid>.pdf
+```
+
+The original filename is display metadata only and is never used as a path.
+Rejected bytes are deleted (best effort; startup cleanup removes abandoned
+staging files). Defined content/parse failures still record a failed contract
+version with the filename, SHA-256, size and reason code, but no stored bytes and
+no clauses.
+
+Local/test defaults (configurable; these are **not** approved production
+limits, and OQ-04 remains open):
+
+```text
+REVENGG_UPLOAD_MAX_BYTES=10485760                 # 10 MiB
+REVENGG_UPLOAD_MAX_PAGES=200
+REVENGG_UPLOAD_MAX_EXTRACTED_CHARS=1000000
+REVENGG_UPLOAD_MAX_PROCESSING_SECONDS=30          # cooperative deadline
+```
+
+The 30-second deadline is checked before opening the PDF, between pages, and
+after extraction. It is a cooperative limit, not a hard kill: a single parser
+call that hangs cannot be pre-empted. There is **no parser sandbox, malware
+scanner, OCR, or hard memory limit**. See
+[`docs/phase6_upload_hardening.md`](docs/phase6_upload_hardening.md) for the
+failure taxonomy, audit events, test evidence and residual risks.
+
 **Two database files, on purpose:**
 - `app.db` — Person A's upload flow. A's `test_split_clauses.py` reads
   contract 1 from here and asserts it is a real 24-section contract.
@@ -326,6 +360,9 @@ contract was used (copyright + privacy).
   for it — the system says so instead of inventing one.
 * The synthetic contracts are deliberately well-drafted. Real contracts are
   messier; the extractor would need work on scanned PDFs and broken numbering.
+* Upload validation is bounded and content-aware, but there is no sandbox,
+  malware scanner, OCR, hard parser timeout, or production-approved size/page
+  policy. See `docs/phase6_upload_hardening.md` and OQ-04.
 * The `/upload` route still uses A's top-level splitter, so an uploaded PDF
   currently yields section-level clauses, not the full sub-clause hierarchy.
   See `docs/handoff-b.md` Q2.
