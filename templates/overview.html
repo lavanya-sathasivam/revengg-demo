@@ -893,15 +893,12 @@
       <nav class="sidebar-nav" aria-label="Main Navigation">
         <div class="nav-section-title">Workspaces</div>
         <a class="nav-item active" href="/" aria-current="page" id="nav-portfolio">
-          <span class="nav-icon">📁</span>
           <span>Portfolio &amp; Intake</span>
         </a>
         <a class="nav-item" href="/impact-analysis" id="nav-impact">
-          <span class="nav-icon">⚡</span>
           <span>Conflict &amp; Change Impact</span>
         </a>
         <a class="nav-item" href="/explain" id="nav-explain">
-          <span class="nav-icon">📖</span>
           <span>Clause Explanation</span>
         </a>
       </nav>
@@ -914,9 +911,7 @@
         </div>
       </div>
       <div class="sidebar-docs-row">
-        <a href="/docs" target="_blank" rel="noopener">
-          <span>📜</span> Developer API Docs &rarr;
-        </a>
+        <a href="/docs" target="_blank" rel="noopener"> Developer API Docs &rarr;</a>
       </div>
     </div>
   </aside>
@@ -931,11 +926,11 @@
           <span class="page-tagline">Central repository, version provenance, and document ingestion</span>
         </div>
       </div>
-      <div class="topbar-actions">
+      <!-- <div class="topbar-actions">
         <button type="button" class="btn-open-assistant" id="btn-header-ai">
-          <span>✨</span> Ask Gemini AI
+          <span>🤖</span> Ask Legal AI
         </button>
-      </div>
+      </div> -->
     </header>
 
     <div class="content-container">
@@ -959,11 +954,11 @@
           <div class="metric-value" id="metric-bound-contracts">0</div>
           <div class="metric-sub">Full dependency graph mapped</div>
         </div>
-        <div class="metric-card">
+        <!-- <div class="metric-card">
           <div class="metric-label">System Mode</div>
           <div class="metric-value" id="metric-sys-mode" style="font-size: 1.25rem;">Demo</div>
           <div class="metric-sub" id="metric-sys-desc">Synthetic read-only database</div>
-        </div>
+        </div> -->
       </section>
 
       <!-- Portfolio Grid -->
@@ -1055,10 +1050,10 @@
 
               <div class="drawer-actions">
                 <a id="drawer-link-impact" href="/impact-analysis?contract=1" class="btn-block-action">
-                  <span>⚡</span> Run Impact Analysis &rarr;
+                  Run Impact Analysis &rarr;
                 </a>
                 <a id="drawer-link-explain" href="/explain?contract=1" class="btn-block-action secondary">
-                  <span>📖</span> Browse Clause Explanations &rarr;
+                 Browse Clause Explanations &rarr;
                 </a>
               </div>
             </div>
@@ -1075,16 +1070,15 @@
 
 <!-- ================= Floating Gemini AI Assistant ================= -->
 <button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
-  <span>✨</span>
+  <span>🤖</span>
   <span>Ask Legal AI</span>
 </button>
 
 <aside class="ai-chat-drawer" id="ai-chat-drawer" aria-label="Gemini Legal Assistant" hidden>
   <div class="ai-drawer-header">
     <div class="ai-drawer-header-left">
-      <div class="ai-bot-avatar">✨</div>
       <div class="ai-title-wrap">
-        <span class="ai-drawer-title">Gemini Contract Assistant</span>
+        <span class="ai-drawer-title">Legal Contract Assistant</span>
         <span class="ai-model-tag" id="ai-model-badge">gemini-2.5-flash</span>
       </div>
     </div>

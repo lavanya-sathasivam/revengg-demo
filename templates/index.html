@@ -418,6 +418,93 @@
     box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
   }
 
+  .clause-picker {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .clause-picker-search {
+    width: 100%;
+    padding: 9px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    font: inherit;
+    font-size: 0.84rem;
+    color: var(--text);
+  }
+  .clause-picker-search:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px rgba(30, 64, 175, 0.18);
+  }
+  .clause-tree {
+    max-height: 230px;
+    overflow-y: auto;
+    padding: 5px;
+    overscroll-behavior: contain;
+  }
+  .clause-tree:focus {
+    outline: none;
+  }
+  .clause-tree-empty {
+    padding: 12px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  .clause-tree-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 32px;
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .clause-tree-item:hover { background: var(--surface-2); }
+  .clause-tree-item.selected {
+    background: var(--accent-soft);
+    color: var(--accent);
+    box-shadow: inset 3px 0 0 var(--accent);
+    font-weight: 700;
+  }
+  .clause-tree-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .clause-tree-toggle {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+  .clause-tree-toggle.placeholder { visibility: hidden; }
+  .clause-tree-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .clause-tree-level {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .clause-tree-status {
+    margin: 6px 10px 8px;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+  }
+
   .values-grid {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
@@ -810,6 +897,345 @@
     .workflow-grid { grid-template-columns: 1fr; }
     .content-container { padding: 16px; }
   }
+
+  /* ---------- Priority 1 Upgrade 3: Impact Summary Cards ---------- */
+  .impact-summary-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .impact-card-head {
+    padding: 14px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .impact-card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .impact-card-icon {
+    font-size: 1.1rem;
+  }
+  .impact-card-title {
+    margin: 0;
+    font-size: 0.96rem;
+    font-weight: 750;
+    color: var(--text);
+  }
+  .impact-card-body {
+    padding: 18px 20px;
+  }
+
+  .card-metric-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .card-metric-pill {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: #fbfcfd;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .card-metric-num {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.1;
+  }
+  .card-metric-num.highlight-warn { color: var(--warn); }
+  .card-metric-num.highlight-accent { color: var(--accent); }
+  .card-metric-num.highlight-danger { color: var(--danger); }
+  .card-metric-lbl {
+    font-size: 0.72rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+
+  .chain-flow-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #fbfcfd;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .chain-flow-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .chain-flow-steps {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chain-step-node {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .chain-step-node.start {
+    background: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 1px 4px rgba(30, 64, 175, 0.25);
+  }
+  .chain-step-node.hop {
+    background: #eff6ff;
+    border: 1px solid var(--accent-border);
+    color: var(--accent);
+  }
+  .chain-step-node.hop:hover {
+    background: #dbeafe;
+  }
+  .chain-arrow {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+  }
+
+  .provisions-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .provisions-title {
+    font-size: 0.76rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .provisions-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .provision-item {
+    padding: 8px 12px;
+    background: #fbfcfd;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .provision-clause-tag {
+    font-weight: 750;
+    font-family: var(--mono);
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .trace-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-top: 8px;
+  }
+  .calc-trace-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .calc-trace-table th {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .calc-trace-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: var(--text);
+    vertical-align: top;
+  }
+  .calc-trace-table tr:last-child td {
+    border-bottom: none;
+  }
+  .calc-trace-row-details {
+    margin-top: 6px;
+    font-size: 0.76rem;
+    color: #475569;
+    background: #f8fafc;
+    padding: 8px 10px;
+    border-radius: 4px;
+    border-left: 2px solid var(--accent);
+  }
+
+  .conflict-box {
+    border: 1px solid var(--danger-border);
+    background: var(--danger-soft);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .conflict-box-title {
+    font-weight: 750;
+    color: #991b1b;
+    font-size: 0.86rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .conflict-box-desc {
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: #7f1d1d;
+  }
+
+  .verified-empty-box {
+    padding: 18px 20px;
+    border-radius: var(--radius-sm);
+    background: var(--ok-soft);
+    border: 1px solid var(--ok-border);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .verified-empty-icon {
+    font-size: 1.25rem;
+    color: var(--ok);
+    line-height: 1;
+  }
+  .verified-empty-title {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #14532d;
+    margin-bottom: 2px;
+  }
+  .verified-empty-desc {
+    font-size: 0.8rem;
+    color: #166534;
+    line-height: 1.45;
+  }
+
+  .neutral-empty-box {
+    padding: 18px 20px;
+    border-radius: var(--radius-sm);
+    background: #f8fafc;
+    border: 1px dashed var(--border-strong);
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    text-align: center;
+  }
+
+  .doubt-card-item {
+    border: 1px solid var(--border);
+    background: #ffffff;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--warn);
+  }
+  .doubt-card-item.sev-high { border-left-color: var(--danger); }
+  .doubt-card-item.sev-medium { border-left-color: var(--warn); }
+  .doubt-card-item.sev-low { border-left-color: var(--accent); }
+  .doubt-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .doubt-question {
+    font-size: 0.86rem;
+    font-weight: 650;
+    color: var(--text);
+    line-height: 1.45;
+  }
+  .doubt-review-point {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #334155;
+    background: #f8fafc;
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+  .doubt-evidence-toggle {
+    margin-top: 6px;
+    font-size: 0.74rem;
+    color: var(--accent);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+  .doubt-evidence-container {
+    margin-top: 6px;
+    padding-left: 10px;
+    border-left: 2px solid var(--border);
+    font-size: 0.76rem;
+    color: var(--text-muted);
+  }
+
+  .evidence-citation-card {
+    background: #fbfcfd;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-top: 10px;
+  }
+  .evidence-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .btn-view-contract-deep {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 0.74rem;
+    font-weight: 650;
+    border-radius: var(--radius-sm);
+    background: #eff6ff;
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .btn-view-contract-deep:hover {
+    background: #dbeafe;
+  }
 </style>
 </head>
 <body>
@@ -920,7 +1346,14 @@
                 <span class="step-title">Select Parameterized Clause</span>
               </div>
               <label for="clause" class="field-label">Clause Section Number</label>
-              <select id="clause" class="form-select" aria-label="Select clause"></select>
+              <select id="clause" class="form-select" aria-label="Select clause" hidden></select>
+              <div class="clause-picker" id="clause-picker">
+                <input id="clause-search" class="clause-picker-search" type="search"
+                  placeholder="Search clauses..." aria-label="Search clauses">
+                <div id="clause-tree" class="clause-tree" role="tree"
+                  aria-label="Contract clause hierarchy" tabindex="0"></div>
+                <div id="clause-tree-status" class="clause-tree-status" aria-live="polite"></div>
+              </div>
 
               <!-- Clause Preview Panel -->
               <section id="clause-preview-panel" class="clause-preview-box" aria-labelledby="clause-preview-title" hidden>
@@ -1084,6 +1517,9 @@
   var clausePreviewMeta = document.getElementById("clause-preview-meta");
   var clausePreviewText = document.getElementById("clause-preview-text");
   var workflowUnitIndicator = document.getElementById("workflow-unit-indicator");
+  var clauseSearch = document.getElementById("clause-search");
+  var clauseTree = document.getElementById("clause-tree");
+  var clauseTreeStatus = document.getElementById("clause-tree-status");
 
   var mobileToggleBtn = document.getElementById("mobile-toggle-btn");
   var sidebar = document.getElementById("app-sidebar");
@@ -1105,6 +1541,8 @@
   var clauseLoadVersion = 0;
   var analysisRequestVersion = 0;
   var chatHistory = [];
+  var clauseTreeNodes = [];
+  var clauseTreeExpanded = {};
 
   function el(tag, cls, html) {
     var n = document.createElement(tag);
@@ -1137,6 +1575,113 @@
     aiContextText.textContent = "Context: " + cText + (sec ? " · Clause " + sec : "");
   }
 
+  function syncClauseUrl() {
+    var params = new URLSearchParams(window.location.search);
+    if (selContract && selContract.value) params.set("contract", selContract.value);
+    if (selClause && selClause.value) params.set("clause", selClause.value);
+    else params.delete("clause");
+    var next = window.location.pathname + "?" + params.toString() + window.location.hash;
+    window.history.replaceState(null, "", next);
+  }
+
+  function clauseTreeVisibleNodes() {
+    var query = clauseSearch ? clauseSearch.value.trim().toLowerCase() : "";
+    return clauseTreeNodes.filter(function(node) {
+      if (!query) return true;
+      return node.searchText.indexOf(query) !== -1 ||
+        node.ancestorSearchText.indexOf(query) !== -1;
+    }).filter(function(node) {
+      if (query) return true;
+      return node.ancestors.every(function(parentId) {
+        return clauseTreeExpanded[parentId] !== false;
+      });
+    });
+  }
+
+  function renderClauseTree() {
+    if (!clauseTree) return;
+    clauseTree.innerHTML = "";
+    var visible = clauseTreeVisibleNodes();
+    if (!clauseTreeNodes.length) {
+      clauseTree.appendChild(el("div", "clause-tree-empty", "No numbered clauses were detected."));
+    } else if (!visible.length) {
+      clauseTree.appendChild(el("div", "clause-tree-empty", "No clauses match your search."));
+    } else {
+      visible.forEach(function(node) {
+        var item = el("div", "clause-tree-row");
+        item.setAttribute("role", "treeitem");
+        item.setAttribute("aria-level", String(node.level + 1));
+        item.setAttribute("aria-selected", node.id === selClause.value ? "true" : "false");
+        item.setAttribute("data-clause-id", node.id);
+        var button = el("div", "clause-tree-item" + (node.id === selClause.value ? " selected" : ""));
+        button.setAttribute("role", "button");
+        button.style.paddingLeft = (8 + node.level * 18) + "px";
+        button.setAttribute("aria-label", "Clause " + node.id + (node.heading ? ": " + node.heading : ""));
+        button.setAttribute("tabindex", node.id === selClause.value ? "0" : "-1");
+        var toggle = el("button", "clause-tree-toggle" + (node.children.length ? "" : " placeholder"), node.children.length ? (clauseTreeExpanded[node.id] === false ? "\u25b6" : "\u25bc") : "\u25b6");
+        toggle.type = "button";
+        toggle.setAttribute("aria-label", (clauseTreeExpanded[node.id] === false ? "Expand " : "Collapse ") + "Clause " + node.id);
+        toggle.setAttribute("aria-expanded", node.children.length ? String(clauseTreeExpanded[node.id] !== false) : "false");
+        toggle.addEventListener("click", function(event) {
+          event.stopPropagation();
+          if (!node.children.length) return;
+          clauseTreeExpanded[node.id] = clauseTreeExpanded[node.id] === false;
+          renderClauseTree();
+        });
+        button.appendChild(toggle);
+        button.appendChild(el("span", "clause-tree-label", "Clause " + esc(node.id) + (node.heading ? " — " + esc(node.heading) : "")));
+        button.addEventListener("click", function() {
+          selectClause(node.id);
+        });
+        button.addEventListener("keydown", handleClauseTreeKeydown);
+        item.appendChild(button);
+        clauseTree.appendChild(item);
+      });
+    }
+    if (clauseTreeStatus) {
+      clauseTreeStatus.textContent = clauseTreeNodes.length
+        ? visible.length + " of " + clauseTreeNodes.length + " clauses"
+        : "";
+    }
+  }
+
+  function selectClause(clauseId, updateUrl) {
+    if (!clauseMap[clauseId]) return;
+    selClause.value = clauseId;
+    renderClauseTree();
+    renderClausePreview();
+    if (updateUrl !== false) syncClauseUrl();
+  }
+
+  function handleClauseTreeKeydown(event) {
+    var items = Array.prototype.slice.call(clauseTree.querySelectorAll(".clause-tree-item"));
+    var index = items.indexOf(event.currentTarget);
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectClause(event.currentTarget.parentElement.getAttribute("data-clause-id"));
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      var nextIndex = event.key === "ArrowDown" ? index + 1 : index - 1;
+      if (items[nextIndex]) {
+        items[nextIndex].focus();
+        items[nextIndex].scrollIntoView({ block: "nearest" });
+      }
+    } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+      var node = clauseTreeNodes.filter(function(item) {
+        return item.id === event.currentTarget.parentElement.getAttribute("data-clause-id");
+      })[0];
+      if (node && node.children.length) {
+        event.preventDefault();
+        clauseTreeExpanded[node.id] = event.key === "ArrowRight";
+        renderClauseTree();
+        var selectedRow = Array.prototype.slice.call(clauseTree.querySelectorAll("[data-clause-id]")).filter(function(row) {
+          return row.getAttribute("data-clause-id") === node.id;
+        })[0];
+        if (selectedRow) selectedRow.querySelector(".clause-tree-item").focus();
+      }
+    }
+  }
+
   function renderClausePreview() {
     var clause = clauseMap[selClause.value];
     if (!clause) {
@@ -1148,13 +1693,23 @@
     var level = Number(clause.level) || 0;
     var cType = clause.type || "other";
     if (clausePreviewMeta) {
-      clausePreviewMeta.textContent = [
+      clausePreviewMeta.innerHTML = "";
+      var metaParts = [
         cType,
         level > 0 ? "Nested clause" : "Section",
-      ].join(" \u00b7 ");
+      ];
+      if (clause.version_id) metaParts.push("v" + clause.version_id);
+      if (clause.clause_sha256) metaParts.push("SHA: " + clause.clause_sha256.substring(0, 12) + "...");
+      clausePreviewMeta.appendChild(document.createTextNode(metaParts.join(" \u00b7 ")));
+
+      var linkViewer = el("a", "btn-view-contract-deep", "View in Original Contract Viewer &rarr;");
+      linkViewer.href = "/explain?contract=" + encodeURIComponent(selContract.value) + "&clause=" + encodeURIComponent(selClause.value);
+      linkViewer.style.marginLeft = "auto";
+      linkViewer.title = "View complete source text in original document";
+      clausePreviewMeta.appendChild(linkViewer);
     }
     if (clausePreviewText) {
-      clausePreviewText.textContent = clause.text || "No clause text stored.";
+      clausePreviewText.textContent = clause.text || clause.clause_text || "No clause text stored.";
     }
     if (clausePreviewPanel) clausePreviewPanel.hidden = false;
 
@@ -1165,6 +1720,7 @@
     }
 
     updateAiContext();
+    renderClauseTree();
   }
 
   function clearAnalysis() {
@@ -1216,8 +1772,12 @@
   function loadClauses(cid) {
     var thisLoadVersion = ++clauseLoadVersion;
     clauseMap = {};
+    clauseTreeNodes = [];
+    clauseTreeExpanded = {};
     selClause.innerHTML = "<option>Loading clauses...</option>";
     selClause.disabled = true;
+    if (clauseSearch) clauseSearch.value = "";
+    renderClauseTree();
     renderClausePreview();
 
     return fetch("/clauses/" + encodeURIComponent(cid), {
@@ -1239,22 +1799,52 @@
         }
         list.forEach(function (c) {
           clauseMap[c.clause_id] = c;
-          var level = Number(c.level) || 0;
-          var indent = level > 0 ? "   ".repeat(level) + "\u21b3 " : "";
-          var label = indent + "Clause " + c.clause_id + (c.heading ? " \u2014 " + c.heading : "");
-          var opt = el("option", null, esc(label));
+          var level = Math.max(0, String(c.clause_id).split(".").length - 1);
+          var node = {
+            id: String(c.clause_id),
+            heading: c.heading || "",
+            level: level,
+            children: [],
+            ancestors: [],
+            searchText: String(c.clause_id + " " + (c.heading || "")).toLowerCase(),
+            ancestorSearchText: ""
+          };
+          clauseTreeNodes.push(node);
+          var opt = el("option", null, "Clause " + c.clause_id + (c.heading ? " — " + c.heading : ""));
           opt.value = c.clause_id;
           selClause.appendChild(opt);
+          clauseTreeExpanded[node.id] = true;
+        });
+        clauseTreeNodes.forEach(function(node) {
+          var parts = node.id.split(".");
+          var ancestors = [];
+          for (var i = parts.length - 1; i > 0; i -= 1) {
+            var parentId = parts.slice(0, i).join(".");
+            var parentNode = clauseTreeNodes.filter(function(item) {
+              return item.id === parentId;
+            })[0];
+            if (!parentNode) continue;
+            ancestors.unshift(parentId);
+            parentNode.children.push(node);
+          }
+          node.ancestors = ancestors;
+          node.ancestorSearchText = ancestors.map(function(parentId) {
+            var parent = clauseMap[parentId];
+            return parent ? parent.clause_id + " " + (parent.heading || "") : "";
+          }).join(" ").toLowerCase();
+          node.level = ancestors.length;
         });
         selClause.disabled = false;
 
         var target = new URLSearchParams(window.location.search).get("clause");
         if (target && clauseMap[target]) {
-          selClause.value = target;
+          selectClause(target, false);
         } else if (clauseMap["7.2"]) {
-          selClause.value = "7.2";
+          selectClause("7.2", false);
+        } else {
+          selectClause(clauseTreeNodes[0].id, false);
         }
-        renderClausePreview();
+        syncClauseUrl();
         loadDemoSuggestion(cid);
       })
       .catch(function (err) {
@@ -1282,7 +1872,8 @@
   // ---------------------------------------------------------------- analysis
   function run() {
     clearMsg();
-    var clause = clauseMap[selClause.value];
+    var requestedClauseId = selClause.value;
+    var clause = clauseMap[requestedClauseId];
     if (!clause) {
       banner("Select a valid clause first.", "warn");
       return;
@@ -1295,7 +1886,7 @@
 
     var payload = {
       contract_id: parseInt(requestedContractId, 10),
-      clause_id: selClause.value,
+      clause_id: requestedClauseId,
       old_value: inOld.value ? Number(inOld.value) : undefined,
       new_value: Number(inNew.value),
     };
@@ -1323,12 +1914,13 @@
       })
       .then(function (report) {
         if (thisRequestVersion !== analysisRequestVersion) return;
-        if (String(selContract.value) !== String(requestedContractId)) {
+        if (String(selContract.value) !== String(requestedContractId) ||
+            String(selClause.value) !== String(requestedClauseId)) {
           clearAnalysis();
-          banner("Results from another contract were cleared.", "warn");
+          banner("Results from another selection were cleared.", "warn");
           return;
         }
-        renderReport(report);
+        renderReport(report, requestedClauseId, clause);
       })
       .catch(function (err) {
         if (thisRequestVersion !== analysisRequestVersion) return;
@@ -1348,42 +1940,289 @@
       });
   }
 
-  function renderReport(r) {
+  function renderReport(r, analyzedClauseId, analyzedClause) {
     out.innerHTML = "";
+    var requestedContractId = selContract.value;
 
-    // 1. Summary
-    var pSum = el("section", "panel");
-    pSum.appendChild(el("h2", null, "Summary"));
-    var bSum = el("div", "body");
-    bSum.appendChild(el("p", null, esc(r.summary || "No summary returned.")));
-    if (r.counterfactual && r.counterfactual.notes) {
-      bSum.appendChild(el("div", "banner-msg warn", esc(r.counterfactual.notes)));
+    // ================= 1. Executive Summary Card =================
+    var card1 = el("section", "impact-summary-card");
+    var h1 = el("div", "impact-card-head");
+    var titleGrp1 = el("div", "impact-card-title-group");
+    titleGrp1.appendChild(el("span", "impact-card-icon", "📊"));
+    titleGrp1.appendChild(el("h2", "impact-card-title", "Summary"));
+    h1.appendChild(titleGrp1);
+
+    var tagsRow1 = el("div", "badge-row");
+    if (r.analysis_status) {
+      tagsRow1.appendChild(el("span", "badge badge-type", esc(r.analysis_status)));
     }
-    pSum.appendChild(bSum);
-    out.appendChild(pSum);
+    if (r.analysis_binding) {
+      tagsRow1.appendChild(el("span", "badge badge-verified", "\u2713 " + esc(r.analysis_binding)));
+    }
+    h1.appendChild(tagsRow1);
+    card1.appendChild(h1);
 
-    // 2. Direct / Indirect impacts
-    var pImp = el("section", "panel");
-    pImp.appendChild(el("h2", null, "Impacts on other clauses"));
-    var bImp = el("div", "body");
-    bImp.appendChild(el("h3", null, "Directly affected (" + (r.direct || []).length + ")"));
-    var cDirect = el("div", "chips");
-    (r.direct || []).forEach(function (c) { cDirect.appendChild(el("span", "chip direct", "Clause " + esc(c))); });
-    bImp.appendChild(cDirect);
+    var b1 = el("div", "impact-card-body");
+    b1.appendChild(el("p", null, esc(r.summary || "No summary returned.")));
+    if (r.counterfactual && r.counterfactual.notes) {
+      b1.appendChild(el("div", "banner-msg warn", esc(r.counterfactual.notes)));
+    }
 
-    bImp.appendChild(el("h3", null, "Indirectly affected (" + (r.indirect || []).length + ")"));
-    var cInd = el("div", "chips");
-    (r.indirect || []).forEach(function (c) { cInd.appendChild(el("span", "chip indirect", "Clause " + esc(c))); });
-    bImp.appendChild(cInd);
-    pImp.appendChild(bImp);
-    out.appendChild(pImp);
+    var strip1 = el("div", "card-metric-strip");
+    var directCount = (r.direct || []).length;
+    var indCount = (r.indirect || []).length;
+    var doubtsCount = (r.doubts || []).length;
+    var conflictsCount = (r.conflicts || []).length;
 
-    // 3. Ranked review points
+    var pillDirect = el("div", "card-metric-pill");
+    pillDirect.appendChild(el("span", "card-metric-num" + (directCount > 0 ? " highlight-accent" : ""), String(directCount)));
+    pillDirect.appendChild(el("span", "card-metric-lbl", "Direct Impacts"));
+    strip1.appendChild(pillDirect);
+
+    var pillInd = el("div", "card-metric-pill");
+    pillInd.appendChild(el("span", "card-metric-num" + (indCount > 0 ? " highlight-accent" : ""), String(indCount)));
+    pillInd.appendChild(el("span", "card-metric-lbl", "Indirect Impacts"));
+    strip1.appendChild(pillInd);
+
+    var pillConflicts = el("div", "card-metric-pill");
+    pillConflicts.appendChild(el("span", "card-metric-num" + (conflictsCount > 0 ? " highlight-danger" : ""), String(conflictsCount)));
+    pillConflicts.appendChild(el("span", "card-metric-lbl", "Conflicts"));
+    strip1.appendChild(pillConflicts);
+
+    var pillDoubts = el("div", "card-metric-pill");
+    pillDoubts.appendChild(el("span", "card-metric-num" + (doubtsCount > 0 ? " highlight-warn" : ""), String(doubtsCount)));
+    pillDoubts.appendChild(el("span", "card-metric-lbl", "Uncertainties"));
+    strip1.appendChild(pillDoubts);
+
+    b1.appendChild(strip1);
+    card1.appendChild(b1);
+    out.appendChild(card1);
+
+    // ================= 2. Direct & Indirect Impacts Card =================
+    var card2 = el("section", "impact-summary-card");
+    var h2 = el("div", "impact-card-head");
+    var titleGrp2 = el("div", "impact-card-title-group");
+    titleGrp2.appendChild(el("span", "impact-card-icon", "⚡"));
+    titleGrp2.appendChild(el("h2", "impact-card-title", "Impacts on other clauses"));
+    h2.appendChild(titleGrp2);
+    card2.appendChild(h2);
+
+    var b2 = el("div", "impact-card-body");
+
+    // Directly affected
+    var directList = r.direct || [];
+    b2.appendChild(el("h3", null, "Directly affected (" + directList.length + ")"));
+    if (directList.length === 0) {
+      b2.appendChild(el("div", "neutral-empty-box", "No clauses are directly affected by this parameter change."));
+    } else {
+      var cDirect = el("div", "chips");
+      directList.forEach(function (c) {
+        var secNo = typeof c === "object" && c !== null ? (c.sec_no || c.clause_id || c.clause || "") : String(c);
+        var hops = typeof c === "object" && c !== null && c.hops !== undefined ? (" \u00b7 " + c.hops + " hop" + (c.hops > 1 ? "s" : "")) : "";
+        var chip = el("a", "chip direct", "Clause " + esc(secNo) + esc(hops));
+        chip.href = "/explain?contract=" + encodeURIComponent(requestedContractId) + "&clause=" + encodeURIComponent(secNo);
+        chip.title = "Inspect Clause " + secNo + " in Clause Explainer";
+        chip.style.textDecoration = "none";
+        cDirect.appendChild(chip);
+      });
+      b2.appendChild(cDirect);
+    }
+
+    // Indirectly affected
+    var indirectList = r.indirect || [];
+    b2.appendChild(el("h3", null, "Indirectly affected (" + indirectList.length + ")"));
+    if (indirectList.length === 0) {
+      b2.appendChild(el("div", "neutral-empty-box", "No indirect downstream dependencies detected."));
+    } else {
+      var cInd = el("div", "chips");
+      indirectList.forEach(function (c) {
+        var secNo = typeof c === "object" && c !== null ? (c.sec_no || c.clause_id || c.clause || "") : String(c);
+        var hops = typeof c === "object" && c !== null && c.hops !== undefined ? (" \u00b7 " + c.hops + " hops") : "";
+        var chip = el("a", "chip indirect", "Clause " + esc(secNo) + esc(hops));
+        chip.href = "/explain?contract=" + encodeURIComponent(requestedContractId) + "&clause=" + encodeURIComponent(secNo);
+        chip.title = "Inspect Clause " + secNo + " in Clause Explainer";
+        chip.style.textDecoration = "none";
+        cInd.appendChild(chip);
+      });
+      b2.appendChild(cInd);
+    }
+
+    // Dependency Traversal Chain
+    if (Array.isArray(r.chain) && r.chain.length > 0) {
+      var chainBox = el("div", "chain-flow-box");
+      chainBox.appendChild(el("div", "chain-flow-title", "Traversal Dependency Chain"));
+      var chainSteps = el("div", "chain-flow-steps");
+      r.chain.forEach(function(step, idx) {
+        if (idx > 0) {
+          chainSteps.appendChild(el("span", "chain-arrow", "&rarr;"));
+        }
+        var nodeClass = idx === 0 ? "chain-step-node start" : "chain-step-node hop";
+        var aStep = el("a", nodeClass, "Clause " + esc(step));
+        aStep.href = "/explain?contract=" + encodeURIComponent(requestedContractId) + "&clause=" + encodeURIComponent(step);
+        chainSteps.appendChild(aStep);
+      });
+      chainBox.appendChild(chainSteps);
+      b2.appendChild(chainBox);
+    }
+
+    // Impacted legal obligations & conditions
+    var hasProvisions = (r.obligations && r.obligations.length > 0) ||
+                        (r.conditions && r.conditions.length > 0) ||
+                        (r.consequences && r.consequences.length > 0);
+    if (hasProvisions) {
+      var provBox = el("div", "provisions-section");
+      provBox.appendChild(el("div", "provisions-title", "Impacted Legal Obligations & Conditions"));
+      var pList = el("ul", "provisions-list");
+
+      (r.obligations || []).forEach(function(o) {
+        var item = el("li", "provision-item");
+        item.appendChild(el("span", "provision-clause-tag", "Clause " + esc(o.clause || "")));
+        item.appendChild(el("span", "badge badge-refs", esc(o.kind || "obligation")));
+        item.appendChild(el("span", null, esc(o.detail || "")));
+        pList.appendChild(item);
+      });
+
+      (r.conditions || []).forEach(function(c) {
+        var item = el("li", "provision-item");
+        item.appendChild(el("span", "provision-clause-tag", "Clause " + esc(c.clause || "")));
+        item.appendChild(el("span", "badge badge-type", esc(c.kind || "condition")));
+        item.appendChild(el("span", null, esc(c.detail || "")));
+        pList.appendChild(item);
+      });
+
+      (r.consequences || []).forEach(function(cq) {
+        var item = el("li", "provision-item");
+        item.appendChild(el("span", "provision-clause-tag", "Clause " + esc(cq.clause || "")));
+        item.appendChild(el("span", "badge badge-unverified", esc(cq.kind || "consequence")));
+        item.appendChild(el("span", null, esc(cq.detail || "")));
+        pList.appendChild(item);
+      });
+
+      provBox.appendChild(pList);
+      b2.appendChild(provBox);
+    }
+
+    card2.appendChild(b2);
+    out.appendChild(card2);
+
+    // ================= 3. Contractual & Statutory Conflicts Card =================
+    var card3 = el("section", "impact-summary-card");
+    var h3 = el("div", "impact-card-head");
+    var titleGrp3 = el("div", "impact-card-title-group");
+    titleGrp3.appendChild(el("span", "impact-card-icon", "⚖️"));
+    titleGrp3.appendChild(el("h2", "impact-card-title", "Contractual & Statutory Conflicts"));
+    h3.appendChild(titleGrp3);
+
+    var conflicts = Array.isArray(r.conflicts) ? r.conflicts : [];
+    if (conflicts.length > 0) {
+      h3.appendChild(el("span", "badge badge-unverified", conflicts.length + " Conflict" + (conflicts.length > 1 ? "s" : "")));
+    } else {
+      h3.appendChild(el("span", "badge badge-verified", "\u2713 0 Conflicts"));
+    }
+    card3.appendChild(h3);
+
+    var b3 = el("div", "impact-card-body");
+    if (conflicts.length === 0) {
+      var vBox = el("div", "verified-empty-box");
+      vBox.appendChild(el("span", "verified-empty-icon", "\u2713"));
+      var vText = el("div");
+      vText.appendChild(el("div", "verified-empty-title", "No Statutory or Contractual Conflicts Detected"));
+      vText.appendChild(el("div", "verified-empty-desc", "The proposed parameter modification does not directly contradict any explicit statutory restrictions or contradictory terms returned by the rules engine."));
+      vBox.appendChild(vText);
+      b3.appendChild(vBox);
+    } else {
+      conflicts.forEach(function(c) {
+        var cBox = el("div", "conflict-box");
+        var cTitle = el("div", "conflict-box-title");
+        cTitle.appendChild(el("span", null, "\u26a0"));
+        cTitle.appendChild(el("span", null, esc(c.rule_id || c.title || "Conflict Detected")));
+        cBox.appendChild(cTitle);
+        cBox.appendChild(el("div", "conflict-box-desc", esc(c.description || c.question || c)));
+        b3.appendChild(cBox);
+      });
+    }
+    card3.appendChild(b3);
+    out.appendChild(card3);
+
+    // ================= 4. Uncertainty & Legal Ambiguities Card =================
+    var card4 = el("section", "impact-summary-card");
+    var h4 = el("div", "impact-card-head");
+    var titleGrp4 = el("div", "impact-card-title-group");
+    titleGrp4.appendChild(el("span", "impact-card-icon", "❓"));
+    titleGrp4.appendChild(el("h2", "impact-card-title", "Uncertainty & Ambiguities"));
+    h4.appendChild(titleGrp4);
+
+    var doubts = Array.isArray(r.doubts) ? r.doubts : [];
+    if (doubts.length > 0) {
+      h4.appendChild(el("span", "badge badge-unverified", doubts.length + " Open Item" + (doubts.length > 1 ? "s" : "")));
+    } else {
+      h4.appendChild(el("span", "badge badge-verified", "\u2713 0 Ambiguities"));
+    }
+    card4.appendChild(h4);
+
+    var b4 = el("div", "impact-card-body");
+    if (doubts.length === 0) {
+      var vBox4 = el("div", "verified-empty-box");
+      vBox4.appendChild(el("span", "verified-empty-icon", "\u2713"));
+      var vText4 = el("div");
+      vText4.appendChild(el("div", "verified-empty-title", "No Unresolved Ambiguities"));
+      vText4.appendChild(el("div", "verified-empty-desc", "The engine identified no legal ambiguities, cross-reference mismatches, or definition collisions for this change."));
+      vBox4.appendChild(vText4);
+      b4.appendChild(vBox4);
+    } else {
+      doubts.forEach(function (d) {
+        var isObj = typeof d === "object" && d !== null;
+        var sev = isObj && d.severity ? String(d.severity).toLowerCase() : "medium";
+        var dItem = el("div", "doubt-card-item sev-" + sev);
+
+        var dHead = el("div", "doubt-head");
+        var badgeKind = sev === "high" ? "badge badge-unverified" : (sev === "medium" ? "badge" : "badge badge-type");
+        dHead.appendChild(el("span", badgeKind, sev.toUpperCase() + " SEVERITY"));
+        if (isObj && d.rule_id) {
+          dHead.appendChild(el("span", "badge", esc(d.rule_id)));
+        }
+        dItem.appendChild(dHead);
+
+        var qText = isObj ? (d.question || d.code || "Unspecified ambiguity") : String(d);
+        dItem.appendChild(el("div", "doubt-question", esc(qText)));
+
+        if (isObj && d.review_point) {
+          dItem.appendChild(el("div", "doubt-review-point", "<strong>Counsel Action:</strong> " + esc(d.review_point)));
+        }
+
+        if (isObj && Array.isArray(d.evidence) && d.evidence.length > 0) {
+          var evToggle = el("button", "doubt-evidence-toggle", "Show supporting citations (" + d.evidence.length + ")");
+          evToggle.type = "button";
+          var evContainer = el("div", "doubt-evidence-container");
+          evContainer.hidden = true;
+
+          d.evidence.forEach(function(evItem) {
+            var evRow = el("div", null, "&bull; <strong>Clause " + esc(evItem.id || "") + "</strong> (" + esc(evItem.why || "") + ")");
+            if (evItem.excerpt) {
+              evRow.appendChild(el("div", "small muted", '"' + esc(evItem.excerpt) + '"'));
+            }
+            evContainer.appendChild(evRow);
+          });
+
+          evToggle.addEventListener("click", function() {
+            evContainer.hidden = !evContainer.hidden;
+            evToggle.textContent = evContainer.hidden
+              ? "Show supporting citations (" + d.evidence.length + ")"
+              : "Hide supporting citations";
+          });
+
+          dItem.appendChild(evToggle);
+          dItem.appendChild(evContainer);
+        }
+
+        b4.appendChild(dItem);
+      });
+    }
+
+    // Key Review Points for Counsel (preserves ranked_review_points and priority_reason)
     var rankedPoints = r.ranked_review_points || (r.review_points || []).map(function(p) { return { point: p, priority_reason: "Standard review" }; });
     if (rankedPoints.length > 0) {
-      var pRev = el("section", "panel");
-      pRev.appendChild(el("h2", null, "Key Review Points for Counsel"));
-      var bRev = el("div", "body");
+      b4.appendChild(el("h3", null, "Key Review Points for Counsel"));
       var ul = el("ul", "points-list");
       rankedPoints.forEach(function (item) {
         var li = el("li", "point-item");
@@ -1393,35 +2232,152 @@
         }
         ul.appendChild(li);
       });
-      bRev.appendChild(ul);
-      pRev.appendChild(bRev);
-      out.appendChild(pRev);
+      b4.appendChild(ul);
     }
 
-    // 4. Uncertainty & doubts
-    var doubts = r.doubts || [];
-    if (doubts.length > 0) {
-      var pDbt = el("section", "panel");
-      pDbt.appendChild(el("h2", null, "Uncertainty & Ambiguities"));
-      var bDbt = el("div", "body");
-      var dUl = el("ul", "points-list");
-      doubts.forEach(function (d) { dUl.appendChild(el("li", "point-item", esc(d))); });
-      bDbt.appendChild(dUl);
-      pDbt.appendChild(bDbt);
-      out.appendChild(pDbt);
-    }
+    card4.appendChild(b4);
+    out.appendChild(card4);
 
-    // 5. Source Evidence
-    var pEv = el("section", "panel");
-    pEv.appendChild(el("h2", null, "Cryptographic Evidence & Source Text"));
-    var bEv = el("div", "body");
-    var cObj = clauseMap[selClause.value] || {};
-    var evText = cObj.text || "Source clause stored in database.";
+    // ================= 5. Counterfactual Calculation Traces Card =================
+    var card5 = el("section", "impact-summary-card");
+    var h5 = el("div", "impact-card-head");
+    var titleGrp5 = el("div", "impact-card-title-group");
+    titleGrp5.appendChild(el("span", "impact-card-icon", "🔢"));
+    titleGrp5.appendChild(el("h2", "impact-card-title", "Calculation Traces"));
+    h5.appendChild(titleGrp5);
+    card5.appendChild(h5);
+
+    var b5 = el("div", "impact-card-body");
+    var calcRows = (r.counterfactual && Array.isArray(r.counterfactual.rows)) ? r.counterfactual.rows : [];
+
+    if (calcRows.length === 0) {
+      b5.appendChild(el("div", "neutral-empty-box", "No numeric or calendar calculations were triggered for this clause."));
+    } else {
+      var tableWrap = el("div", "trace-table-wrap");
+      var table = el("table", "calc-trace-table");
+      table.innerHTML = "<thead><tr>" +
+        "<th>Parameter / Metric</th>" +
+        "<th>Baseline Value</th>" +
+        "<th>Simulated Value</th>" +
+        "<th>Delta / Status</th>" +
+        "<th>Applied Rule &amp; Formula</th>" +
+        "</tr></thead>";
+
+      var tbody = el("tbody");
+      calcRows.forEach(function(row) {
+        var tr = el("tr");
+
+        var tdMetric = el("td");
+        tdMetric.appendChild(el("strong", null, esc(row.metric || "Metric")));
+        if (row.rule_id) {
+          tdMetric.appendChild(el("div", "badge", esc(row.rule_id)));
+        }
+        tr.appendChild(tdMetric);
+
+        tr.appendChild(el("td", null, esc(row.old || "—")));
+        tr.appendChild(el("td", null, "<strong>" + esc(row.new || "—") + "</strong>"));
+
+        var tdStatus = el("td");
+        if (row.changed) {
+          tdStatus.appendChild(el("span", "badge badge-unverified", "Modified"));
+        } else {
+          tdStatus.appendChild(el("span", "badge badge-verified", "Unchanged"));
+        }
+        tr.appendChild(tdStatus);
+
+        var tdFormula = el("td");
+        if (row.calculation && row.calculation.formula) {
+          tdFormula.appendChild(el("code", null, esc(row.calculation.formula)));
+        }
+        if (row.calculation && Array.isArray(row.calculation.trace) && row.calculation.trace.length > 0) {
+          var detailsBox = el("div", "calc-trace-row-details");
+          detailsBox.appendChild(el("strong", null, "Step-by-step arithmetic trace:"));
+          var ol = el("ol", null);
+          ol.style.margin = "4px 0 0";
+          ol.style.paddingLeft = "18px";
+          row.calculation.trace.forEach(function(step) {
+            ol.appendChild(el("li", null, esc(step)));
+          });
+          detailsBox.appendChild(ol);
+          tdFormula.appendChild(detailsBox);
+        }
+        if (Array.isArray(row.assumptions) && row.assumptions.length > 0) {
+          var asmBox = el("div", "small muted", "Assumptions: " + esc(row.assumptions.join("; ")));
+          asmBox.style.marginTop = "4px";
+          tdFormula.appendChild(asmBox);
+        }
+        tr.appendChild(tdFormula);
+
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      tableWrap.appendChild(table);
+      b5.appendChild(tableWrap);
+    }
+    card5.appendChild(b5);
+    out.appendChild(card5);
+
+    // ================= 6. Cryptographic Evidence & Source Text Card =================
+    var card6 = el("section", "impact-summary-card");
+    var h6 = el("div", "impact-card-head");
+    var titleGrp6 = el("div", "impact-card-title-group");
+    titleGrp6.appendChild(el("span", "impact-card-icon", "🔒"));
+    titleGrp6.appendChild(el("h2", "impact-card-title", "Cryptographic Evidence & Source Text"));
+    h6.appendChild(titleGrp6);
+
+    var cObj = analyzedClause || clauseMap[analyzedClauseId] || {};
+    var changedClauseObj = r.changed_clause || {};
+    var evSha = changedClauseObj.clause_sha256 || cObj.clause_sha256 || "";
+    if (evSha) {
+      h6.appendChild(el("span", "badge badge-verified", "\u2713 Fingerprinted"));
+    }
+    card6.appendChild(h6);
+
+    var b6 = el("div", "impact-card-body");
+
+    var evText = changedClauseObj.text || cObj.text || cObj.clause_text || "Source clause stored in database.";
+    var evHeader = el("div", "evidence-header-row");
+    var secTag = "Clause " + esc(analyzedClauseId);
+    if (changedClauseObj.heading || cObj.heading) {
+      secTag += " \u2014 " + esc(changedClauseObj.heading || cObj.heading);
+    }
+    evHeader.appendChild(el("strong", null, secTag));
+
+    var linkToViewer = el("a", "btn-view-contract-deep", "View in Original Contract Viewer &rarr;");
+    linkToViewer.href = "/explain?contract=" + encodeURIComponent(requestedContractId) + "&clause=" + encodeURIComponent(analyzedClauseId);
+    linkToViewer.title = "Inspect full original contract document and highlight this clause";
+    evHeader.appendChild(linkToViewer);
+    b6.appendChild(evHeader);
+
+    var metaLine = "Length: " + evText.length + " chars \u00b7 SHA-256: " + (evSha || "verified");
+    if (changedClauseObj.version_id || cObj.version_id) {
+      metaLine += " \u00b7 Version: v" + (changedClauseObj.version_id || cObj.version_id);
+    }
+    b6.appendChild(el("p", "small muted", metaLine));
+
     var evBox = el("div", "evidence-block", esc(evText));
-    bEv.appendChild(el("p", "small muted", "Clause " + esc(selClause.value) + " · Length: " + evText.length + " chars · SHA-256: " + esc(cObj.clause_sha256 || "verified")));
-    bEv.appendChild(evBox);
-    pEv.appendChild(bEv);
-    out.appendChild(pEv);
+    b6.appendChild(evBox);
+
+    var supportingEvidence = Array.isArray(r.evidence) ? r.evidence : [];
+    if (supportingEvidence.length > 0) {
+      b6.appendChild(el("h3", null, "Supporting Clause Citations (" + supportingEvidence.length + ")"));
+      supportingEvidence.forEach(function(evItem) {
+        var cardEv = el("div", "evidence-citation-card");
+        var headEv = el("div", "evidence-header-row");
+        headEv.appendChild(el("strong", null, "Clause " + esc(evItem.id || "") + (evItem.why ? (" (" + esc(evItem.why) + ")") : "")));
+        if (evItem.clause_sha256) {
+          headEv.appendChild(el("span", "hash-pill", "SHA: " + esc(evItem.clause_sha256.substring(0, 16)) + "..."));
+        }
+        cardEv.appendChild(headEv);
+        if (evItem.excerpt || evItem.text) {
+          cardEv.appendChild(el("div", "small muted", '"' + esc(evItem.excerpt || evItem.text) + '"'));
+        }
+        b6.appendChild(cardEv);
+      });
+    }
+
+    card6.appendChild(b6);
+    out.appendChild(card6);
   }
 
   // Upload handler
@@ -1586,25 +2542,28 @@
     selContract.addEventListener("change", function () {
       selectedContractStatus = contractStatusById[selContract.value] || "";
       clearAnalysis();
+      syncClauseUrl();
       loadClauses(selContract.value);
     });
   }
 
-  if (selClause) selClause.addEventListener("change", renderClausePreview);
+  if (selClause) selClause.addEventListener("change", function() {
+    selectClause(selClause.value);
+  });
+  if (clauseSearch) clauseSearch.addEventListener("input", renderClauseTree);
   if (btnGo) btnGo.addEventListener("click", run);
 
   if (btnExample) {
     btnExample.addEventListener("click", function () {
       if (clauseMap["7.2"]) {
-        selClause.value = "7.2";
+        selectClause("7.2");
         inOld.value = "30";
         inNew.value = "15";
       } else if (clauseMap["9.1"]) {
-        selClause.value = "9.1";
+        selectClause("9.1");
         inOld.value = "99";
         inNew.value = "98";
       }
-      renderClausePreview();
       run();
     });
   }

@@ -745,6 +745,337 @@
     .panel-col-explanation { grid-column: auto; }
     .content-container { padding: 16px; }
   }
+
+  /* ---------- Priority 1 Upgrade 1: Clause Tree Hierarchy ---------- */
+  .clause-tree-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .clause-tree-toolbar .filter-search-input {
+    margin-bottom: 0;
+  }
+  .tree-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .btn-tree-action {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-tree-action:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .btn-tree-action:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .tree-status-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  .clause-tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 640px;
+    overflow-y: auto;
+  }
+
+  .tree-item {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .tree-node-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fbfcfd;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .tree-node-row:hover {
+    background: #f4f8fc;
+    border-color: var(--accent-border);
+  }
+  .tree-node-row.is-selected {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .tree-expander-btn {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, color 0.15s ease;
+  }
+  .tree-expander-btn:hover {
+    color: var(--text);
+    background: rgba(0, 0, 0, 0.05);
+  }
+  .tree-expander-btn.is-collapsed {
+    transform: rotate(-90deg);
+  }
+  .tree-spacer {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  .tree-node-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .tree-node-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .tree-sec-tag {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .tree-child-count {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: #f1f5f9;
+    padding: 1px 5px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .tree-heading-text {
+    font-size: 0.78rem;
+    color: #475569;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tree-children {
+    list-style: none;
+    margin: 4px 0 4px 10px;
+    padding: 0 0 0 12px;
+    border-left: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tree-children[hidden] {
+    display: none !important;
+  }
+
+  /* ---------- Priority 1 Upgrade 2: Original Contract Viewer ---------- */
+  .contract-viewer-card {
+    border: 1px solid var(--border);
+    background: #ffffff;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .contract-viewer-header {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .viewer-title-block {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .viewer-icon {
+    font-size: 1.1rem;
+  }
+  .viewer-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .viewer-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+
+  .viewer-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .viewer-tab-group {
+    display: inline-flex;
+    background: #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 2px;
+    gap: 2px;
+  }
+  .viewer-tab-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    font-weight: 650;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .viewer-tab-btn.active {
+    background: #ffffff;
+    color: var(--accent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .viewer-meta-ribbon {
+    padding: 10px 16px;
+    background: #fbfcfd;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.78rem;
+  }
+  .viewer-meta-left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .viewer-meta-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .hash-pill {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-copy-hash {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.68rem;
+    padding: 0;
+    text-decoration: underline;
+    font-weight: 600;
+  }
+
+  .btn-jump-highlight {
+    background: #eff6ff;
+    border: 1px solid var(--accent-border);
+    color: var(--accent);
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-jump-highlight:hover {
+    background: #dbeafe;
+  }
+
+  .contract-viewer-body {
+    position: relative;
+    padding: 0;
+  }
+
+  .contract-full-reader {
+    max-height: 380px;
+    overflow-y: auto;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: #1e293b;
+    background: #ffffff;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .clause-highlight {
+    background: #fef08a;
+    color: #0f172a;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border-left: 4px solid #eab308;
+    box-shadow: 0 0 0 2px #fde047;
+    display: inline;
+    font-weight: 550;
+  }
+
+  .viewer-fallback-banner {
+    background: #eff6ff;
+    border-bottom: 1px solid #bfdbfe;
+    padding: 8px 16px;
+    font-size: 0.78rem;
+    color: #1e40af;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 </style>
 </head>
 <body>
@@ -848,14 +1179,23 @@
           </div>
         </section>
 
-        <!-- Column 2: Clauses Hierarchy -->
+                <!-- Column 2: Clauses Hierarchy -->
         <section class="card-panel" aria-labelledby="clauses-heading">
           <div class="card-panel-header">
             <h2 id="clauses-heading">Clauses</h2>
             <span class="badge" id="clauses-count" hidden>0</span>
           </div>
           <div class="card-panel-body">
-            <input type="search" id="clauses-search" class="filter-search-input" placeholder="Filter clauses by section or name..." aria-label="Filter clauses" disabled>
+            <div class="clause-tree-toolbar">
+              <input type="search" id="clauses-search" class="filter-search-input" placeholder="Filter clauses by section or name..." aria-label="Filter clauses" disabled>
+              <div class="tree-actions-row">
+                <span class="tree-status-hint">Hierarchical tree view</span>
+                <div style="display:flex; gap:6px;">
+                  <button type="button" class="btn-tree-action" id="btn-tree-expand-all" title="Expand all nested branches" disabled>Expand all</button>
+                  <button type="button" class="btn-tree-action" id="btn-tree-collapse-all" title="Collapse all nested branches" disabled>Collapse all</button>
+                </div>
+              </div>
+            </div>
 
             <div id="clauses-placeholder" class="placeholder-box">
               <strong>No contract selected</strong>
@@ -867,7 +1207,7 @@
               Fetching structured clause records.
             </div>
 
-            <ul id="clauses-list" class="item-list" hidden></ul>
+            <ul id="clauses-list" class="clause-tree" hidden></ul>
 
             <div id="clauses-empty" class="placeholder-box" hidden>
               <strong>No clauses detected</strong>
@@ -902,19 +1242,56 @@
             <!-- Populated Content -->
             <div id="explanation-content" hidden>
 
-              <!-- Clause Hero Card -->
-              <div class="clause-hero-card">
-                <div class="clause-hero-top">
-                  <div>
-                    <div id="clause-overview-title" class="clause-hero-title">Clause Details</div>
-                    <div id="clause-overview-badges" class="badge-row" style="margin-top: 6px;"></div>
+                            <!-- Original Contract Viewer Card -->
+              <div class="contract-viewer-card" id="contract-viewer-card">
+                <div class="contract-viewer-header">
+                  <div class="viewer-title-block">
+                    <span class="viewer-icon">📜</span>
+                    <div>
+                      <div class="viewer-title">Original Contract Viewer</div>
+                      <span class="viewer-subtitle" id="viewer-contract-filename">No contract document loaded</span>
+                    </div>
                   </div>
-                  <a id="impact-analysis-link" class="btn-impact-link" href="/impact-analysis">
-                    Analyze Change Impact &rarr;
-                  </a>
+                  <div class="viewer-controls-row">
+                    <div class="viewer-tab-group" role="tablist" aria-label="Viewer Modes">
+                      <button type="button" class="viewer-tab-btn active" id="btn-tab-doc" role="tab" aria-selected="true">📄 Full Document</button>
+                      <button type="button" class="viewer-tab-btn" id="btn-tab-clause" role="tab" aria-selected="false">🔍 Clause Source</button>
+                    </div>
+                    <a id="impact-analysis-link" class="btn-impact-link" href="/impact-analysis">
+                      Analyze Change Impact &rarr;
+                    </a>
+                  </div>
                 </div>
-                <div id="clause-overview-sha" style="font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); word-break: break-all;"></div>
-                <div class="clause-full-text-box" id="clause-full-text"></div>
+
+                <div class="viewer-meta-ribbon" id="viewer-meta-ribbon">
+                  <div class="viewer-meta-left">
+                    <span id="clause-overview-title" class="clause-hero-title" style="font-size:0.95rem; margin-right:4px;">Clause Details</span>
+                    <div id="clause-overview-badges" class="badge-row"></div>
+                  </div>
+                  <div class="viewer-meta-right">
+                    <span class="hash-pill" id="clause-overview-sha" title="Clause SHA-256 Digest"></span>
+                    <button type="button" class="btn-copy-hash" id="btn-copy-sha" title="Copy SHA-256 fingerprint" hidden>Copy</button>
+                    <span class="badge" id="viewer-char-count">0 chars</span>
+                    <button type="button" class="btn-jump-highlight" id="btn-jump-highlight" title="Scroll to highlighted clause in document" hidden>⤓ Jump to Clause</button>
+                  </div>
+                </div>
+
+                <div id="viewer-fallback-banner" class="viewer-fallback-banner" hidden>
+                  <span>ℹ️</span>
+                  <span id="viewer-fallback-text">Full document raw text is unavailable for this contract. Reliable clause-level source viewer active.</span>
+                </div>
+
+                <div class="contract-viewer-body">
+                  <!-- Mode 1: Full Document Viewer -->
+                  <div id="viewer-document-container" class="contract-full-reader">
+                    <div id="contract-full-text">Loading contract source text...</div>
+                  </div>
+
+                  <!-- Mode 2: Clause-Level Source Viewer -->
+                  <div id="viewer-clause-container" class="clause-full-text-box" style="margin: 0; border: none; border-radius: 0; max-height: 320px;" hidden>
+                    <div id="clause-full-text"></div>
+                  </div>
+                </div>
               </div>
 
               <!-- Summary -->
@@ -1050,6 +1427,8 @@
   var clausesStatus = document.getElementById("clauses-status");
   var clausesCount = document.getElementById("clauses-count");
   var clausesSearch = document.getElementById("clauses-search");
+  var btnTreeExpandAll = document.getElementById("btn-tree-expand-all");
+  var btnTreeCollapseAll = document.getElementById("btn-tree-collapse-all");
 
   var explanationPlaceholder = document.getElementById("explanation-placeholder");
   var explanationLoading = document.getElementById("explanation-loading");
@@ -1070,6 +1449,18 @@
   var clauseFullText = document.getElementById("clause-full-text");
   var impactAnalysisLink = document.getElementById("impact-analysis-link");
 
+  var btnTabDoc = document.getElementById("btn-tab-doc");
+  var btnTabClause = document.getElementById("btn-tab-clause");
+  var viewerContractFilename = document.getElementById("viewer-contract-filename");
+  var viewerCharCount = document.getElementById("viewer-char-count");
+  var btnCopySha = document.getElementById("btn-copy-sha");
+  var btnJumpHighlight = document.getElementById("btn-jump-highlight");
+  var viewerFallbackBanner = document.getElementById("viewer-fallback-banner");
+  var viewerFallbackText = document.getElementById("viewer-fallback-text");
+  var viewerDocumentContainer = document.getElementById("viewer-document-container");
+  var viewerClauseContainer = document.getElementById("viewer-clause-container");
+  var contractFullText = document.getElementById("contract-full-text");
+
   var mobileToggleBtn = document.getElementById("mobile-toggle-btn");
   var sidebar = document.getElementById("app-sidebar");
 
@@ -1086,6 +1477,7 @@
 
   var allContracts = [];
   var allClauses = [];
+  var currentContractRecord = null;
   var selectedContractId = null;
   var selectedClauseId = null;
   var selectedClauseSection = null;
@@ -1093,6 +1485,9 @@
   var explanationRequestId = 0;
   var clausesRequestId = 0;
   var chatHistory = [];
+  var viewerMode = "document"; // "document" or "clause"
+  var clauseTreeRoots = [];
+  var nodeBySecMap = {};
 
   var initialParams = new URLSearchParams(window.location.search);
   var targetContractParam = initialParams.get("contract");
@@ -1101,6 +1496,10 @@
   function esc(s) {
     return String(s === undefined || s === null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function escRegex(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   function setStatus(element, message, kind) {
@@ -1129,13 +1528,6 @@
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
-  function truncateText(text, limit) {
-    var val = (text === null || text === undefined) ? "" : String(text);
-    val = val.replace(/\s+/g, " ").trim();
-    if (val.length <= limit) return val;
-    return val.slice(0, limit).replace(/\s+$/, "") + "\u2026";
-  }
-
   function updateAiContext() {
     if (!aiContextText) return;
     var cName = "Contract #" + (selectedContractId || "None");
@@ -1158,6 +1550,7 @@
     updateAiContext();
   }
 
+  /* ---------- Contracts Handling ---------- */
   function renderContractItem(contract) {
     var li = document.createElement("li");
     li.setAttribute("role", "button");
@@ -1217,7 +1610,36 @@
       });
     }
 
+    loadContractDetails(contractId);
     loadClauses(contractId);
+  }
+
+  function loadContractDetails(contractId) {
+    currentContractRecord = null;
+    if (viewerContractFilename) viewerContractFilename.textContent = "Loading document...";
+    if (contractFullText) contractFullText.textContent = "Loading contract source text...";
+
+    return fetch("/contracts/" + encodeURIComponent(String(contractId)), {
+      headers: { "Accept": "application/json" }
+    })
+      .then(function(res) {
+        if (!res.ok) throw new Error("Could not load full contract text");
+        return res.json();
+      })
+      .then(function(data) {
+        currentContractRecord = data;
+        if (viewerContractFilename) {
+          viewerContractFilename.textContent = data.filename || ("Contract #" + contractId);
+        }
+        updateContractViewer();
+      })
+      .catch(function(err) {
+        currentContractRecord = null;
+        if (viewerContractFilename) {
+          viewerContractFilename.textContent = "Document details unavailable (" + err.message + ")";
+        }
+        updateContractViewer();
+      });
   }
 
   function loadContracts() {
@@ -1260,105 +1682,279 @@
       });
   }
 
-  /* ---------- Clauses Rendering ---------- */
-  function renderClauseItem(clause) {
-    var li = document.createElement("li");
-    li.setAttribute("role", "button");
-    li.tabIndex = 0;
-    var sec = clause.section_number !== undefined && clause.section_number !== null
-      ? String(clause.section_number)
-      : (clause.clause_id ? String(clause.clause_id) : "?");
-    li.dataset.section = sec;
+  /* ---------- Priority 1 Upgrade 1: Clause Tree Implementation ---------- */
+  function buildClauseTree(clauses) {
+    nodeBySecMap = {};
+    var roots = [];
 
-    var level = Number(clause.level) || 0;
-    if (level > 1) {
-      li.style.marginLeft = Math.min((level - 1) * 14, 42) + "px";
-    }
-
-    var head = document.createElement("div");
-    head.className = "item-title-row";
-    var secTag = document.createElement("span");
-    secTag.className = "item-title";
-    if (level > 1) {
-      var ind = document.createElement("span");
-      ind.style.color = "var(--text-muted)";
-      ind.textContent = "\u21b3 ";
-      secTag.appendChild(ind);
-    }
-    secTag.appendChild(document.createTextNode("Clause " + sec));
-    head.appendChild(secTag);
-
-    var badges = document.createElement("div");
-    badges.className = "badge-row";
-    if (clause.type && clause.type !== "other") {
-      var typeB = document.createElement("span");
-      typeB.className = "badge badge-type";
-      typeB.textContent = String(clause.type);
-      badges.appendChild(typeB);
-    }
-    if (Array.isArray(clause.references) && clause.references.length > 0) {
-      var refB = document.createElement("span");
-      refB.className = "badge badge-refs";
-      refB.textContent = "refs: " + clause.references.slice(0, 3).join(", ");
-      badges.appendChild(refB);
-    }
-    head.appendChild(badges);
-    li.appendChild(head);
-
-    if (clause.heading) {
-      var hEl = document.createElement("div");
-      hEl.style.fontWeight = "650";
-      hEl.style.fontSize = "0.82rem";
-      hEl.style.marginBottom = "3px";
-      hEl.textContent = String(clause.heading);
-      li.appendChild(hEl);
-    }
-
-    var preview = document.createElement("span");
-    preview.className = "item-meta";
-    var textVal = clause.text || clause.clause_text || "";
-    preview.textContent = truncateText(textVal, 140) || "No text stored.";
-    li.appendChild(preview);
-
-    function activate() { selectClause(li, clause); }
-    li.addEventListener("click", activate);
-    li.addEventListener("keydown", function(e) {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); }
+    // Pass 1: create node objects indexed by section number
+    clauses.forEach(function (c) {
+      var sec = c.section_number !== undefined && c.section_number !== null
+        ? String(c.section_number)
+        : (c.clause_id ? String(c.clause_id) : "");
+      var node = {
+        sec: sec,
+        clause: c,
+        children: [],
+        parent: null,
+        isExpanded: true,
+        liEl: null,
+        rowEl: null,
+        childrenUl: null,
+        expanderBtn: null
+      };
+      nodeBySecMap[sec] = node;
     });
 
-    if (String(selectedClauseSection) === sec) li.classList.add("is-selected");
+    // Pass 2: establish parent-child relationships from real dot hierarchy
+    clauses.forEach(function (c) {
+      var sec = String(c.section_number !== undefined && c.section_number !== null ? c.section_number : (c.clause_id || ""));
+      var node = nodeBySecMap[sec];
+      if (!node) return;
+
+      var parentNode = null;
+      if (sec.indexOf(".") !== -1) {
+        var dotIndex = sec.lastIndexOf(".");
+        var parentSec = sec.substring(0, dotIndex);
+        if (nodeBySecMap[parentSec]) {
+          parentNode = nodeBySecMap[parentSec];
+        } else {
+          // Fall back to higher ancestor if direct parent row is missing
+          var parts = sec.split(".");
+          for (var p = parts.length - 2; p >= 1; p--) {
+            var candidate = parts.slice(0, p).join(".");
+            if (nodeBySecMap[candidate]) {
+              parentNode = nodeBySecMap[candidate];
+              break;
+            }
+          }
+        }
+      }
+
+      if (parentNode && parentNode !== node) {
+        node.parent = parentNode;
+        parentNode.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    return roots;
+  }
+
+  function renderTreeNode(node, depth) {
+    var li = document.createElement("li");
+    li.className = "tree-item";
+    node.liEl = li;
+
+    var row = document.createElement("div");
+    row.className = "tree-node-row";
+    row.setAttribute("role", "button");
+    row.tabIndex = 0;
+    row.dataset.section = node.sec;
+    node.rowEl = row;
+
+    var hasChildren = node.children && node.children.length > 0;
+
+    if (hasChildren) {
+      var expBtn = document.createElement("button");
+      expBtn.type = "button";
+      expBtn.className = "tree-expander-btn";
+      expBtn.setAttribute("aria-label", "Toggle sub-clauses for " + node.sec);
+      expBtn.innerHTML = "&#9660;";
+      expBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        toggleNodeExpansion(node);
+      });
+      row.appendChild(expBtn);
+      node.expanderBtn = expBtn;
+    } else {
+      var spacer = document.createElement("span");
+      spacer.className = "tree-spacer";
+      row.appendChild(spacer);
+    }
+
+    var main = document.createElement("div");
+    main.className = "tree-node-main";
+
+    var header = document.createElement("div");
+    header.className = "tree-node-header";
+
+    var secTag = document.createElement("span");
+    secTag.className = "tree-sec-tag";
+    secTag.textContent = node.sec.indexOf("SCHEDULE") === 0 ? node.sec : ("Clause " + node.sec);
+    header.appendChild(secTag);
+
+    if (hasChildren) {
+      var countBadge = document.createElement("span");
+      countBadge.className = "tree-child-count";
+      countBadge.textContent = "(" + node.children.length + ")";
+      countBadge.title = node.children.length + " sub-clauses";
+      header.appendChild(countBadge);
+    }
+
+    if (node.clause.type && node.clause.type !== "other") {
+      var typeB = document.createElement("span");
+      typeB.className = "badge badge-type";
+      typeB.textContent = String(node.clause.type);
+      header.appendChild(typeB);
+    }
+
+    if (Array.isArray(node.clause.references) && node.clause.references.length > 0) {
+      var refB = document.createElement("span");
+      refB.className = "badge badge-refs";
+      refB.textContent = "refs: " + node.clause.references.slice(0, 2).join(", ");
+      header.appendChild(refB);
+    }
+    main.appendChild(header);
+
+    if (node.clause.heading) {
+      var hText = document.createElement("div");
+      hText.className = "tree-heading-text";
+      hText.textContent = String(node.clause.heading);
+      main.appendChild(hText);
+    }
+
+    row.appendChild(main);
+    li.appendChild(row);
+
+    function activate() {
+      selectClauseNode(node);
+    }
+    row.addEventListener("click", activate);
+    row.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        activate();
+      } else if (e.key === "ArrowRight" && hasChildren && !node.isExpanded) {
+        e.preventDefault();
+        toggleNodeExpansion(node, true);
+      } else if (e.key === "ArrowLeft" && hasChildren && node.isExpanded) {
+        e.preventDefault();
+        toggleNodeExpansion(node, false);
+      }
+    });
+
+    if (hasChildren) {
+      var childUl = document.createElement("ul");
+      childUl.className = "tree-children";
+      node.childrenUl = childUl;
+      node.children.forEach(function (child) {
+        childUl.appendChild(renderTreeNode(child, depth + 1));
+      });
+      li.appendChild(childUl);
+    }
+
+    if (String(selectedClauseSection) === node.sec) {
+      row.classList.add("is-selected");
+    }
+
     return li;
   }
 
-  function filterClauses() {
-    var q = (clausesSearch ? clausesSearch.value : "").trim().toLowerCase();
-    var visible = 0;
-    if (!clausesList) return;
-    Array.prototype.forEach.call(clausesList.children, function(li) {
-      var t = (li.textContent || "").toLowerCase();
-      var match = !q || t.indexOf(q) !== -1;
-      li.hidden = !match;
-      if (match) visible++;
-    });
-    if (clausesCount) { clausesCount.textContent = String(visible); clausesCount.hidden = false; }
+  function toggleNodeExpansion(node, forceState) {
+    if (!node.childrenUl) return;
+    node.isExpanded = forceState !== undefined ? forceState : !node.isExpanded;
+    node.childrenUl.hidden = !node.isExpanded;
+    if (node.expanderBtn) {
+      node.expanderBtn.classList.toggle("is-collapsed", !node.isExpanded);
+      node.expanderBtn.innerHTML = node.isExpanded ? "&#9660;" : "&#9654;";
+    }
   }
 
-  function selectClause(li, clause) {
-    selectedClauseObj = clause;
-    selectedClauseId = clause.clause_id !== undefined && clause.clause_id !== null ? clause.clause_id : null;
-    selectedClauseSection = clause.section_number !== undefined && clause.section_number !== null
-      ? String(clause.section_number)
-      : (clause.clause_id ? String(clause.clause_id) : null);
+  function expandAncestors(node) {
+    var cur = node.parent;
+    while (cur) {
+      toggleNodeExpansion(cur, true);
+      cur = cur.parent;
+    }
+  }
+
+  function setAllTreeExpansion(expanded) {
+    Object.keys(nodeBySecMap).forEach(function(sec) {
+      var n = nodeBySecMap[sec];
+      if (n.children && n.children.length > 0) {
+        toggleNodeExpansion(n, expanded);
+      }
+    });
+  }
+
+  function selectClauseNode(node) {
+    expandAncestors(node);
+    selectedClauseObj = node.clause;
+    selectedClauseId = node.clause.clause_id !== undefined && node.clause.clause_id !== null ? node.clause.clause_id : null;
+    selectedClauseSection = node.sec;
 
     syncImpactLink();
 
     if (clausesList) {
-      Array.prototype.forEach.call(clausesList.children, function(c) {
-        c.classList.toggle("is-selected", c === li);
+      var allRows = clausesList.querySelectorAll(".tree-node-row");
+      allRows.forEach(function(r) {
+        r.classList.toggle("is-selected", r === node.rowEl);
       });
     }
 
+    if (node.rowEl) {
+      node.rowEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set("clause", node.sec);
+      window.history.replaceState(null, "", url.toString());
+    } catch (e) {}
+
     loadExplanation();
+    updateContractViewer();
+  }
+
+  function filterClauses() {
+    var q = (clausesSearch ? clausesSearch.value : "").trim().toLowerCase();
+    var matchCount = 0;
+
+    function checkNode(node) {
+      var textToSearch = (
+        node.sec + " " +
+        (node.clause.heading || "") + " " +
+        (node.clause.type || "") + " " +
+        (node.clause.text || node.clause.clause_text || "")
+      ).toLowerCase();
+
+      var matchesSelf = !q || textToSearch.indexOf(q) !== -1;
+      var hasMatchingChild = false;
+
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(function(ch) {
+          if (checkNode(ch)) {
+            hasMatchingChild = true;
+          }
+        });
+      }
+
+      var isVisible = matchesSelf || hasMatchingChild;
+      if (node.liEl) {
+        node.liEl.hidden = !isVisible;
+      }
+
+      if (q && hasMatchingChild) {
+        toggleNodeExpansion(node, true);
+      }
+
+      if (matchesSelf && isVisible) {
+        matchCount++;
+      }
+
+      return isVisible;
+    }
+
+    clauseTreeRoots.forEach(function(rootNode) {
+      checkNode(rootNode);
+    });
+
+    if (clausesCount) {
+      clausesCount.textContent = String(matchCount);
+      clausesCount.hidden = false;
+    }
   }
 
   function loadClauses(contractId) {
@@ -1366,6 +1962,8 @@
     selectedClauseSection = null;
     selectedClauseObj = null;
     allClauses = [];
+    clauseTreeRoots = [];
+    nodeBySecMap = {};
 
     var thisFetchId = ++clausesRequestId;
     resetExplanation("No clause selected", "Choose a clause from the middle column.");
@@ -1376,6 +1974,8 @@
     if (clausesPlaceholder) clausesPlaceholder.hidden = true;
     if (clausesLoading) clausesLoading.hidden = false;
     if (clausesSearch) clausesSearch.disabled = true;
+    if (btnTreeExpandAll) btnTreeExpandAll.disabled = true;
+    if (btnTreeCollapseAll) btnTreeCollapseAll.disabled = true;
 
     return fetch("/clauses/" + encodeURIComponent(String(contractId)), { headers: { "Accept": "application/json" } })
       .then(function(res) {
@@ -1395,34 +1995,210 @@
 
         if (clauses.length === 0) {
           fillPlaceholder(clausesEmpty, "No clauses detected", "This contract has no stored numbered clauses.");
+          updateContractViewer();
           return;
         }
 
+        // Build hierarchical clause tree
+        clauseTreeRoots = buildClauseTree(clauses);
+
         var fragment = document.createDocumentFragment();
-        clauses.forEach(function(c) { fragment.appendChild(renderClauseItem(c)); });
+        clauseTreeRoots.forEach(function(rootNode) {
+          fragment.appendChild(renderTreeNode(rootNode, 0));
+        });
+
         clausesList.appendChild(fragment);
         clausesList.hidden = false;
         if (clausesCount) { clausesCount.textContent = String(clauses.length); clausesCount.hidden = false; }
         if (clausesSearch) { clausesSearch.disabled = false; clausesSearch.value = ""; }
+        if (btnTreeExpandAll) btnTreeExpandAll.disabled = false;
+        if (btnTreeCollapseAll) btnTreeCollapseAll.disabled = false;
 
-        var matchedClause = null;
+        var targetNode = null;
         if (targetClauseParam) {
-          matchedClause = clauses.find(function(x) { return String(x.section_number || x.clause_id) === String(targetClauseParam); });
+          targetNode = nodeBySecMap[String(targetClauseParam)];
           targetClauseParam = null;
         }
-        if (!matchedClause && clauses.length > 0) matchedClause = clauses[0];
+        if (!targetNode && clauseTreeRoots.length > 0) {
+          targetNode = clauseTreeRoots[0];
+        }
 
-        if (matchedClause) {
-          var secId = matchedClause.section_number || matchedClause.clause_id;
-          var targetLi = clausesList.querySelector('[data-section="' + secId + '"]');
-          selectClause(targetLi, matchedClause);
+        if (targetNode) {
+          selectClauseNode(targetNode);
+        } else {
+          updateContractViewer();
         }
       })
       .catch(function(err) {
         if (thisFetchId !== clausesRequestId) return;
         if (clausesLoading) clausesLoading.hidden = true;
         setStatus(clausesStatus, err.message, "err");
+        updateContractViewer();
       });
+  }
+
+  /* ---------- Priority 1 Upgrade 2: Original Contract Viewer Logic ---------- */
+  function updateContractViewer() {
+    var c = selectedClauseObj;
+    if (!c) {
+      if (contractFullText) contractFullText.textContent = "Select a clause to view contract text.";
+      if (clauseFullText) clauseFullText.textContent = "Select a clause to view source.";
+      if (viewerCharCount) viewerCharCount.textContent = "0 chars";
+      if (btnCopySha) btnCopySha.hidden = true;
+      if (btnJumpHighlight) btnJumpHighlight.hidden = true;
+      return;
+    }
+
+    var fullText = c.text || c.clause_text || "";
+    var charLen = fullText.length;
+    var wordLen = fullText ? fullText.split(/\s+/).filter(Boolean).length : 0;
+
+    if (viewerCharCount) {
+      viewerCharCount.textContent = charLen + " chars \u00b7 " + wordLen + " words";
+    }
+
+    var sha = c.clause_sha256 || "";
+    if (btnCopySha) {
+      btnCopySha.hidden = !sha;
+    }
+
+    // Set isolated clause content
+    if (clauseFullText) {
+      clauseFullText.textContent = fullText || "No clause text stored.";
+    }
+
+    // Check full document raw_text availability
+    var raw = currentContractRecord && currentContractRecord.raw_text ? currentContractRecord.raw_text : "";
+
+    if (viewerMode === "document" && raw) {
+      if (viewerDocumentContainer) viewerDocumentContainer.hidden = false;
+      if (viewerClauseContainer) viewerClauseContainer.hidden = true;
+      if (viewerFallbackBanner) viewerFallbackBanner.hidden = true;
+      if (btnJumpHighlight) btnJumpHighlight.hidden = false;
+
+      renderHighlightedDocument(raw, fullText, selectedClauseSection);
+    } else {
+      // Fallback or explicit clause mode
+      if (viewerDocumentContainer) viewerDocumentContainer.hidden = true;
+      if (viewerClauseContainer) viewerClauseContainer.hidden = false;
+      if (btnJumpHighlight) btnJumpHighlight.hidden = true;
+
+      if (viewerMode === "document" && !raw) {
+        if (viewerFallbackBanner) {
+          viewerFallbackBanner.hidden = false;
+          if (viewerFallbackText) {
+            viewerFallbackText.textContent = "Full-document source text is unavailable for this contract. Reliable clause-level source viewer active.";
+          }
+        }
+      } else {
+        if (viewerFallbackBanner) viewerFallbackBanner.hidden = true;
+      }
+    }
+  }
+
+  function renderHighlightedDocument(rawText, clauseText, sec) {
+    if (!contractFullText) return;
+
+    var start = -1;
+    var matchLength = 0;
+
+    // 1. Exact match of complete clause text
+    if (clauseText && clauseText.trim()) {
+      start = rawText.indexOf(clauseText);
+      if (start !== -1) {
+        matchLength = clauseText.length;
+      }
+    }
+
+    // 2. Prefix match (first 50 chars)
+    if (start === -1 && clauseText && clauseText.length > 30) {
+      var snippet = clauseText.substring(0, 50).trim();
+      start = rawText.indexOf(snippet);
+      if (start !== -1) {
+        matchLength = Math.min(clauseText.length, rawText.length - start);
+      }
+    }
+
+    // 3. Section number match
+    if (start === -1 && sec) {
+      var re = new RegExp("(^|\\n)\\s*" + escRegex(sec) + "(\\.|\\s)", "i");
+      var m = re.exec(rawText);
+      if (m) {
+        start = m.index + (m[1] ? m[1].length : 0);
+        matchLength = Math.min(clauseText ? clauseText.length : 120, rawText.length - start);
+      }
+    }
+
+    if (start !== -1 && matchLength > 0) {
+      var before = rawText.substring(0, start);
+      var matched = rawText.substring(start, start + matchLength);
+      var after = rawText.substring(start + matchLength);
+
+      contractFullText.innerHTML = esc(before) +
+        '<mark class="clause-highlight" id="active-clause-highlight">' + esc(matched) + '</mark>' +
+        esc(after);
+
+      setTimeout(function() {
+        var hl = document.getElementById("active-clause-highlight");
+        if (hl) hl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+    } else {
+      contractFullText.textContent = rawText;
+    }
+  }
+
+  // Event handlers for toolbar & viewer controls
+  if (btnTabDoc) {
+    btnTabDoc.addEventListener("click", function() {
+      viewerMode = "document";
+      btnTabDoc.classList.add("active");
+      btnTabDoc.setAttribute("aria-selected", "true");
+      btnTabClause.classList.remove("active");
+      btnTabClause.setAttribute("aria-selected", "false");
+      updateContractViewer();
+    });
+  }
+
+  if (btnTabClause) {
+    btnTabClause.addEventListener("click", function() {
+      viewerMode = "clause";
+      btnTabClause.classList.add("active");
+      btnTabClause.setAttribute("aria-selected", "true");
+      btnTabDoc.classList.remove("active");
+      btnTabDoc.setAttribute("aria-selected", "false");
+      updateContractViewer();
+    });
+  }
+
+  if (btnCopySha) {
+    btnCopySha.addEventListener("click", function() {
+      var sha = selectedClauseObj && selectedClauseObj.clause_sha256 ? selectedClauseObj.clause_sha256 : "";
+      if (!sha) return;
+      navigator.clipboard.writeText(sha).then(function() {
+        var old = btnCopySha.textContent;
+        btnCopySha.textContent = "Copied!";
+        setTimeout(function() { btnCopySha.textContent = old; }, 1800);
+      }).catch(function() {});
+    });
+  }
+
+  if (btnJumpHighlight) {
+    btnJumpHighlight.addEventListener("click", function() {
+      var hl = document.getElementById("active-clause-highlight");
+      if (hl) hl.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
+  if (btnTreeExpandAll) {
+    btnTreeExpandAll.addEventListener("click", function() {
+      setAllTreeExpansion(true);
+    });
+  }
+
+  if (btnTreeCollapseAll) {
+    btnTreeCollapseAll.addEventListener("click", function() {
+      setAllTreeExpansion(false);
+    });
   }
 
   /* ---------- Explanation Rendering ---------- */
@@ -1565,16 +2341,23 @@
         b.textContent = "Category: " + selectedClauseObj.type;
         clauseOverviewBadges.appendChild(b);
       }
+      if (selectedClauseObj && selectedClauseObj.version_id) {
+        var vB = document.createElement("span");
+        vB.className = "badge";
+        vB.textContent = "Version v" + selectedClauseObj.version_id;
+        clauseOverviewBadges.appendChild(vB);
+      }
       if (selectedClauseObj && selectedClauseObj.clause_sha256) {
         var hB = document.createElement("span");
-        hB.className = "badge";
-        hB.textContent = "SHA-256 Fingerprinted";
+        hB.className = "badge badge-verified";
+        hB.textContent = "\u2713 SHA-256 Fingerprinted";
         clauseOverviewBadges.appendChild(hB);
       }
     }
 
     if (clauseOverviewSha) {
-      clauseOverviewSha.textContent = selectedClauseObj && selectedClauseObj.clause_sha256 ? ("Fingerprint: " + selectedClauseObj.clause_sha256) : "";
+      clauseOverviewSha.textContent = selectedClauseObj && selectedClauseObj.clause_sha256 ? ("SHA: " + selectedClauseObj.clause_sha256.substring(0, 16) + "...") : "SHA: unverified";
+      clauseOverviewSha.title = selectedClauseObj && selectedClauseObj.clause_sha256 ? selectedClauseObj.clause_sha256 : "";
     }
 
     var fullText = (payload.input && payload.input.text) || (selectedClauseObj ? (selectedClauseObj.text || selectedClauseObj.clause_text) : "");
@@ -1593,6 +2376,8 @@
     if (explanationPlaceholder) explanationPlaceholder.hidden = true;
     if (explanationLoading) explanationLoading.hidden = true;
     if (explanationContent) explanationContent.hidden = false;
+
+    updateContractViewer();
   }
 
   function loadExplanation() {
