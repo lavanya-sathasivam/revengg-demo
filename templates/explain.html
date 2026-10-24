@@ -574,6 +574,15 @@
     z-index: 1000;
     overflow: hidden;
   }
+  .ai-chat-drawer.maximized {
+    inset: 16px;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+  }
+  .ai-drawer-header { cursor: move; user-select: none; }
+  .ai-header-controls button { cursor: pointer; }
   .ai-chat-drawer[hidden] { display: none !important; }
 
   .ai-drawer-header {
@@ -744,6 +753,15 @@
     .layout-3col { grid-template-columns: 1fr; }
     .panel-col-explanation { grid-column: auto; }
     .content-container { padding: 16px; }
+    .floating-ai-btn { right: 14px; bottom: 14px; padding: 10px 14px; }
+    .ai-chat-drawer {
+      right: 10px;
+      bottom: 74px;
+      width: calc(100vw - 20px);
+      height: min(580px, calc(100vh - 90px));
+      max-width: none;
+    }
+    .ai-chat-drawer.maximized { inset: 8px; }
   }
 
   /* ---------- Priority 1 Upgrade 1: Clause Tree Hierarchy ---------- */
@@ -1362,7 +1380,7 @@
 </div>
 
 <!-- ================= Floating Gemini AI Assistant ================= -->
-<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
+<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-expanded="false" aria-controls="ai-chat-drawer" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
   <span>✨</span>
   <span>Ask Legal AI</span>
 </button>
@@ -1378,6 +1396,7 @@
     </div>
     <div class="ai-header-controls">
       <button type="button" class="ai-icon-btn" id="ai-clear-btn" title="Clear chat history">⟲</button>
+      <button type="button" class="ai-icon-btn" id="ai-maximize-btn" aria-label="Maximize assistant" title="Maximize assistant">□</button>
       <button type="button" class="ai-icon-btn" id="ai-close-btn" aria-label="Close Assistant">&times;</button>
     </div>
   </div>
@@ -1468,6 +1487,7 @@
   var aiDrawer = document.getElementById("ai-chat-drawer");
   var aiCloseBtn = document.getElementById("ai-close-btn");
   var aiClearBtn = document.getElementById("ai-clear-btn");
+  var aiMaximizeBtn = document.getElementById("ai-maximize-btn");
   var aiMessagesScroll = document.getElementById("ai-messages-scroll");
   var aiChatForm = document.getElementById("ai-chat-form");
   var aiChatInput = document.getElementById("ai-chat-input");
@@ -1485,6 +1505,7 @@
   var explanationRequestId = 0;
   var clausesRequestId = 0;
   var chatHistory = [];
+  var aiDragState = null;
   var viewerMode = "document"; // "document" or "clause"
   var clauseTreeRoots = [];
   var nodeBySecMap = {};
@@ -2534,11 +2555,46 @@
     var isHidden = aiDrawer.hasAttribute("hidden");
     if (isHidden) {
       aiDrawer.removeAttribute("hidden");
+      aiLauncher.setAttribute("aria-expanded", "true");
       if (aiChatInput) aiChatInput.focus();
     } else {
       aiDrawer.setAttribute("hidden", "until-found");
+      aiLauncher.setAttribute("aria-expanded", "false");
     }
   }
+
+  function toggleAiMaximize() {
+    if (!aiDrawer) return;
+    var maximized = aiDrawer.classList.toggle("maximized");
+    if (aiMaximizeBtn) {
+      aiMaximizeBtn.textContent = maximized ? "❐" : "□";
+      aiMaximizeBtn.setAttribute("aria-label", maximized ? "Restore assistant size" : "Maximize assistant");
+      aiMaximizeBtn.title = maximized ? "Restore assistant size" : "Maximize assistant";
+    }
+  }
+
+  function startAiDrag(event) {
+    if (!aiDrawer || aiDrawer.classList.contains("maximized") || event.target.closest("button")) return;
+    var rect = aiDrawer.getBoundingClientRect();
+    aiDragState = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+    aiDrawer.style.left = rect.left + "px";
+    aiDrawer.style.top = rect.top + "px";
+    aiDrawer.style.right = "auto";
+    aiDrawer.style.bottom = "auto";
+    aiDrawer.setPointerCapture(event.pointerId);
+  }
+
+  function moveAiDrag(event) {
+    if (!aiDragState || !aiDrawer) return;
+    var left = aiDragState.left + event.clientX - aiDragState.x;
+    var top = aiDragState.top + event.clientY - aiDragState.y;
+    var maxLeft = Math.max(8, window.innerWidth - aiDrawer.offsetWidth - 8);
+    var maxTop = Math.max(8, window.innerHeight - aiDrawer.offsetHeight - 8);
+    aiDrawer.style.left = Math.max(8, Math.min(maxLeft, left)) + "px";
+    aiDrawer.style.top = Math.max(8, Math.min(maxTop, top)) + "px";
+  }
+
+  function stopAiDrag() { aiDragState = null; }
 
   // Event bindings
   if (contractsSearch) contractsSearch.addEventListener("input", filterContracts);
@@ -2551,6 +2607,19 @@
   if (aiLauncher) aiLauncher.addEventListener("click", toggleAiDrawer);
   if (btnHeaderAi) btnHeaderAi.addEventListener("click", toggleAiDrawer);
   if (aiCloseBtn) aiCloseBtn.addEventListener("click", toggleAiDrawer);
+  if (aiMaximizeBtn) aiMaximizeBtn.addEventListener("click", toggleAiMaximize);
+  if (aiDrawer) {
+    var aiHeader = aiDrawer.querySelector(".ai-drawer-header");
+    if (aiHeader) {
+      aiHeader.addEventListener("pointerdown", startAiDrag);
+      document.addEventListener("pointermove", moveAiDrag);
+      document.addEventListener("pointerup", stopAiDrag);
+      document.addEventListener("pointercancel", stopAiDrag);
+    }
+  }
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape" && aiDrawer && !aiDrawer.hasAttribute("hidden")) toggleAiDrawer();
+  });
 
   if (aiClearBtn) {
     aiClearBtn.addEventListener("click", function() {

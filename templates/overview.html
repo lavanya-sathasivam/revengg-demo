@@ -417,6 +417,27 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
   }
+  .portfolio-filter-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 180px;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .portfolio-filter {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.82rem;
+  }
+  .portfolio-filter:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
+  }
 
   /* Table styles */
   .contracts-table {
@@ -626,6 +647,62 @@
     border: 1px solid var(--ok-border);
     color: var(--ok);
   }
+  .status-line.progress {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    color: var(--accent);
+  }
+  .upload-progress {
+    height: 6px;
+    margin-top: 10px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .upload-progress-bar {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width 0.15s ease;
+  }
+  .comparison-panel {
+    margin-top: 16px;
+    padding: 16px;
+    background: #fbfcfd;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .comparison-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    align-items: end;
+  }
+  .comparison-label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    font-weight: 650;
+  }
+  .comparison-result {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .comparison-result-card {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    font-size: 0.8rem;
+  }
+  .comparison-result-card strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.82rem;
+  }
 
   /* ---------- Floating Gemini AI Assistant ---------- */
   .floating-ai-btn {
@@ -669,6 +746,15 @@
     z-index: 1000;
     overflow: hidden;
   }
+  .ai-chat-drawer.maximized {
+    inset: 16px;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+  }
+  .ai-drawer-header { cursor: move; user-select: none; }
+  .ai-header-controls button { cursor: pointer; }
   .ai-chat-drawer[hidden] { display: none !important; }
 
   .ai-drawer-header {
@@ -870,6 +956,26 @@
     .content-container {
       padding: 16px;
     }
+    .portfolio-filter-row,
+    .comparison-controls,
+    .comparison-result {
+      grid-template-columns: 1fr;
+    }
+    .floating-ai-btn {
+      right: 14px;
+      bottom: 14px;
+      padding: 10px 14px;
+    }
+    .ai-chat-drawer {
+      right: 10px;
+      bottom: 74px;
+      width: calc(100vw - 20px);
+      height: min(580px, calc(100vh - 90px));
+      max-width: none;
+    }
+    .ai-chat-drawer.maximized {
+      inset: 8px;
+    }
   }
 </style>
 </head>
@@ -973,6 +1079,14 @@
 
           <div class="filter-search-wrap">
             <input type="search" id="contracts-search" class="search-input" placeholder="Filter contracts by filename, ID, or status..." aria-label="Search contracts">
+            <div class="portfolio-filter-row">
+              <select id="contracts-status-filter" class="portfolio-filter" aria-label="Filter contracts by status">
+                <option value="">All available statuses</option>
+              </select>
+              <select id="contracts-metadata-filter" class="portfolio-filter" aria-label="Filter contracts by metadata">
+                <option value="">All metadata</option>
+              </select>
+            </div>
           </div>
 
           <div style="overflow-x: auto;">
@@ -998,6 +1112,21 @@
           <div id="contracts-empty-state" style="padding: 30px; text-align: center; color: var(--text-muted); display: none;">
             No contracts match your search filter.
           </div>
+          <section class="comparison-panel" aria-labelledby="comparison-heading">
+            <h3 id="comparison-heading" class="drawer-title">Compare available contract metadata</h3>
+            <div class="comparison-controls">
+              <div>
+                <label class="comparison-label" for="compare-contract-a">First contract</label>
+                <select id="compare-contract-a" class="portfolio-filter" aria-label="First contract to compare"></select>
+              </div>
+              <div>
+                <label class="comparison-label" for="compare-contract-b">Second contract</label>
+                <select id="compare-contract-b" class="portfolio-filter" aria-label="Second contract to compare"></select>
+              </div>
+              <button type="button" class="btn-action-sm" id="compare-contracts-btn">Compare</button>
+            </div>
+            <div id="comparison-result" class="comparison-result" aria-live="polite" hidden></div>
+          </section>
         </section>
 
         <!-- Right Column: Intake Upload & Selected Document Drawer -->
@@ -1029,6 +1158,9 @@
                 <strong>Notice:</strong> The synthetic demo environment operates in read-only mode. New file uploads are disabled in this mode.
               </div>
               <div id="upload-status" class="status-line" style="display: none;"></div>
+              <div id="upload-progress" class="upload-progress" hidden aria-label="Upload progress">
+                <div id="upload-progress-bar" class="upload-progress-bar"></div>
+              </div>
             </div>
           </section>
 
@@ -1069,7 +1201,7 @@
 </div>
 
 <!-- ================= Floating Gemini AI Assistant ================= -->
-<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
+<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-expanded="false" aria-controls="ai-chat-drawer" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
   <span>🤖</span>
   <span>Ask Legal AI</span>
 </button>
@@ -1084,6 +1216,7 @@
     </div>
     <div class="ai-header-controls">
       <button type="button" class="ai-icon-btn" id="ai-clear-btn" title="Clear chat history">⟲</button>
+      <button type="button" class="ai-icon-btn" id="ai-maximize-btn" aria-label="Maximize assistant" title="Maximize assistant">□</button>
       <button type="button" class="ai-icon-btn" id="ai-close-btn" aria-label="Close Assistant">&times;</button>
     </div>
   </div>
@@ -1123,6 +1256,8 @@
   // Elements
   var contractsTableBody = document.getElementById("contracts-table-body");
   var contractsSearch = document.getElementById("contracts-search");
+  var contractsStatusFilter = document.getElementById("contracts-status-filter");
+  var contractsMetadataFilter = document.getElementById("contracts-metadata-filter");
   var contractsEmptyState = document.getElementById("contracts-empty-state");
   var countBadge = document.getElementById("portfolio-badge-count");
   var metricTotalContracts = document.getElementById("metric-total-contracts");
@@ -1144,6 +1279,12 @@
   var uploadSubmit = document.getElementById("btn-upload-submit");
   var uploadDemoNote = document.getElementById("upload-demo-note");
   var uploadStatus = document.getElementById("upload-status");
+  var uploadProgress = document.getElementById("upload-progress");
+  var uploadProgressBar = document.getElementById("upload-progress-bar");
+  var compareContractA = document.getElementById("compare-contract-a");
+  var compareContractB = document.getElementById("compare-contract-b");
+  var compareContractsBtn = document.getElementById("compare-contracts-btn");
+  var comparisonResult = document.getElementById("comparison-result");
 
   var mobileToggleBtn = document.getElementById("mobile-toggle-btn");
   var sidebar = document.getElementById("app-sidebar");
@@ -1152,6 +1293,7 @@
   var aiDrawer = document.getElementById("ai-chat-drawer");
   var aiCloseBtn = document.getElementById("ai-close-btn");
   var aiClearBtn = document.getElementById("ai-clear-btn");
+  var aiMaximizeBtn = document.getElementById("ai-maximize-btn");
   var aiMessagesScroll = document.getElementById("ai-messages-scroll");
   var aiChatForm = document.getElementById("ai-chat-form");
   var aiChatInput = document.getElementById("ai-chat-input");
@@ -1163,6 +1305,7 @@
   var selectedContractId = null;
   var isDemoMode = true;
   var chatHistory = [];
+  var aiDragState = null;
 
   function esc(s) {
     return String(s === undefined || s === null ? "" : s)
@@ -1186,6 +1329,67 @@
     uploadStatus.className = "status-line " + (isError ? "error" : "success");
     uploadStatus.textContent = msg;
   }
+
+    function setUploadProgress(value) {
+      if (!uploadProgress || !uploadProgressBar) return;
+      uploadProgress.hidden = value === null;
+      uploadProgressBar.style.width = value === null ? "0" : Math.max(0, Math.min(100, value)) + "%";
+    }
+
+    function availableMetadata(c) {
+      var values = [];
+      if (c.provenance_status) values.push("provenance:" + String(c.provenance_status));
+      if (c.current_graph_build_id || c.graph_build_id) values.push("graph");
+      if (c.current_version_id || c.version_id) values.push("versioned");
+      return values;
+    }
+
+    function populateFilters() {
+      if (contractsStatusFilter) {
+        var statuses = [];
+        allContracts.forEach(function(c) {
+          var status = c.processing_status || "";
+          if (status && statuses.indexOf(status) === -1) statuses.push(status);
+        });
+        contractsStatusFilter.innerHTML = '<option value="">All available statuses</option>';
+        statuses.sort().forEach(function(status) {
+          var option = document.createElement("option");
+          option.value = status.toLowerCase();
+          option.textContent = status;
+          contractsStatusFilter.appendChild(option);
+        });
+      }
+      if (contractsMetadataFilter) {
+        var metadata = [];
+        allContracts.forEach(function(c) {
+          availableMetadata(c).forEach(function(value) {
+            if (metadata.indexOf(value) === -1) metadata.push(value);
+          });
+        });
+        contractsMetadataFilter.innerHTML = '<option value="">All metadata</option>';
+        metadata.sort().forEach(function(value) {
+          var option = document.createElement("option");
+          option.value = value.toLowerCase();
+          option.textContent = value.replace(/^provenance:/, "Provenance: ");
+          contractsMetadataFilter.appendChild(option);
+        });
+      }
+    }
+
+    function renderComparisonOptions() {
+      [compareContractA, compareContractB].forEach(function(select) {
+        if (!select) return;
+        select.innerHTML = "";
+        allContracts.forEach(function(c) {
+          var option = document.createElement("option");
+          option.value = c.contract_id;
+          option.textContent = (c.filename || "Contract #" + c.contract_id) + " (ID " + c.contract_id + ")";
+          select.appendChild(option);
+        });
+      });
+      if (compareContractB && allContracts.length > 1) compareContractB.selectedIndex = 1;
+      if (compareContractsBtn) compareContractsBtn.disabled = allContracts.length < 2;
+    }
 
   function selectContract(contract) {
     selectedContractId = contract.contract_id;
@@ -1212,6 +1416,7 @@
     if (aiContextText) {
       aiContextText.textContent = "Context: " + (contract.filename || "Contract #" + contract.contract_id);
     }
+    updateSuggestedQuestions(contract);
 
     // Highlight row
     if (contractsTableBody) {
@@ -1248,7 +1453,8 @@
         '<td>' +
           '<div class="contract-name-cell">' +
             '<span>' + esc(c.filename || "Untitled") + '</span>' +
-            '<span class="contract-id-pill">Version ' + esc(c.current_version_id || c.version_id || 1) + '</span>' +
+            ((c.current_version_id || c.version_id) ? '<span class="contract-id-pill">Version ' + esc(c.current_version_id || c.version_id) + '</span>' : '') +
+            (c.provenance_status ? '<span class="contract-id-pill">' + esc(c.provenance_status) + '</span>' : '') +
           '</div>' +
         '</td>' +
         '<td><span class="badge-status ' + esc(st) + '">' + esc(st) + '</span></td>' +
@@ -1269,15 +1475,68 @@
 
   function filterContracts() {
     var q = (contractsSearch ? contractsSearch.value : "").trim().toLowerCase();
+    var statusFilter = contractsStatusFilter ? contractsStatusFilter.value : "";
+    var metadataFilter = contractsMetadataFilter ? contractsMetadataFilter.value : "";
     var filtered = allContracts.filter(function(c) {
-      if (!q) return true;
       var name = (c.filename || "").toLowerCase();
       var id = String(c.contract_id || "");
       var st = (c.processing_status || "").toLowerCase();
-      return name.indexOf(q) !== -1 || id.indexOf(q) !== -1 || st.indexOf(q) !== -1;
+      var matchesQuery = !q || name.indexOf(q) !== -1 || id.indexOf(q) !== -1 || st.indexOf(q) !== -1;
+      var matchesStatus = !statusFilter || st === statusFilter;
+      var matchesMetadata = !metadataFilter || availableMetadata(c).some(function(value) {
+        return value.toLowerCase() === metadataFilter;
+      });
+      return matchesQuery && matchesStatus && matchesMetadata;
     });
     renderTable(filtered);
     if (countBadge) countBadge.textContent = filtered.length + " Documents";
+  }
+
+  function renderComparison() {
+    if (!comparisonResult || !compareContractA || !compareContractB) return;
+    var a = allContracts.filter(function(c) { return String(c.contract_id) === String(compareContractA.value); })[0];
+    var b = allContracts.filter(function(c) { return String(c.contract_id) === String(compareContractB.value); })[0];
+    if (!a || !b || String(a.contract_id) === String(b.contract_id)) {
+      comparisonResult.hidden = false;
+      comparisonResult.innerHTML = '<div class="comparison-result-card">Choose two different available contracts to compare.</div>';
+      return;
+    }
+    var fields = [
+      ["Filename", "filename"],
+      ["Processing status", "processing_status"],
+      ["Uploaded", "upload_timestamp"],
+      ["Version", "current_version_id", "version_id"],
+      ["Graph build", "current_graph_build_id", "graph_build_id"],
+      ["Provenance", "provenance_status"]
+    ];
+    function renderCard(contract) {
+      var rows = fields.map(function(field) {
+        var value = contract[field[1]] !== undefined ? contract[field[1]] : contract[field[2]];
+        if (value === undefined) return "";
+        if (field[1] === "upload_timestamp") value = value ? formatTimestamp(value) : "Unavailable";
+        if (value === null || value === "") value = "Unavailable";
+        return '<div><strong>' + esc(field[0]) + '</strong><div>' + esc(value) + '</div></div>';
+      }).filter(Boolean).join("");
+      return '<div class="comparison-result-card"><strong>' + esc(contract.filename || "Contract #" + contract.contract_id) + '</strong>' + rows + '</div>';
+    }
+    comparisonResult.hidden = false;
+    comparisonResult.innerHTML = renderCard(a) + renderCard(b);
+  }
+
+  function updateSuggestedQuestions(contract) {
+    var chips = document.querySelectorAll(".ai-suggestion-chip");
+    var name = contract && contract.filename ? contract.filename : "this contract";
+    var prompts = [
+      "Summarize " + name + " and its key obligations.",
+      "What payment terms are stated in " + name + "?",
+      "Which service level commitments appear in " + name + "?"
+    ];
+    chips.forEach(function(chip, index) {
+      if (!prompts[index]) return;
+      chip.setAttribute("data-prompt", prompts[index]);
+      chip.textContent = index === 0 ? "Summarize selected contract" :
+        (index === 1 ? "Review payment terms" : "Check SLA commitments");
+    });
   }
 
   function loadContracts() {
@@ -1292,6 +1551,8 @@
         if (metricBoundContracts) metricBoundContracts.textContent = String(allContracts.length);
         if (countBadge) countBadge.textContent = allContracts.length + " Documents";
 
+        populateFilters();
+        renderComparisonOptions();
         renderTable(allContracts);
 
         if (allContracts.length > 0 && selectedContractId === null) {
@@ -1334,36 +1595,48 @@
         uploadSubmit.textContent = "Processing PDF...";
       }
 
-      fetch("/upload", {
-        method: "POST",
-        body: formData,
-        headers: { "Accept": "application/json" }
-      })
-        .then(function(res) {
-          return res.json().then(function(data) {
-            if (!res.ok) throw new Error(data.detail || "Upload failed");
-            return data;
-          });
-        })
-        .then(function(payload) {
-          setUploadStatus("Contract uploaded successfully. Clauses parsed: " + (payload.clauses_saved || "saved"), false);
-          if (uploadFile) uploadFile.value = "";
-          return loadContracts().then(function() {
-            if (payload.contract_id) {
-              var found = allContracts.find(function(x) { return x.contract_id === payload.contract_id; });
-              if (found) selectContract(found);
-            }
-          });
-        })
-        .catch(function(err) {
-          setUploadStatus(err.message, true);
-        })
-        .finally(function() {
-          if (uploadSubmit) {
-            uploadSubmit.disabled = false;
-            uploadSubmit.textContent = "Upload Contract →";
+      setUploadProgress(0);
+      setUploadStatus("Uploading PDF... 0%", false);
+      var request = new XMLHttpRequest();
+      request.open("POST", "/upload");
+      request.setRequestHeader("Accept", "application/json");
+      request.upload.addEventListener("progress", function(event) {
+        if (!event.lengthComputable) return;
+        var percent = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percent);
+        setUploadStatus("Uploading PDF... " + percent + "%", false);
+      });
+      request.addEventListener("load", function() {
+        var payload = {};
+        try { payload = request.responseText ? JSON.parse(request.responseText) : {}; } catch (parseError) {
+          setUploadStatus("Upload returned an unreadable response.", true);
+          return;
+        }
+        if (request.status < 200 || request.status >= 300) {
+          setUploadStatus(payload.detail || "Upload failed (HTTP " + request.status + ").", true);
+          return;
+        }
+        setUploadProgress(100);
+        setUploadStatus("Contract uploaded successfully. Clauses parsed: " + (payload.clauses_saved || "saved"), false);
+        if (uploadFile) uploadFile.value = "";
+        loadContracts().then(function() {
+          if (payload.contract_id) {
+            var found = allContracts.filter(function(x) { return String(x.contract_id) === String(payload.contract_id); })[0];
+            if (found) selectContract(found);
           }
         });
+      });
+      request.addEventListener("error", function() {
+        setUploadStatus("Upload failed because the server could not be reached.", true);
+      });
+      request.addEventListener("loadend", function() {
+        if (uploadSubmit) {
+          uploadSubmit.disabled = false;
+          uploadSubmit.textContent = "Upload Contract \u2192";
+        }
+        setTimeout(function() { setUploadProgress(null); }, 1200);
+      });
+      request.send(formData);
     });
   }
 
@@ -1509,14 +1782,52 @@
     var isHidden = aiDrawer.hasAttribute("hidden");
     if (isHidden) {
       aiDrawer.removeAttribute("hidden");
+      aiLauncher.setAttribute("aria-expanded", "true");
       if (aiChatInput) aiChatInput.focus();
     } else {
       aiDrawer.setAttribute("hidden", "until-found");
+      aiLauncher.setAttribute("aria-expanded", "false");
     }
   }
 
+  function toggleAiMaximize() {
+    if (!aiDrawer) return;
+    var maximized = aiDrawer.classList.toggle("maximized");
+    if (aiMaximizeBtn) {
+      aiMaximizeBtn.textContent = maximized ? "❐" : "□";
+      aiMaximizeBtn.setAttribute("aria-label", maximized ? "Restore assistant size" : "Maximize assistant");
+      aiMaximizeBtn.title = maximized ? "Restore assistant size" : "Maximize assistant";
+    }
+  }
+
+  function startAiDrag(event) {
+    if (!aiDrawer || aiDrawer.classList.contains("maximized") || event.target.closest("button")) return;
+    var rect = aiDrawer.getBoundingClientRect();
+    aiDragState = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+    aiDrawer.style.left = rect.left + "px";
+    aiDrawer.style.top = rect.top + "px";
+    aiDrawer.style.right = "auto";
+    aiDrawer.style.bottom = "auto";
+    aiDrawer.setPointerCapture(event.pointerId);
+  }
+
+  function moveAiDrag(event) {
+    if (!aiDragState || !aiDrawer) return;
+    var left = aiDragState.left + event.clientX - aiDragState.x;
+    var top = aiDragState.top + event.clientY - aiDragState.y;
+    var maxLeft = Math.max(8, window.innerWidth - aiDrawer.offsetWidth - 8);
+    var maxTop = Math.max(8, window.innerHeight - aiDrawer.offsetHeight - 8);
+    aiDrawer.style.left = Math.max(8, Math.min(maxLeft, left)) + "px";
+    aiDrawer.style.top = Math.max(8, Math.min(maxTop, top)) + "px";
+  }
+
+  function stopAiDrag() { aiDragState = null; }
+
   // Event bindings
   if (contractsSearch) contractsSearch.addEventListener("input", filterContracts);
+  if (contractsStatusFilter) contractsStatusFilter.addEventListener("change", filterContracts);
+  if (contractsMetadataFilter) contractsMetadataFilter.addEventListener("change", filterContracts);
+  if (compareContractsBtn) compareContractsBtn.addEventListener("click", renderComparison);
 
   if (mobileToggleBtn && sidebar) {
     mobileToggleBtn.addEventListener("click", function() {
@@ -1527,6 +1838,19 @@
   if (aiLauncher) aiLauncher.addEventListener("click", toggleAiDrawer);
   if (btnHeaderAi) btnHeaderAi.addEventListener("click", toggleAiDrawer);
   if (aiCloseBtn) aiCloseBtn.addEventListener("click", toggleAiDrawer);
+  if (aiMaximizeBtn) aiMaximizeBtn.addEventListener("click", toggleAiMaximize);
+  if (aiDrawer) {
+    var aiHeader = aiDrawer.querySelector(".ai-drawer-header");
+    if (aiHeader) {
+      aiHeader.addEventListener("pointerdown", startAiDrag);
+      document.addEventListener("pointermove", moveAiDrag);
+      document.addEventListener("pointerup", stopAiDrag);
+      document.addEventListener("pointercancel", stopAiDrag);
+    }
+  }
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape" && aiDrawer && !aiDrawer.hasAttribute("hidden")) toggleAiDrawer();
+  });
 
   if (aiClearBtn) {
     aiClearBtn.addEventListener("click", function() {

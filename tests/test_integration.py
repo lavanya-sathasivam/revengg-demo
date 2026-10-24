@@ -265,7 +265,7 @@ class TestTheUiServesTheEngine(IntegrationTestCase):
         self.assertIn('id="clause-preview-text"', body)
         self.assertIn("No numbered clauses were detected", body)
         self.assertIn("ask an administrator to rebuild this contract's graph", body)
-        self.assertIn("Results from another contract were cleared.", body)
+        self.assertIn("Results from another selection were cleared.", body)
 
     def test_clause_explainer_carries_selected_contract_to_impact_page(self):
         html = open(os.path.join(ROOT, "templates", "explain.html"),

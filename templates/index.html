@@ -731,6 +731,15 @@
     z-index: 1000;
     overflow: hidden;
   }
+  .ai-chat-drawer.maximized {
+    inset: 16px;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+  }
+  .ai-drawer-header { cursor: move; user-select: none; }
+  .ai-header-controls button { cursor: pointer; }
   .ai-chat-drawer[hidden] { display: none !important; }
 
   .ai-drawer-header {
@@ -896,6 +905,16 @@
     .mobile-toggle-btn { display: inline-block; }
     .workflow-grid { grid-template-columns: 1fr; }
     .content-container { padding: 16px; }
+    .comparison-grid { grid-template-columns: 1fr; }
+    .floating-ai-btn { right: 14px; bottom: 14px; padding: 10px 14px; }
+    .ai-chat-drawer {
+      right: 10px;
+      bottom: 74px;
+      width: calc(100vw - 20px);
+      height: min(580px, calc(100vh - 90px));
+      max-width: none;
+    }
+    .ai-chat-drawer.maximized { inset: 8px; }
   }
 
   /* ---------- Priority 1 Upgrade 3: Impact Summary Cards ---------- */
@@ -1211,6 +1230,15 @@
     padding: 12px 14px;
     margin-top: 10px;
   }
+  .comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .comparison-grid .evidence-citation-card {
+    margin-top: 0;
+  }
   .evidence-header-row {
     display: flex;
     justify-content: space-between;
@@ -1449,7 +1477,7 @@
 </div>
 
 <!-- ================= Floating Gemini AI Assistant ================= -->
-<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
+<button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-expanded="false" aria-controls="ai-chat-drawer" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
   <span>✨</span>
   <span>Ask Legal AI</span>
 </button>
@@ -1465,6 +1493,7 @@
     </div>
     <div class="ai-header-controls">
       <button type="button" class="ai-icon-btn" id="ai-clear-btn" title="Clear chat history">⟲</button>
+      <button type="button" class="ai-icon-btn" id="ai-maximize-btn" aria-label="Maximize assistant" title="Maximize assistant">□</button>
       <button type="button" class="ai-icon-btn" id="ai-close-btn" aria-label="Close Assistant">&times;</button>
     </div>
   </div>
@@ -1528,6 +1557,7 @@
   var aiDrawer = document.getElementById("ai-chat-drawer");
   var aiCloseBtn = document.getElementById("ai-close-btn");
   var aiClearBtn = document.getElementById("ai-clear-btn");
+  var aiMaximizeBtn = document.getElementById("ai-maximize-btn");
   var aiMessagesScroll = document.getElementById("ai-messages-scroll");
   var aiChatForm = document.getElementById("ai-chat-form");
   var aiChatInput = document.getElementById("ai-chat-input");
@@ -1541,6 +1571,7 @@
   var clauseLoadVersion = 0;
   var analysisRequestVersion = 0;
   var chatHistory = [];
+  var aiDragState = null;
   var clauseTreeNodes = [];
   var clauseTreeExpanded = {};
 
@@ -1651,6 +1682,14 @@
     renderClauseTree();
     renderClausePreview();
     if (updateUrl !== false) syncClauseUrl();
+  }
+
+  function revealClauseAncestors(clauseId) {
+    var node = clauseTreeNodes.filter(function(item) { return item.id === clauseId; })[0];
+    if (!node) return;
+    node.ancestors.forEach(function(parentId) {
+      clauseTreeExpanded[parentId] = true;
+    });
   }
 
   function handleClauseTreeKeydown(event) {
@@ -1813,21 +1852,21 @@
           var opt = el("option", null, "Clause " + c.clause_id + (c.heading ? " — " + c.heading : ""));
           opt.value = c.clause_id;
           selClause.appendChild(opt);
-          clauseTreeExpanded[node.id] = true;
+          clauseTreeExpanded[node.id] = false;
         });
         clauseTreeNodes.forEach(function(node) {
           var parts = node.id.split(".");
           var ancestors = [];
           for (var i = parts.length - 1; i > 0; i -= 1) {
             var parentId = parts.slice(0, i).join(".");
-            var parentNode = clauseTreeNodes.filter(function(item) {
-              return item.id === parentId;
-            })[0];
-            if (!parentNode) continue;
             ancestors.unshift(parentId);
-            parentNode.children.push(node);
           }
           node.ancestors = ancestors;
+          var directParentId = ancestors.length ? ancestors[ancestors.length - 1] : "";
+          var directParent = clauseTreeNodes.filter(function(item) {
+            return item.id === directParentId;
+          })[0];
+          if (directParent) directParent.children.push(node);
           node.ancestorSearchText = ancestors.map(function(parentId) {
             var parent = clauseMap[parentId];
             return parent ? parent.clause_id + " " + (parent.heading || "") : "";
@@ -1838,6 +1877,7 @@
 
         var target = new URLSearchParams(window.location.search).get("clause");
         if (target && clauseMap[target]) {
+          revealClauseAncestors(String(target));
           selectClause(target, false);
         } else if (clauseMap["7.2"]) {
           selectClause("7.2", false);
@@ -1940,6 +1980,23 @@
       });
   }
 
+  function citationClauseId(citation) {
+    if (citation === undefined || citation === null) return "";
+    if (typeof citation === "string" || typeof citation === "number") return String(citation);
+    return String(citation.id || citation.sec_no || citation.clause_id || citation.clause || "");
+  }
+
+  function citationLink(contractId, citation, label) {
+    var clauseId = citationClauseId(citation);
+    if (!clauseId) return null;
+    var link = el("a", "chip direct");
+    link.textContent = label || ("Clause " + clauseId);
+    link.href = "/explain?contract=" + encodeURIComponent(contractId) + "&clause=" + encodeURIComponent(clauseId);
+    link.title = "Inspect Clause " + clauseId + " in Clause Explainer";
+    link.style.textDecoration = "none";
+    return link;
+  }
+
   function renderReport(r, analyzedClauseId, analyzedClause) {
     out.innerHTML = "";
     var requestedContractId = selContract.value;
@@ -1958,6 +2015,10 @@
     }
     if (r.analysis_binding) {
       tagsRow1.appendChild(el("span", "badge badge-verified", "\u2713 " + esc(r.analysis_binding)));
+    }
+    var existingRisk = r.risk_level || r.risk;
+    if (typeof existingRisk === "string" && existingRisk.trim()) {
+      tagsRow1.appendChild(el("span", "badge badge-unverified", "Risk: " + esc(existingRisk)));
     }
     h1.appendChild(tagsRow1);
     card1.appendChild(h1);
@@ -2076,7 +2137,8 @@
 
       (r.obligations || []).forEach(function(o) {
         var item = el("li", "provision-item");
-        item.appendChild(el("span", "provision-clause-tag", "Clause " + esc(o.clause || "")));
+        var provisionLink = citationLink(requestedContractId, o.clause, "Clause " + citationClauseId(o.clause));
+        item.appendChild(provisionLink || el("span", "provision-clause-tag", "Clause " + esc(o.clause || "")));
         item.appendChild(el("span", "badge badge-refs", esc(o.kind || "obligation")));
         item.appendChild(el("span", null, esc(o.detail || "")));
         pList.appendChild(item);
@@ -2084,7 +2146,8 @@
 
       (r.conditions || []).forEach(function(c) {
         var item = el("li", "provision-item");
-        item.appendChild(el("span", "provision-clause-tag", "Clause " + esc(c.clause || "")));
+        var provisionLink = citationLink(requestedContractId, c.clause, "Clause " + citationClauseId(c.clause));
+        item.appendChild(provisionLink || el("span", "provision-clause-tag", "Clause " + esc(c.clause || "")));
         item.appendChild(el("span", "badge badge-type", esc(c.kind || "condition")));
         item.appendChild(el("span", null, esc(c.detail || "")));
         pList.appendChild(item);
@@ -2092,7 +2155,8 @@
 
       (r.consequences || []).forEach(function(cq) {
         var item = el("li", "provision-item");
-        item.appendChild(el("span", "provision-clause-tag", "Clause " + esc(cq.clause || "")));
+        var provisionLink = citationLink(requestedContractId, cq.clause, "Clause " + citationClauseId(cq.clause));
+        item.appendChild(provisionLink || el("span", "provision-clause-tag", "Clause " + esc(cq.clause || "")));
         item.appendChild(el("span", "badge badge-unverified", esc(cq.kind || "consequence")));
         item.appendChild(el("span", null, esc(cq.detail || "")));
         pList.appendChild(item);
@@ -2197,7 +2261,12 @@
           evContainer.hidden = true;
 
           d.evidence.forEach(function(evItem) {
-            var evRow = el("div", null, "&bull; <strong>Clause " + esc(evItem.id || "") + "</strong> (" + esc(evItem.why || "") + ")");
+            var evRow = el("div", null);
+            var evLink = citationLink(requestedContractId, evItem, "Clause " + citationClauseId(evItem));
+            evRow.appendChild(document.createTextNode("\u2022 "));
+            if (evLink) evRow.appendChild(evLink);
+            else evRow.appendChild(el("strong", null, "Clause " + esc(citationClauseId(evItem))));
+            if (evItem.why) evRow.appendChild(document.createTextNode(" (" + String(evItem.why) + ")"));
             if (evItem.excerpt) {
               evRow.appendChild(el("div", "small muted", '"' + esc(evItem.excerpt) + '"'));
             }
@@ -2355,6 +2424,24 @@
     }
     b6.appendChild(el("p", "small muted", metaLine));
 
+    var originalText = changedClauseObj.original_text || changedClauseObj.before_text ||
+      changedClauseObj.old_text || changedClauseObj.original;
+    var revisedText = changedClauseObj.revised_text || changedClauseObj.after_text ||
+      changedClauseObj.new_text || changedClauseObj.revised;
+    if (typeof originalText === "string" && originalText.trim() &&
+        typeof revisedText === "string" && revisedText.trim()) {
+      var comparison = el("div", "comparison-grid");
+      var originalBox = el("div", "evidence-citation-card");
+      originalBox.appendChild(el("strong", null, "Original text"));
+      originalBox.appendChild(el("div", "evidence-block", esc(originalText)));
+      var revisedBox = el("div", "evidence-citation-card");
+      revisedBox.appendChild(el("strong", null, "Revised text"));
+      revisedBox.appendChild(el("div", "evidence-block", esc(revisedText)));
+      comparison.appendChild(originalBox);
+      comparison.appendChild(revisedBox);
+      b6.appendChild(comparison);
+    }
+
     var evBox = el("div", "evidence-block", esc(evText));
     b6.appendChild(evBox);
 
@@ -2364,7 +2451,9 @@
       supportingEvidence.forEach(function(evItem) {
         var cardEv = el("div", "evidence-citation-card");
         var headEv = el("div", "evidence-header-row");
-        headEv.appendChild(el("strong", null, "Clause " + esc(evItem.id || "") + (evItem.why ? (" (" + esc(evItem.why) + ")") : "")));
+        var citation = citationLink(requestedContractId, evItem, "Clause " + citationClauseId(evItem));
+        headEv.appendChild(citation || el("strong", null, "Clause " + esc(citationClauseId(evItem))));
+        if (evItem.why) headEv.appendChild(el("span", "small muted", "(" + esc(evItem.why) + ")"));
         if (evItem.clause_sha256) {
           headEv.appendChild(el("span", "hash-pill", "SHA: " + esc(evItem.clause_sha256.substring(0, 16)) + "..."));
         }
@@ -2531,11 +2620,46 @@
     var isHidden = aiDrawer.hasAttribute("hidden");
     if (isHidden) {
       aiDrawer.removeAttribute("hidden");
+      aiLauncher.setAttribute("aria-expanded", "true");
       if (aiChatInput) aiChatInput.focus();
     } else {
       aiDrawer.setAttribute("hidden", "until-found");
+      aiLauncher.setAttribute("aria-expanded", "false");
     }
   }
+
+  function toggleAiMaximize() {
+    if (!aiDrawer) return;
+    var maximized = aiDrawer.classList.toggle("maximized");
+    if (aiMaximizeBtn) {
+      aiMaximizeBtn.textContent = maximized ? "❐" : "□";
+      aiMaximizeBtn.setAttribute("aria-label", maximized ? "Restore assistant size" : "Maximize assistant");
+      aiMaximizeBtn.title = maximized ? "Restore assistant size" : "Maximize assistant";
+    }
+  }
+
+  function startAiDrag(event) {
+    if (!aiDrawer || aiDrawer.classList.contains("maximized") || event.target.closest("button")) return;
+    var rect = aiDrawer.getBoundingClientRect();
+    aiDragState = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+    aiDrawer.style.left = rect.left + "px";
+    aiDrawer.style.top = rect.top + "px";
+    aiDrawer.style.right = "auto";
+    aiDrawer.style.bottom = "auto";
+    aiDrawer.setPointerCapture(event.pointerId);
+  }
+
+  function moveAiDrag(event) {
+    if (!aiDragState || !aiDrawer) return;
+    var left = aiDragState.left + event.clientX - aiDragState.x;
+    var top = aiDragState.top + event.clientY - aiDragState.y;
+    var maxLeft = Math.max(8, window.innerWidth - aiDrawer.offsetWidth - 8);
+    var maxTop = Math.max(8, window.innerHeight - aiDrawer.offsetHeight - 8);
+    aiDrawer.style.left = Math.max(8, Math.min(maxLeft, left)) + "px";
+    aiDrawer.style.top = Math.max(8, Math.min(maxTop, top)) + "px";
+  }
+
+  function stopAiDrag() { aiDragState = null; }
 
   // Event bindings
   if (selContract) {
@@ -2575,6 +2699,19 @@
   if (aiLauncher) aiLauncher.addEventListener("click", toggleAiDrawer);
   if (btnHeaderAi) btnHeaderAi.addEventListener("click", toggleAiDrawer);
   if (aiCloseBtn) aiCloseBtn.addEventListener("click", toggleAiDrawer);
+  if (aiMaximizeBtn) aiMaximizeBtn.addEventListener("click", toggleAiMaximize);
+  if (aiDrawer) {
+    var aiHeader = aiDrawer.querySelector(".ai-drawer-header");
+    if (aiHeader) {
+      aiHeader.addEventListener("pointerdown", startAiDrag);
+      document.addEventListener("pointermove", moveAiDrag);
+      document.addEventListener("pointerup", stopAiDrag);
+      document.addEventListener("pointercancel", stopAiDrag);
+    }
+  }
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape" && aiDrawer && !aiDrawer.hasAttribute("hidden")) toggleAiDrawer();
+  });
 
   if (aiClearBtn) {
     aiClearBtn.addEventListener("click", function() {
