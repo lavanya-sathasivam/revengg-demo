@@ -267,6 +267,44 @@ class TestTheUiServesTheEngine(IntegrationTestCase):
         self.assertIn("ask an administrator to rebuild this contract's graph", body)
         self.assertIn("Results from another selection were cleared.", body)
 
+    def test_changing_clause_invalidates_pending_analysis_results(self):
+        """Clause changes clear the visible report before a pending response returns."""
+        html = open(os.path.join(ROOT, "templates", "index.html"),
+                    encoding="utf-8").read()
+        start = html.index("function selectClause(")
+        end = html.index("\n  function revealClauseAncestors", start)
+        select_clause = html[start:end]
+        self.assertIn("clearAnalysis();", select_clause)
+        self.assertLess(select_clause.index("clearAnalysis();"),
+                        select_clause.index("selClause.value = clauseId;"))
+        self.assertIn("analysisRequestVersion += 1;", html)
+
+    def test_change_configuration_is_clause_aware_and_not_hardcoded(self):
+        html = open(os.path.join(ROOT, "templates", "index.html"),
+                    encoding="utf-8").read()
+        self.assertIn("function configureChangeForClause(clause)", html)
+        self.assertIn('type === "payment"', html)
+        self.assertIn('type === "sla"', html)
+        self.assertIn("calendar days", html.lower())
+        self.assertIn("percentage points", html.lower())
+        self.assertIn('id="change-unsupported"', html)
+        self.assertNotIn('id="oldv" type="number" class="form-input" value="30"', html)
+        self.assertNotIn('id="newv" type="number" class="form-input" value="15"', html)
+
+    def test_change_configuration_validates_units_and_selection_switches(self):
+        html = open(os.path.join(ROOT, "templates", "index.html"),
+                    encoding="utf-8").read()
+        self.assertIn("Structured change analysis is unavailable", html)
+        self.assertIn("withinMatches", html)
+        self.assertIn("Service-level values must be between 0% and 100%.", html)
+        self.assertIn("Calendar-day values must be whole numbers.", html)
+        self.assertIn("configureChangeForClause(clauseMap[clauseId])", html)
+        contract_change = html.index('selContract.addEventListener("change"')
+        self.assertLess(
+            html.index("clearAnalysis();", contract_change),
+            html.index("loadClauses(selContract.value);", contract_change),
+        )
+
     def test_clause_explainer_carries_selected_contract_to_impact_page(self):
         html = open(os.path.join(ROOT, "templates", "explain.html"),
                     encoding="utf-8").read()

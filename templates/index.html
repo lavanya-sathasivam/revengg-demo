@@ -1286,15 +1286,12 @@
       <nav class="sidebar-nav" aria-label="Main Navigation">
         <div class="nav-section-title">Workspaces</div>
         <a class="nav-item" href="/" id="nav-portfolio">
-          <span class="nav-icon">📁</span>
           <span>Portfolio &amp; Intake</span>
         </a>
         <a class="nav-item active" href="/impact-analysis" aria-current="page" id="nav-impact">
-          <span class="nav-icon">⚡</span>
           <span>Conflict &amp; Change Impact</span>
         </a>
         <a class="nav-item" href="/explain" id="nav-explain">
-          <span class="nav-icon">📖</span>
           <span>Clause Explanation</span>
         </a>
       </nav>
@@ -1308,7 +1305,7 @@
       </div>
       <div class="sidebar-docs-row">
         <a href="/docs" target="_blank" rel="noopener">
-          <span>📜</span> Developer API Docs &rarr;
+           Developer API Docs &rarr;
         </a>
       </div>
     </div>
@@ -1321,13 +1318,7 @@
         <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">☰</button>
         <div>
           <h1 class="page-title">Conflict &amp; Change Impact</h1>
-          <span class="page-tagline">Deterministic counterfactual dependency engine and cross-clause verification</span>
         </div>
-      </div>
-      <div class="topbar-actions">
-        <button type="button" class="btn-open-assistant" id="btn-header-ai">
-          <span>✨</span> Ask Gemini AI
-        </button>
       </div>
     </header>
 
@@ -1338,12 +1329,12 @@
 
     <div class="content-container">
 
-      <div class="disclaimer-banner">
+      <!-- <div class="disclaimer-banner">
         <span>⚠️</span>
         <div>
           <strong>Legal Disclaimer:</strong> Impact analysis models internal dependency arithmetic and statutory cross-references. It does not establish contract validity, breach, or legal counsel.
         </div>
-      </div>
+      </div> -->
 
       <!-- Guided Workflow Layout -->
       <div class="workflow-grid">
@@ -1352,7 +1343,7 @@
         <section class="card-panel" aria-labelledby="workflow-heading">
           <div class="card-panel-header">
             <h2 id="workflow-heading">Simulation Inputs</h2>
-            <span class="unit-tag" id="workflow-unit-indicator">Calendar Days</span>
+            <!-- <span class="unit-tag" id="workflow-unit-indicator">Calendar Days</span> -->
           </div>
 
           <div class="card-panel-body">
@@ -1394,22 +1385,26 @@
             <div class="step-block">
               <div class="step-head">
                 <span class="step-num">3</span>
-                <span class="step-title">Configure Simulated Value</span>
+                <span class="step-title">Configure Proposed Change</span>
               </div>
 
+              <div id="change-unsupported" class="banner-msg warn" hidden>
+                Structured change analysis is unavailable for this clause because no supported numeric parameter was identified.
+              </div>
+              <div id="change-parameter-label" class="field-label">Selected clause parameter</div>
               <div class="values-grid">
                 <div>
                   <label for="oldv" class="field-label">Current Value</label>
-                  <input id="oldv" type="number" class="form-input" value="30">
+                  <input id="oldv" type="number" class="form-input" placeholder="Not available" disabled>
                 </div>
                 <div class="arrow-div">&rarr;</div>
                 <div>
                   <label for="newv" class="field-label">Proposed Value</label>
-                  <input id="newv" type="number" class="form-input" value="15">
+                  <input id="newv" type="number" class="form-input" placeholder="Enter a value" disabled>
                 </div>
               </div>
               <div id="unit-tip-note" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">
-                Values are matched to the clause parameter type (days or percentage).
+                Select a clause to configure a supported parameter.
               </div>
             </div>
 
@@ -1442,7 +1437,7 @@
         <section class="card-panel" aria-labelledby="results-heading">
           <div class="card-panel-header">
             <h2 id="results-heading">Change Impact Analysis</h2>
-            <span class="unit-tag">Live Engine Trace</span>
+            <!-- <span class="unit-tag">Live Engine Trace</span> -->
           </div>
 
           <div class="card-panel-body">
@@ -1451,7 +1446,6 @@
             <main id="out">
               <section class="panel empty">
                 <div class="body">
-                  <div style="font-size: 36px; margin-bottom: 10px;">⚡</div>
                   <h2 style="font-size: 1.1rem; margin: 0 0 6px;">Ask what a change would do</h2>
                   <p style="font-size: 0.88rem; color: var(--text-muted); max-width: 480px; margin: 0 auto 10px;">
                     Pick a clause, change its number, and the engine walks the contract's
@@ -1546,6 +1540,8 @@
   var clausePreviewMeta = document.getElementById("clause-preview-meta");
   var clausePreviewText = document.getElementById("clause-preview-text");
   var workflowUnitIndicator = document.getElementById("workflow-unit-indicator");
+  var changeParameterLabel = document.getElementById("change-parameter-label");
+  var changeUnsupported = document.getElementById("change-unsupported");
   var clauseSearch = document.getElementById("clause-search");
   var clauseTree = document.getElementById("clause-tree");
   var clauseTreeStatus = document.getElementById("clause-tree-status");
@@ -1574,6 +1570,7 @@
   var aiDragState = null;
   var clauseTreeNodes = [];
   var clauseTreeExpanded = {};
+  var changeParameter = null;
 
   function el(tag, cls, html) {
     var n = document.createElement(tag);
@@ -1590,6 +1587,92 @@
     msg.appendChild(el("div", "banner-msg" + (kind ? " " + kind : ""), esc(text)));
   }
   function clearMsg() { msg.innerHTML = ""; }
+  function setChangeUnavailable(message) {
+    changeParameter = null;
+    if (changeUnsupported) {
+      changeUnsupported.textContent = message || "Structured change analysis is unavailable for this clause.";
+      changeUnsupported.hidden = false;
+    }
+    if (changeParameterLabel) changeParameterLabel.textContent = "Selected clause parameter";
+    inOld.value = "";
+    inNew.value = "";
+    inOld.disabled = true;
+    inNew.disabled = true;
+    inOld.removeAttribute("min");
+    inNew.removeAttribute("min");
+    inOld.removeAttribute("step");
+    inNew.removeAttribute("step");
+    if (workflowUnitIndicator) workflowUnitIndicator.textContent = "No structured parameter";
+    var note = document.getElementById("unit-tip-note");
+    if (note) note.textContent = "No supported numeric parameter was reliably identified for this clause.";
+    if (btnExample) btnExample.style.display = "none";
+    if (btnGo) btnGo.disabled = true;
+  }
+  function configureChangeForClause(clause) {
+    if (!clause) {
+      setChangeUnavailable("Select a clause to configure a proposed change.");
+      return;
+    }
+    var type = String(clause.type || "").toLowerCase();
+    var numbers = Array.isArray(clause.numbers) ? clause.numbers : [];
+    var current = null;
+    var unit = "";
+    if (type === "payment") {
+      var withinMatches = [];
+      var withinPattern = /within\s+(\d+(?:\.\d+)?)\s+(days?)\b/ig;
+      var withinMatch;
+      while ((withinMatch = withinPattern.exec(String(clause.text || ""))) !== null) {
+        withinMatches.push(withinMatch);
+      }
+      var dayValues = numbers.filter(function(item) { return item && item.unit === "days"; });
+      if (withinMatches.length === 1) {
+        current = Number(withinMatches[0][1]);
+        unit = "days";
+      } else if (dayValues.length === 1) {
+        current = Number(dayValues[0].value);
+        unit = "days";
+      }
+    } else if (type === "sla") {
+      var percentageValues = numbers.filter(function(item) { return item && item.unit === "%"; });
+      if (percentageValues.length === 1) {
+        current = Number(percentageValues[0].value);
+        unit = "%";
+      }
+    }
+    if (!Number.isFinite(current) || !unit) {
+      var reason = type === "payment" && numbers.some(function(item) {
+        return item && ["months", "years"].indexOf(item.unit) !== -1;
+      }) ? "This payment clause uses months or years, while the supported impact API requires calendar days; no conversion was inferred."
+        : type === "sla" ? "This service-level clause does not contain one unambiguous percentage value."
+        : "This clause type is not supported by the structured impact analysis API.";
+      setChangeUnavailable(reason);
+      return;
+    }
+    changeParameter = { type: type, unit: unit, current: current };
+    if (changeUnsupported) changeUnsupported.hidden = true;
+    if (changeParameterLabel) {
+      changeParameterLabel.textContent = type === "payment"
+        ? "Payment period"
+        : "Service level";
+    }
+    inOld.value = String(current);
+    inNew.value = "";
+    inOld.disabled = false;
+    inNew.disabled = false;
+    inOld.min = "0";
+    inNew.min = "0";
+    inOld.step = unit === "%" ? "0.01" : "1";
+    inNew.step = unit === "%" ? "0.01" : "1";
+    if (workflowUnitIndicator) workflowUnitIndicator.textContent = unit === "%" ? "Percentage points" : "Calendar Days";
+    var note = document.getElementById("unit-tip-note");
+    if (note) note.textContent = "Current value read from the selected clause. Enter a proposed value in " + (unit === "%" ? "percentage points." : "calendar days.");
+    if (btnExample) {
+      var suggested = unit === "%" ? Math.max(0, current - 1) : Math.max(0, current - 1);
+      btnExample.textContent = "Use suggested " + suggested + (unit === "%" ? "%" : " " + unit);
+      btnExample.style.display = "block";
+    }
+    if (btnGo) btnGo.disabled = false;
+  }
   function setUploadStatus(text, kind) {
     if (!uploadStatus) return;
     uploadStatus.textContent = text || "";
@@ -1678,9 +1761,13 @@
 
   function selectClause(clauseId, updateUrl) {
     if (!clauseMap[clauseId]) return;
+    if (String(selClause.value) !== String(clauseId)) {
+      clearAnalysis();
+    }
     selClause.value = clauseId;
     renderClauseTree();
     renderClausePreview();
+    configureChangeForClause(clauseMap[clauseId]);
     if (updateUrl !== false) syncClauseUrl();
   }
 
@@ -1816,6 +1903,7 @@
     selClause.innerHTML = "<option>Loading clauses...</option>";
     selClause.disabled = true;
     if (clauseSearch) clauseSearch.value = "";
+    setChangeUnavailable("Loading the selected contract's clause parameters...");
     renderClauseTree();
     renderClausePreview();
 
@@ -1833,6 +1921,7 @@
         if (list.length === 0) {
           selClause.appendChild(el("option", null, "No numbered clauses were detected"));
           selClause.disabled = true;
+          setChangeUnavailable("No numbered clause is available for structured change analysis.");
           renderClausePreview();
           return;
         }
@@ -1885,13 +1974,13 @@
           selectClause(clauseTreeNodes[0].id, false);
         }
         syncClauseUrl();
-        loadDemoSuggestion(cid);
       })
       .catch(function (err) {
         if (thisLoadVersion !== clauseLoadVersion) return;
         banner(err.message, "err");
         selClause.innerHTML = '<option value="">No numbered clauses were detected</option>';
         selClause.disabled = true;
+        setChangeUnavailable("No numbered clause is available for structured change analysis.");
         renderClausePreview();
       });
   }
@@ -1912,6 +2001,10 @@
   // ---------------------------------------------------------------- analysis
   function run() {
     clearMsg();
+    if (!changeParameter) {
+      banner("Structured change analysis is unavailable for the selected clause.", "warn");
+      return;
+    }
     var requestedClauseId = selClause.value;
     var clause = clauseMap[requestedClauseId];
     if (!clause) {
@@ -1924,11 +2017,28 @@
     btnGo.disabled = true;
     btnGo.textContent = "Analyzing...";
 
+    var oldValue = Number(inOld.value);
+    var newValue = Number(inNew.value);
+    if (!Number.isFinite(oldValue) || !Number.isFinite(newValue) ||
+        oldValue < 0 || newValue < 0) {
+      banner("Enter non-negative current and proposed values.", "warn");
+      return;
+    }
+    if (changeParameter.unit === "%" && (oldValue > 100 || newValue > 100)) {
+      banner("Service-level values must be between 0% and 100%.", "warn");
+      return;
+    }
+    if (changeParameter.unit === "days" &&
+        (!Number.isInteger(oldValue) || !Number.isInteger(newValue))) {
+      banner("Calendar-day values must be whole numbers.", "warn");
+      return;
+    }
+
     var payload = {
       contract_id: parseInt(requestedContractId, 10),
       clause_id: requestedClauseId,
-      old_value: inOld.value ? Number(inOld.value) : undefined,
-      new_value: Number(inNew.value),
+      old_value: oldValue,
+      new_value: newValue,
     };
     if (clause && clause.clause_sha256) {
       payload.expected_clause_sha256 = clause.clause_sha256;
@@ -2679,15 +2789,8 @@
 
   if (btnExample) {
     btnExample.addEventListener("click", function () {
-      if (clauseMap["7.2"]) {
-        selectClause("7.2");
-        inOld.value = "30";
-        inNew.value = "15";
-      } else if (clauseMap["9.1"]) {
-        selectClause("9.1");
-        inOld.value = "99";
-        inNew.value = "98";
-      }
+      if (!changeParameter) return;
+      inNew.value = String(Math.max(0, changeParameter.current - 1));
       run();
     });
   }

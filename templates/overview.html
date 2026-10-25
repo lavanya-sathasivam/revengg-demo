@@ -1029,7 +1029,7 @@
         <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">☰</button>
         <div>
           <h1 class="page-title">Contract Portfolio &amp; Intake</h1>
-          <span class="page-tagline">Central repository, version provenance, and document ingestion</span>
+          <!-- <span class="page-tagline">Central repository, version provenance, and document ingestion</span> -->
         </div>
       </div>
       <!-- <div class="topbar-actions">
@@ -1040,13 +1040,13 @@
     </header>
 
     <div class="content-container">
-
+<!-- 
       <div class="disclaimer-banner">
         <span>⚠️</span>
         <div>
           <strong>Legal Disclaimer:</strong> Contract Intelligence is an informational analysis workspace for legal teams. Outputs do not evaluate contract enforceability or substitute for formal legal counsel.
         </div>
-      </div>
+      </div> -->
 
       <!-- Quick Metrics Strip -->
       <section class="metrics-strip" aria-label="Portfolio Summary">
@@ -1132,6 +1132,34 @@
         <!-- Right Column: Intake Upload & Selected Document Drawer -->
         <div>
 
+          <!-- Document Inspection Drawer -->
+          <section class="card-panel" id="document-drawer" style="margin-top: 20px;" aria-labelledby="drawer-heading">
+            <div class="card-panel-header">
+              <h2 id="drawer-heading">Selected Contract</h2>
+              <span id="drawer-id-badge" class="contract-id-pill">ID #1</span>
+            </div>
+            <div class="card-panel-body">
+              <div class="drawer-title" id="drawer-filename">No contract selected</div>
+
+              <ul class="drawer-meta-list">
+                <li><span style="color: var(--text-muted);">Version ID:</span> <strong id="drawer-version-id">1</strong></li>
+                <li><span style="color: var(--text-muted);">Graph Build:</span> <strong id="drawer-graph-build">1</strong></li>
+                <li><span style="color: var(--text-muted);">Processing:</span> <span id="drawer-status-badge" class="badge-status ready">extracted</span></li>
+                <li><span style="color: var(--text-muted);">Provenance:</span> <strong id="drawer-provenance">Synthetic Seed</strong></li>
+              </ul>
+
+              <div class="drawer-actions">
+                <a id="drawer-link-impact" href="/impact-analysis?contract=1" class="btn-block-action">
+                  Run Impact Analysis &rarr;
+                </a>
+                <a id="drawer-link-explain" href="/explain?contract=1" class="btn-block-action secondary">
+                 Browse Clause Explanations &rarr;
+                </a>
+              </div>
+            </div>
+          </section>
+
+          
           <!-- Consolidated Upload UI -->
           <section class="card-panel" aria-labelledby="upload-heading" id="upload-section">
             <div class="card-panel-header">
@@ -1160,33 +1188,6 @@
               <div id="upload-status" class="status-line" style="display: none;"></div>
               <div id="upload-progress" class="upload-progress" hidden aria-label="Upload progress">
                 <div id="upload-progress-bar" class="upload-progress-bar"></div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Document Inspection Drawer -->
-          <section class="card-panel" id="document-drawer" style="margin-top: 20px;" aria-labelledby="drawer-heading">
-            <div class="card-panel-header">
-              <h2 id="drawer-heading">Selected Contract</h2>
-              <span id="drawer-id-badge" class="contract-id-pill">ID #1</span>
-            </div>
-            <div class="card-panel-body">
-              <div class="drawer-title" id="drawer-filename">No contract selected</div>
-
-              <ul class="drawer-meta-list">
-                <li><span style="color: var(--text-muted);">Version ID:</span> <strong id="drawer-version-id">1</strong></li>
-                <li><span style="color: var(--text-muted);">Graph Build:</span> <strong id="drawer-graph-build">1</strong></li>
-                <li><span style="color: var(--text-muted);">Processing:</span> <span id="drawer-status-badge" class="badge-status ready">extracted</span></li>
-                <li><span style="color: var(--text-muted);">Provenance:</span> <strong id="drawer-provenance">Synthetic Seed</strong></li>
-              </ul>
-
-              <div class="drawer-actions">
-                <a id="drawer-link-impact" href="/impact-analysis?contract=1" class="btn-block-action">
-                  Run Impact Analysis &rarr;
-                </a>
-                <a id="drawer-link-explain" href="/explain?contract=1" class="btn-block-action secondary">
-                 Browse Clause Explanations &rarr;
-                </a>
               </div>
             </div>
           </section>

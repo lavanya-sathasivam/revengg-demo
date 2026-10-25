@@ -15,7 +15,7 @@ import urllib.request
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import adapter
 import auth
@@ -63,6 +63,13 @@ class ChatRequest(BaseModel):
     contract_id: Optional[int] = Field(None, description="Optional ID of the contract in focus")
     clause_id: Optional[str] = Field(None, description="Optional clause section number in focus (e.g. '8.3')")
     history: Optional[List[ChatMessage]] = Field(default_factory=list, description="Recent conversation turns")
+
+    @field_validator("message")
+    @classmethod
+    def reject_whitespace_only_message(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Message must not be empty or whitespace-only.")
+        return value
 
 
 class ChatResponse(BaseModel):

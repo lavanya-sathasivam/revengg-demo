@@ -139,6 +139,12 @@ class ChatEndpointTests(unittest.TestCase):
                 "clause_id": "8.3"
             }
         )
+        if resp.status_code == 429:
+            detail = str(resp.json().get("detail", "")).lower()
+            if "quota" in detail or "rate limit" in detail:
+                self.skipTest(
+                    "Live Gemini test skipped because the provider quota/rate limit was exhausted."
+                )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(len(data["reply"]) > 0)
