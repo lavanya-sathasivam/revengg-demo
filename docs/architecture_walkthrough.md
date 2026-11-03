@@ -1,5 +1,13 @@
 # Architecture walkthrough — how to explain this project
 
+> **Current-state note (2026-11-02):** This walkthrough was written during the
+> original branch work. The integrated app now uses
+> `application.create_app()`; the portfolio is `/`, the impact workspace is
+> `/impact-analysis`, and the clause explainer is `/explain`. The current test
+> baseline is **276 tests, all passing**. See
+> [`phase1_audit.md`](phase1_audit.md) for the Phase 1 audit and current module
+> map.
+
 **Owner: Person B.** Written for the final review and for anyone learning the
 stack with us. Every section is **plain language first, then the technical
 detail**, because you will be asked *"how does it work?"* by people who do not
@@ -482,8 +490,8 @@ feature for reproducibility and a limitation for open-domain coverage.
 |---|---|---|
 | the pipeline | `py -3.11 cli.py --contract 1 --graph` | "this is the structure the answer comes from" |
 | the headline | `py -3.11 cli.py --contract 1 --change 7.2:30:15` | "change 7.2 to 15 days — here's what breaks, in days, and what we refuse to conclude" |
-| the screen | `http://127.0.0.1:8000/?contract=1&clause=7.2&old=30&new=15` | "the same engine in a browser, and every claim is clickable back to its clause" |
+| the screen | `http://127.0.0.1:8000/impact-analysis?contract=1&clause=7.2&old=30&new=15` | "the same engine in a browser, and every claim is clickable back to its clause" |
 | the SLA case | `py -3.11 cli.py --contract 1 --change 9.1:99:98` | "the value of a credit doesn't move, but the band in which you earn one does" |
 | the measurement | `py -3.11 tools/evaluate.py` | "we didn't just build it, we measured it against a hand-annotated truth set" |
 | the LLM path | `py -3.11 tools/llm_probe.py --contract 1 --clause 3.3` | "the model only fills gaps the table leaves — here it found a dependency the table structurally could not" |
-| the tests | `py -3.11 -m unittest discover -s tests` | "112 tests, including a negative control on the scorer itself" |
+| the tests | `py -3.11 -m unittest discover -s tests` | "276 tests, including a negative control on the scorer itself" |

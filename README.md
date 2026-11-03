@@ -10,16 +10,20 @@ not as a bag of text chunks.
 > the clauses it hits — and to the questions it leaves open.
 > See `docs/reverse_engineering_log.md`.
 
-**Branch `b-graph` — Person B (clauses → relationship model → impact analysis),
-rebased onto `origin/a-backend`.**
+**Branch `main` — integrated demo.** The original three-person split
+(`a-backend`, `b-graph`, `c-ui`) is historical; the working tree now contains
+the integrated backend, engine, retrieval layer, and browser UI.
 
 > Status: the vertical slice for the headline demo
 > *"change payment period from 30 days to 15 days"* works end to end.
-> 90/90 tests pass, including Person A's own three test files.
-> The engine is measured against a hand-annotated ground truth
+> 276/276 tests pass on 2026-11-02 (0 failures, 0 errors, 0 skipped), including
+> Person A's own three test files and the live Gemini test when a key is
+> configured. The engine is measured against a hand-annotated ground truth
 > (`tools/evaluate.py`, results in `docs/evaluation_report.md`).
-> There is no web UI yet (that is branch `c-ui`); everything runs from the
-> terminal.
+> Three browser workspaces are served by the FastAPI app; the deterministic
+> engine still runs without an API key. See
+> [`docs/phase1_audit.md`](docs/phase1_audit.md) for the current architecture,
+> audit findings, and Phase 2 change map.
 
 ---
 
@@ -80,22 +84,25 @@ py -3.11 -m unittest discover -s tests -v
 ```powershell
 py -3.11 seed.py
 py -3.11 -m uvicorn server:app --reload
-open http://127.0.0.1:8000/              # the impact-analysis view
-open http://127.0.0.1:8000/explain        # the clause explainer (legal retrieval + reasoning)
-open http://127.0.0.1:8000/docs          # interactive API docs - try it live
+open http://127.0.0.1:8000/                 # contract overview / portfolio
+open http://127.0.0.1:8000/impact-analysis   # change-impact workspace
+open http://127.0.0.1:8000/explain           # clause explainer (retrieval + reasoning)
+open http://127.0.0.1:8000/docs              # interactive API docs - try it live
 ```
 
-The landing page reads its state from the URL, so any analysis is a link you
+The impact page reads its state from the URL, so any analysis is a link you
 can share or screenshot:
 
 ```
-http://127.0.0.1:8000/?contract=1&clause=7.2&old=30&new=15    # the headline
-http://127.0.0.1:8000/?contract=1&clause=9.1&old=99&new=98    # the SLA counterfactual
+http://127.0.0.1:8000/impact-analysis?contract=1&clause=7.2&old=30&new=15    # the headline
+http://127.0.0.1:8000/impact-analysis?contract=1&clause=9.1&old=99&new=98    # the SLA counterfactual
 ```
 
-`server.py` imports Person A's `app.py` and mounts Person B's `api_b.py`
-router — **neither A's nor C's file is modified** (except for the one route
-that serves the second page).
+`app.py` and `server.py` are thin bootstraps over the canonical
+`application.create_app()` factory. The factory mounts the authentication,
+contract, analysis, and chat routers exactly once. See
+[`docs/phase1_audit.md`](docs/phase1_audit.md) for the request lifecycle and
+module map.
 
 ### Authentication and firm scope (upload mode)
 
@@ -149,12 +156,14 @@ scanner, OCR, or hard memory limit**. See
 [`docs/phase6_upload_hardening.md`](docs/phase6_upload_hardening.md) for the
 failure taxonomy, audit events, test evidence and residual risks.
 
-**Two database files, on purpose:**
-- `app.db` — Person A's upload flow. A's `test_split_clauses.py` reads
-  contract 1 from here and asserts it is a real 24-section contract.
-- `demo.db` — branch B's synthetic demo contracts.
+**Database files:**
+- `demo.db` — synthetic demo contracts, opened read-only in demo mode. It is
+  rebuilt by `seed.py` and is git-ignored.
+- Upload mode has **no fallback database**. It requires an explicit path via
+  `REVENGG_UPLOAD_DB_PATH` (or `create_app(database_path=...)`), so a writable
+  upload flow can never silently write into `demo.db`.
 
-Both are git-ignored. Both are rebuilt locally. They never collide.
+Both local database files are git-ignored.
 
 ---
 
@@ -242,9 +251,13 @@ model, not from string matching on the clause text.
 
 ---
 
-## 6. Files and who owns them
+## 6. Files and their original branch ownership
 
-| file | owner | purpose |
+> This table records the original three-person branch split. The code is now
+> integrated on `main`; for current module responsibilities see
+> [`docs/phase1_audit.md`](docs/phase1_audit.md).
+
+| file | original owner | purpose |
 |---|---|---|
 | `db.py` | **A** | database (untouched by B) |
 | `extract.py` | **A** | PDF text + top-level section splitting (untouched by B) |
@@ -373,14 +386,15 @@ contract was used (copyright + privacy).
 ## 10. Git
 
 ```powershell
-git checkout b-graph
-git pull origin b-graph
-# work only on your own files
+git checkout main
+git pull origin main
 git add <your files>
-git commit -m "day6: counterfactual + doubt engine"
-git push origin b-graph
+git commit -m "phase1: audit and stabilization"
+git push origin main
 ```
 
-The repo must stay **private** until the provisional patent application is
-filed. Do not push to a public repo, do not post a demo video, do not upload
-the report to a public link.
+The original branch protocol is preserved in
+[`docs/branching.md`](docs/branching.md) as project history. The repo must stay
+**private** until the provisional patent application is filed. Do not push to
+a public repo, do not post a demo video, do not upload the report to a public
+link.

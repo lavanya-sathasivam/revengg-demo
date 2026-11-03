@@ -658,7 +658,7 @@
     gap: 8px;
     font-size: 0.85rem;
   }
-  .point-item { color: var(--text); }
+  .point-item { color: var(--text); line-height: 1.45; }
   .point-reason {
     display: block;
     font-size: 0.78rem;
@@ -1853,6 +1853,13 @@
     analysisRequestVersion += 1;
     out.innerHTML = "";
     clearMsg();
+    // A selection change can invalidate an in-flight request. That request's
+    // finally handler will see the version mismatch and must not re-enable the
+    // button, so restore it here.
+    if (btnGo) {
+      btnGo.disabled = false;
+      btnGo.textContent = "Analyze change";
+    }
   }
 
   // ---------------------------------------------------------------- loading
@@ -2013,10 +2020,6 @@
     }
 
     var requestedContractId = selContract.value;
-    var thisRequestVersion = ++analysisRequestVersion;
-    btnGo.disabled = true;
-    btnGo.textContent = "Analyzing...";
-
     var oldValue = Number(inOld.value);
     var newValue = Number(inNew.value);
     if (!Number.isFinite(oldValue) || !Number.isFinite(newValue) ||
@@ -2032,6 +2035,12 @@
         (!Number.isInteger(oldValue) || !Number.isInteger(newValue))) {
       banner("Calendar-day values must be whole numbers.", "warn");
       return;
+    }
+
+    var thisRequestVersion = ++analysisRequestVersion;
+    if (btnGo) {
+      btnGo.disabled = true;
+      btnGo.textContent = "Analyzing...";
     }
 
     var payload = {
@@ -2083,7 +2092,7 @@
         }
       })
       .finally(function () {
-        if (thisRequestVersion === analysisRequestVersion) {
+        if (thisRequestVersion === analysisRequestVersion && btnGo) {
           btnGo.disabled = false;
           btnGo.textContent = "Analyze change";
         }
@@ -2309,9 +2318,15 @@
         var cBox = el("div", "conflict-box");
         var cTitle = el("div", "conflict-box-title");
         cTitle.appendChild(el("span", null, "\u26a0"));
-        cTitle.appendChild(el("span", null, esc(c.rule_id || c.title || "Conflict Detected")));
+        cTitle.appendChild(el("span", null, esc((c && typeof c === "object" ? c.rule_id || c.title : "") || "Conflict Detected")));
         cBox.appendChild(cTitle);
-        cBox.appendChild(el("div", "conflict-box-desc", esc(c.description || c.question || c)));
+        var conflictText = c && typeof c === "object"
+          ? (c.message || c.description || c.question || "")
+          : String(c || "");
+        cBox.appendChild(el("div", "conflict-box-desc", esc(conflictText || "Conflict detected.")));
+        if (c && typeof c === "object" && c.review_point) {
+          cBox.appendChild(el("div", "doubt-review-point", "<strong>Counsel Action:</strong> " + esc(c.review_point)));
+        }
         b3.appendChild(cBox);
       });
     }
@@ -2398,20 +2413,36 @@
       });
     }
 
-    // Key Review Points for Counsel (preserves ranked_review_points and priority_reason)
-    var rankedPoints = r.ranked_review_points || (r.review_points || []).map(function(p) { return { point: p, priority_reason: "Standard review" }; });
-    if (rankedPoints.length > 0) {
-      b4.appendChild(el("h3", null, "Key Review Points for Counsel"));
-      var ul = el("ul", "points-list");
-      rankedPoints.forEach(function (item) {
-        var li = el("li", "point-item");
-        li.appendChild(el("span", null, esc(item.point || item)));
-        if (item.priority_reason) {
-          li.appendChild(el("span", "point-reason", "Priority: " + esc(item.priority_reason)));
-        }
-        ul.appendChild(li);
+    // Key Review Points for Counsel: the ranked form is authoritative; the
+    // legacy review_points array is a plain-string fallback. Each ranked item
+    // uses review_point (not point), which the old renderer read incorrectly.
+    var rankedPoints = Array.isArray(r.ranked_review_points) ? r.ranked_review_points : [];
+    if (rankedPoints.length === 0 && Array.isArray(r.review_points)) {
+      rankedPoints = r.review_points.map(function (p) {
+        return { review_point: p, priority_reason: "Standard review" };
       });
-      b4.appendChild(ul);
+    }
+    if (rankedPoints.length > 0) {
+      var pointsList = el("ul", "points-list");
+      rankedPoints.forEach(function (item) {
+        var point = item;
+        if (item && typeof item === "object") {
+          point = item.review_point || item.point || item.question || "";
+        }
+        if (!point) return;
+        var li = el("li", "point-item");
+        li.appendChild(el("span", null, esc(point)));
+        if (item && typeof item === "object" && item.priority_reason) {
+          var reason = (item.rank ? "Rank " + item.rank + " \u00b7 " : "") +
+            "Priority: " + item.priority_reason;
+          li.appendChild(el("span", "point-reason", esc(reason)));
+        }
+        pointsList.appendChild(li);
+      });
+      if (pointsList.childNodes.length > 0) {
+        b4.appendChild(el("h3", null, "Key Review Points for Counsel"));
+        b4.appendChild(pointsList);
+      }
     }
 
     card4.appendChild(b4);

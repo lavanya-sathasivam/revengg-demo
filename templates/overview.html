@@ -1396,8 +1396,8 @@
     selectedContractId = contract.contract_id;
     if (drawerFilename) drawerFilename.textContent = contract.filename || "Untitled";
     if (drawerIdBadge) drawerIdBadge.textContent = "ID #" + contract.contract_id;
-    if (drawerVersionId) drawerVersionId.textContent = contract.current_version_id || contract.version_id || "1";
-    if (drawerGraphBuild) drawerGraphBuild.textContent = contract.current_graph_build_id || "1";
+    if (drawerVersionId) drawerVersionId.textContent = contract.current_version_id || contract.version_id || "Unavailable";
+    if (drawerGraphBuild) drawerGraphBuild.textContent = contract.current_graph_build_id || "Not built";
     if (drawerProvenance) drawerProvenance.textContent = contract.provenance_status || "Standard";
 
     if (drawerStatusBadge) {
@@ -1548,8 +1548,11 @@
       })
       .then(function(data) {
         allContracts = Array.isArray(data) ? data : [];
+        var analysisReady = allContracts.filter(function(c) {
+          return Boolean(c.current_graph_build_id || c.graph_build_id);
+        }).length;
         if (metricTotalContracts) metricTotalContracts.textContent = String(allContracts.length);
-        if (metricBoundContracts) metricBoundContracts.textContent = String(allContracts.length);
+        if (metricBoundContracts) metricBoundContracts.textContent = String(analysisReady);
         if (countBadge) countBadge.textContent = allContracts.length + " Documents";
 
         populateFilters();
@@ -1645,6 +1648,11 @@
     var container = document.getElementById("auth-status");
     fetch("/auth/me", { headers: { "Accept": "application/json" } })
       .then(function(res) {
+        // An anonymous request in firm mode is rejected by the middleware.
+        // That is an expected "signed out" state, not a server outage.
+        if (res.status === 401) {
+          return { demo: false, authenticated: false, active_firm: null };
+        }
         if (!res.ok) throw new Error("Auth check failed (" + res.status + ")");
         return res.json();
       })
