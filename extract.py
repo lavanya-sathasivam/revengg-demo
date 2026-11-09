@@ -118,12 +118,152 @@ _SIGNATURE_RE = re.compile(r"^\s*IN\s+WITNESS\s+WHEREOF", re.IGNORECASE)
 _LOOKAHEAD_LINES = 3
 
 
+def _open_validated_pdf(path, max_pages, deadline):
+    """Open and validate a PDF document, returning the PyMuPDF document.
+
+    The caller is responsible for closing the returned document.  All defined
+    rejections (not a PDF, malformed, encrypted, empty, over the page limit,
+    structurally repaired) are raised here as ``PDFValidationError`` subclasses.
+    """
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+    except OSError as exc:
+        raise PDFExtractionFailedError() from exc
+    if not data.startswith(PDF_MAGIC):
+        raise UnsupportedFileTypeError()
+    _check_deadline(deadline)
+
+    try:
+        doc = pymupdf.open(stream=data, filetype="pdf")
+    except Exception as exc:
+        raise MalformedPDFError() from exc
+
+    # Reject every encrypted document, including one that would open with an
+    # empty password.  Do not attempt password authentication.
+    if doc.needs_pass or getattr(doc, "is_encrypted", False):
+        doc.close()
+        raise EncryptedPDFError()
+
+    page_count = doc.page_count
+    if page_count <= 0:
+        doc.close()
+        raise NoExtractableTextError()
+    if max_pages is not None and page_count > max_pages:
+        doc.close()
+        raise PDFPageLimitError(
+            f"The PDF has {page_count} pages; the maximum allowed is "
+            f"{max_pages}."
+        )
+
+    # A structurally repaired file is malformed input.  Rejecting it avoids
+    # treating a partially reconstructed document as authoritative.
+    if getattr(doc, "is_repaired", False):
+        doc.close()
+        raise MalformedPDFError()
+
+    return doc
+
+
+def extract_pages(
+    pdf_path,
+    *,
+    max_pages=None,
+    max_extracted_chars=None,
+    max_processing_seconds=None,
+):
+    """Extract text from a text-selectable PDF, preserving page boundaries.
+
+    Returns a dict with:
+        ``text``      - the joined full-text (same as :func:`extract_text`)
+        ``pages``     - list of {"page_number", "text", "char_start", "char_end"}
+        ``page_count`` - number of pages in the document
+
+    ``char_start``/``char_end`` are character offsets into ``text`` for each
+    page, so a clause slice can be mapped back to its source page(s).
+
+    Validation, limits, and error codes are identical to :func:`extract_text`.
+    """
+    _check_positive_limit("max_pages", max_pages)
+    _check_positive_limit("max_extracted_chars", max_extracted_chars)
+    _check_positive_limit("max_processing_seconds", max_processing_seconds)
+
+    path = os.fspath(pdf_path)
+    if not os.path.isfile(path):
+        raise FileNotFoundError("PDF file not found.")
+
+    deadline = None
+    if max_processing_seconds is not None:
+        deadline = _monotonic() + max_processing_seconds
+    _check_deadline(deadline)
+
+    doc = _open_validated_pdf(path, max_pages, deadline)
+    try:
+        page_count = doc.page_count
+        parts = []
+        page_infos = []
+        total_chars = 0
+        for index in range(page_count):
+            _check_deadline(deadline)
+            try:
+                page_text = doc.load_page(index).get_text("text")
+            except Exception as exc:
+                raise PDFExtractionFailedError() from exc
+
+            char_start = total_chars + (1 if parts else 0)
+            total_chars += len(page_text) + (1 if parts else 0)
+            if (
+                max_extracted_chars is not None
+                and total_chars > max_extracted_chars
+            ):
+                raise PDFTextLimitError(
+                    "The PDF text exceeds the configured maximum of "
+                    f"{max_extracted_chars} characters."
+                )
+            parts.append(page_text)
+            page_infos.append(
+                {
+                    "page_number": index + 1,
+                    "text": page_text,
+                    "char_start": char_start,
+                    "char_end": char_start + len(page_text),
+                }
+            )
+
+        _check_deadline(deadline)
+        joined = "\n".join(parts)
+        # Offsets are computed against the unstripped page text above.  The
+        # returned document text is stripped, so shift every page range by the
+        # same leading amount; otherwise a page that starts with whitespace
+        # would report offsets that do not match the stored text.
+        leading = len(joined) - len(joined.lstrip())
+        text = joined.strip()
+        text_length = len(text)
+        for info in page_infos:
+            info["char_start"] = max(
+                0, min(info["char_start"] - leading, text_length)
+            )
+            info["char_end"] = max(
+                0, min(info["char_end"] - leading, text_length)
+            )
+        if not text or not any(character.isalnum() for character in text):
+            raise NoExtractableTextError()
+        return {"text": text, "pages": page_infos, "page_count": page_count}
+    except PDFValidationError:
+        raise
+    except Exception as exc:
+        raise PDFExtractionFailedError() from exc
+    finally:
+        doc.close()
+
+
 def extract_text(
     pdf_path,
     *,
     max_pages=None,
     max_extracted_chars=None,
     max_processing_seconds=None,
+    return_pages=False,
 ):
     """Extract text from a text-selectable PDF, with bounded processing.
 
@@ -139,91 +279,18 @@ def extract_text(
 
     Raises a ``PDFValidationError`` subclass for defined rejections.  Messages
     contain no parser internals, no file paths, and no document text.
+
+    With ``return_pages=True`` the full :func:`extract_pages` result is
+    returned instead of only the text.  The default remains a string so the
+    historical API is unchanged.
     """
-    _check_positive_limit("max_pages", max_pages)
-    _check_positive_limit("max_extracted_chars", max_extracted_chars)
-    _check_positive_limit("max_processing_seconds", max_processing_seconds)
-
-    path = os.fspath(pdf_path)
-    if not os.path.isfile(path):
-        raise FileNotFoundError("PDF file not found.")
-
-    deadline = None
-    if max_processing_seconds is not None:
-        deadline = _monotonic() + max_processing_seconds
-    _check_deadline(deadline)
-
-    # Read the already size-bounded staged file once and parse from memory.
-    # Passing a path to PyMuPDF can leave a Windows file handle behind when a
-    # malformed document fails to open, which would prevent deleting rejected
-    # bytes. The upload route enforces the size limit before this point.
-    try:
-        with open(path, "rb") as handle:
-            data = handle.read()
-    except OSError as exc:
-        raise PDFExtractionFailedError() from exc
-    if not data.startswith(PDF_MAGIC):
-        raise UnsupportedFileTypeError()
-    _check_deadline(deadline)
-
-    try:
-        doc = pymupdf.open(stream=data, filetype="pdf")
-    except Exception as exc:
-        raise MalformedPDFError() from exc
-
-    try:
-        # Reject every encrypted document, including one that would open with
-        # an empty password.  Do not attempt password authentication.
-        if doc.needs_pass or getattr(doc, "is_encrypted", False):
-            raise EncryptedPDFError()
-
-        page_count = doc.page_count
-        if page_count <= 0:
-            raise NoExtractableTextError()
-        if max_pages is not None and page_count > max_pages:
-            raise PDFPageLimitError(
-                f"The PDF has {page_count} pages; the maximum allowed is "
-                f"{max_pages}."
-            )
-
-        # A structurally repaired file is malformed input.  Rejecting it
-        # avoids treating a partially reconstructed document as authoritative.
-        if getattr(doc, "is_repaired", False):
-            raise MalformedPDFError()
-
-        parts = []
-        total_chars = 0
-        for index in range(page_count):
-            _check_deadline(deadline)
-            try:
-                page_text = doc.load_page(index).get_text("text")
-            except Exception as exc:
-                raise PDFExtractionFailedError() from exc
-
-            separator = 1 if parts else 0
-            total_chars += len(page_text) + separator
-            if (
-                max_extracted_chars is not None
-                and total_chars > max_extracted_chars
-            ):
-                raise PDFTextLimitError(
-                    "The PDF text exceeds the configured maximum of "
-                    f"{max_extracted_chars} characters."
-                )
-            parts.append(page_text)
-
-        _check_deadline(deadline)
-        text = "\n".join(parts).strip()
-        if not text or not any(character.isalnum() for character in text):
-            raise NoExtractableTextError()
-        return text
-    except PDFValidationError:
-        raise
-    except Exception as exc:
-        raise PDFExtractionFailedError() from exc
-    finally:
-        # Always close the document, even if an error occurred above.
-        doc.close()
+    result = extract_pages(
+        pdf_path,
+        max_pages=max_pages,
+        max_extracted_chars=max_extracted_chars,
+        max_processing_seconds=max_processing_seconds,
+    )
+    return result if return_pages else result["text"]
 
 
 def _is_caps_heading(fragment: str) -> bool:
@@ -246,12 +313,17 @@ def _is_caps_heading(fragment: str) -> bool:
     return len(letters) >= 3 and all(ch.isupper() for ch in letters)
 
 
-def split_clauses(text):
+def split_clauses(text, include_offsets=False):
     """
     Split extracted contract text into top-level numbered clauses.
 
     Returns a list of {"section_number": str, "clause_text": str} dicts, or []
     (a clearly defined failure result) when no reliable sequence exists.
+
+    When ``include_offsets`` is true, each dict also carries ``char_start``
+    and ``char_end``: the character offsets of the clause slice within the
+    original ``text``.  Offsets are computed by slicing the original string
+    directly, so they are exact and never reconstructed.
 
     Detection combines three signals (never numbering alone):
       1. STRUCTURE - a heading line looks like `N.` with an ALL-CAPS heading
@@ -338,7 +410,9 @@ def split_clauses(text):
             end = line_starts[accepted[k + 1][0]]
         else:
             end = seq_end  # last clause ends before the signature marker
-        clauses.append(
-            {"section_number": str(number), "clause_text": text[start:end]}
-        )
+        entry = {"section_number": str(number), "clause_text": text[start:end]}
+        if include_offsets:
+            entry["char_start"] = start
+            entry["char_end"] = end
+        clauses.append(entry)
     return clauses

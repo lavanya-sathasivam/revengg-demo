@@ -1310,6 +1310,7 @@
                     <div id="clause-overview-badges" class="badge-row"></div>
                   </div>
                   <div class="viewer-meta-right">
+                    <span class="badge" id="clause-source-evidence" title="Source page and character offsets">Source: unavailable</span>
                     <span class="hash-pill" id="clause-overview-sha" title="Clause SHA-256 Digest"></span>
                     <button type="button" class="btn-copy-hash" id="btn-copy-sha" title="Copy SHA-256 fingerprint" hidden>Copy</button>
                     <span class="badge" id="viewer-char-count">0 chars</span>
@@ -1494,6 +1495,7 @@
   var btnTabClause = document.getElementById("btn-tab-clause");
   var viewerContractFilename = document.getElementById("viewer-contract-filename");
   var viewerCharCount = document.getElementById("viewer-char-count");
+  var clauseSourceEvidence = document.getElementById("clause-source-evidence");
   var btnCopySha = document.getElementById("btn-copy-sha");
   var btnJumpHighlight = document.getElementById("btn-jump-highlight");
   var viewerFallbackBanner = document.getElementById("viewer-fallback-banner");
@@ -1843,6 +1845,14 @@
       header.appendChild(typeB);
     }
 
+    if (node.clause.page_number !== undefined && node.clause.page_number !== null) {
+      var pageB = document.createElement("span");
+      pageB.className = "badge";
+      pageB.textContent = "p. " + node.clause.page_number;
+      pageB.title = "Source page in the original PDF";
+      header.appendChild(pageB);
+    }
+
     if (Array.isArray(node.clause.references) && node.clause.references.length > 0) {
       var refB = document.createElement("span");
       refB.className = "badge badge-refs";
@@ -2087,9 +2097,33 @@
       if (contractFullText) contractFullText.textContent = "Select a clause to view contract text.";
       if (clauseFullText) clauseFullText.textContent = "Select a clause to view source.";
       if (viewerCharCount) viewerCharCount.textContent = "0 chars";
+      if (clauseSourceEvidence) {
+        clauseSourceEvidence.textContent = "Source: unavailable";
+        clauseSourceEvidence.title = "";
+      }
       if (btnCopySha) btnCopySha.hidden = true;
       if (btnJumpHighlight) btnJumpHighlight.hidden = true;
       return;
+    }
+
+    if (clauseSourceEvidence) {
+      var evidence = [];
+      if (c.page_number !== undefined && c.page_number !== null) {
+        evidence.push("p. " + c.page_number);
+      }
+      if (c.char_start !== undefined && c.char_start !== null &&
+          c.char_end !== undefined && c.char_end !== null) {
+        evidence.push("chars " + c.char_start + "\u2013" + c.char_end);
+      }
+      if (c.parent_section) {
+        evidence.push("parent " + c.parent_section);
+      }
+      clauseSourceEvidence.textContent = evidence.length
+        ? "Source: " + evidence.join(" \u00b7 ")
+        : "Source: offsets unavailable";
+      clauseSourceEvidence.title = evidence.length
+        ? "Evidence stored with this clause: " + evidence.join(", ")
+        : "This legacy clause has no stored page/offset evidence.";
     }
 
     var fullText = c.text || c.clause_text || "";
@@ -2145,8 +2179,22 @@
     var start = -1;
     var matchLength = 0;
 
+    // 0. Stored provenance: use the exact recorded offsets when they still
+    // address this clause in the stored document text.
+    var c = selectedClauseObj;
+    if (c && c.char_start !== undefined && c.char_start !== null &&
+        c.char_end !== undefined && c.char_end !== null) {
+      var storedStart = Number(c.char_start);
+      var storedEnd = Number(c.char_end);
+      if (storedStart >= 0 && storedEnd > storedStart && storedEnd <= rawText.length &&
+          rawText.slice(storedStart, storedEnd) === clauseText) {
+        start = storedStart;
+        matchLength = storedEnd - storedStart;
+      }
+    }
+
     // 1. Exact match of complete clause text
-    if (clauseText && clauseText.trim()) {
+    if (start === -1 && clauseText && clauseText.trim()) {
       start = rawText.indexOf(clauseText);
       if (start !== -1) {
         matchLength = clauseText.length;

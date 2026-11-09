@@ -102,6 +102,21 @@ DEPENDENCY_PDF = make_pdf_bytes(
     ]
 )
 
+# Same clause numbers and text as DEPENDENCY_PDF, different document bytes.
+# Used to exercise graph isolation between two DISTINCT uploaded contracts;
+# byte-identical uploads are now intentionally de-duplicated per firm.
+DEPENDENCY_PDF_VARIANT = make_pdf_bytes(
+    [
+        "DEPENDENCY AGREEMENT - SECOND COPY",
+        "1. PAYMENT. Payment terms follow.",
+        "1.1 Payment Period. Customer shall pay within thirty days.",
+        "2. FEES. Fee terms follow.",
+        "2.1 Late Fee. Customer shall pay a late fee on overdue amounts.",
+        "3. DEFAULT. Customer is in default if it fails to pay under Clause 1.1 "
+        "or Clause 2.1.",
+    ]
+)
+
 
 class ApiTestCase(unittest.TestCase):
     def setUp(self):
@@ -259,7 +274,7 @@ class UploadFlowTests(ApiTestCase):
         first = self._upload(DEPENDENCY_PDF)["contract_id"]
         first_nodes = {node["clause_reference"] for node in adapter.get_nodes(first)}
         first_edges = adapter.get_edges(first)
-        second = self._upload(DEPENDENCY_PDF)["contract_id"]
+        second = self._upload(DEPENDENCY_PDF_VARIANT)["contract_id"]
 
         self.assertNotEqual(first, second)
         self.assertEqual(

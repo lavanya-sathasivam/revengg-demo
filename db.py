@@ -689,12 +689,29 @@ def save_clauses(contract_id, clauses, version_id=None, audit_event=None):
                 json.dumps(metadata),
             ]
             columns = ["contract_id", "section_number", "clause_text", "metadata"]
-            if "version_id" in clause_columns:
-                columns.append("version_id")
-                values.append(version_id)
-            if "clause_sha256" in clause_columns:
-                columns.append("clause_sha256")
-                values.append(sha256_text(item["clause_text"]))
+            metadata = item.get("metadata") or {}
+            for optional, key in (
+                ("version_id", "version_id"),
+                ("clause_sha256", "clause_sha256"),
+                ("page_number", "page_number"),
+                ("char_start", "char_start"),
+                ("char_end", "char_end"),
+                ("parent_id", "parent_id"),
+                ("normalized_text", "normalized_text"),
+            ):
+                if optional not in clause_columns:
+                    continue
+                value = item.get(key)
+                if value is None and key == "version_id":
+                    # Every stored clause belongs to the version being saved,
+                    # even when the caller did not repeat the id on each item.
+                    value = version_id
+                if value is None:
+                    value = metadata.get(key)
+                if value is None and key == "clause_sha256":
+                    value = sha256_text(item["clause_text"])
+                columns.append(optional)
+                values.append(value)
             cur.execute(
                 "INSERT INTO clauses (%s) VALUES (%s)"
                 % (", ".join(columns), ", ".join("?" * len(columns))),
@@ -769,6 +786,186 @@ def save_clauses(contract_id, clauses, version_id=None, audit_event=None):
         conn.close()
 
 
+PROCESSING_STAGE_EXTRACT = "extract"
+PROCESSING_STAGE_SEGMENT = "segment"
+PROCESSING_STAGE_CLASSIFY = "classify"
+PROCESSING_STAGE_PERSIST = "persist"
+PROCESSING_STAGE_GRAPH = "graph"
+
+PROCESSING_STATUS_STARTED = "started"
+PROCESSING_STATUS_SUCCEEDED = "succeeded"
+PROCESSING_STATUS_FAILED = "failed"
+
+
+def record_processing_stage(
+    contract_id,
+    stage,
+    status,
+    *,
+    version_id=None,
+    attempt_no=1,
+    started_at=None,
+    finished_at=None,
+    error_type=None,
+    error_message=None,
+    correlation_id=None,
+):
+    """Record one ingestion-pipeline stage attempt.
+
+    Each stage (extract, segment, classify, persist, graph) is logged so a
+    failed run can be retried from the last completed stage and operators can
+    see where a document stalled.  No contract or clause text is stored here.
+    """
+    started_at = started_at or utc_now_iso()
+    if finished_at is None and status in (
+        PROCESSING_STATUS_SUCCEEDED,
+        PROCESSING_STATUS_FAILED,
+    ):
+        finished_at = utc_now_iso()
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO processing_log
+               (contract_id, version_id, stage, status, attempt_no,
+                started_at, finished_at, error_type, error_message,
+                correlation_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                contract_id,
+                version_id,
+                stage,
+                status,
+                attempt_no,
+                started_at,
+                finished_at,
+                error_type,
+                error_message,
+                correlation_id,
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def next_processing_attempt(contract_id, stage):
+    """Return the next attempt number for one stage of one contract.
+
+    Used by retries so every attempt is numbered and the log remains a
+    complete, ordered history rather than overwriting the failed attempt.
+    """
+    conn = get_conn()
+    try:
+        if not _table_exists(conn, "processing_log"):
+            return 1
+        row = conn.execute(
+            """SELECT COALESCE(MAX(attempt_no), 0)
+               FROM processing_log WHERE contract_id = ? AND stage = ?""",
+            (contract_id, stage),
+        ).fetchone()
+        return int(row[0] or 0) + 1
+    finally:
+        conn.close()
+
+
+def list_processing_log(contract_id):
+    """Return the ingestion-stage history for one contract, oldest first.
+
+    A legacy read-only database without ``processing_log`` returns an empty
+    list rather than failing the whole contract view.
+    """
+    conn = get_conn()
+    try:
+        if not _table_exists(conn, "processing_log"):
+            return []
+        rows = conn.execute(
+            """SELECT log_id, contract_id, version_id, stage, status,
+                      attempt_no, started_at, finished_at, error_type,
+                      error_message, correlation_id
+               FROM processing_log
+               WHERE contract_id = ?
+               ORDER BY log_id ASC""",
+            (contract_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def set_processing_status(contract_id, processing_status):
+    """Set one contract's processing status. Returns True when a row changed.
+
+    Authorization and audit recording remain the caller's responsibility.
+    """
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE contracts SET processing_status = ? WHERE contract_id = ?",
+            (processing_status, contract_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def link_clause_hierarchy(contract_id):
+    """Rebuild parent_id links for one contract's clauses.
+
+    A sub-clause names its parent in metadata["parent_section"].  This walks
+    the stored clauses, matches each sub-clause to its parent by section
+    number, and writes parent_id.  Clauses with no matching parent keep a
+    NULL parent_id (fail safe: a link is never invented).
+
+    Returns the number of links written.  Safe to run repeatedly.
+    """
+    import json as _json
+
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        rows = cur.execute(
+            """SELECT clause_id, section_number, metadata
+               FROM clauses WHERE contract_id = ?""",
+            (contract_id,),
+        ).fetchall()
+        by_section = {}
+        for row in rows:
+            if row["section_number"] is not None:
+                by_section[row["section_number"]] = row["clause_id"]
+        links = 0
+        for row in rows:
+            parent_section = None
+            raw_meta = row["metadata"]
+            if isinstance(raw_meta, str):
+                try:
+                    raw_meta = _json.loads(raw_meta)
+                except (TypeError, ValueError):
+                    raw_meta = {}
+            if isinstance(raw_meta, dict):
+                parent_section = raw_meta.get("parent_section")
+            if not parent_section or parent_section not in by_section:
+                continue
+            parent_id = by_section[parent_section]
+            if parent_id == row["clause_id"]:
+                continue
+            cur.execute(
+                "UPDATE clauses SET parent_id = ? WHERE clause_id = ?",
+                (parent_id, row["clause_id"]),
+            )
+            links += 1
+        conn.commit()
+        return links
+    finally:
+        conn.close()
+
+
 def list_clauses(contract_id):
     """
     Return one contract's clauses ordered by section number.
@@ -792,13 +989,18 @@ def list_clauses(contract_id):
             "clause_sha256" if "clause_sha256" in columns
             else "NULL AS clause_sha256"
         )
+        extra_exprs = []
+        for col in ("page_number", "char_start", "char_end", "parent_id", "normalized_text"):
+            extra_exprs.append(
+                col if col in columns else "NULL AS %s" % col
+            )
         cur.execute(
             """SELECT clause_id, contract_id, section_number, clause_text,
-                      metadata, %s, %s
+                      metadata, %s, %s, %s
                FROM clauses
                WHERE contract_id = ?
                ORDER BY CAST(section_number AS INTEGER) ASC, section_number ASC"""
-            % (version_expr, hash_expr),
+            % (version_expr, hash_expr, ", ".join(extra_exprs)),
             (contract_id,),
         )
         results = []
@@ -1198,18 +1400,37 @@ def init_db():
                 metadata TEXT,
                 version_id INTEGER,
                 clause_sha256 TEXT,
+                page_number INTEGER,
+                char_start INTEGER,
+                char_end INTEGER,
+                parent_id INTEGER,
+                normalized_text TEXT,
                 FOREIGN KEY (contract_id) REFERENCES contracts(contract_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-                FOREIGN KEY (version_id) REFERENCES contract_versions(version_id) ON DELETE RESTRICT ON UPDATE CASCADE
+                FOREIGN KEY (version_id) REFERENCES contract_versions(version_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (parent_id) REFERENCES clauses(clause_id) ON DELETE SET NULL ON UPDATE CASCADE
             )
             """
         )
         clause_columns = [row[1] for row in cur.execute("PRAGMA table_info(clauses)")]
-        if "version_id" not in clause_columns:
-            cur.execute("ALTER TABLE clauses ADD COLUMN version_id INTEGER")
-        if "clause_sha256" not in clause_columns:
-            cur.execute("ALTER TABLE clauses ADD COLUMN clause_sha256 TEXT")
+        for column, coltype in (
+            ("version_id", "INTEGER"),
+            ("clause_sha256", "TEXT"),
+            ("page_number", "INTEGER"),
+            ("char_start", "INTEGER"),
+            ("char_end", "INTEGER"),
+            ("parent_id", "INTEGER"),
+            ("normalized_text", "TEXT"),
+        ):
+            if column not in clause_columns:
+                cur.execute(
+                    "ALTER TABLE clauses ADD COLUMN %s %s" % (column, coltype)
+                )
         cur.execute("CREATE INDEX IF NOT EXISTS idx_clauses_contract_id ON clauses(contract_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_clauses_version ON clauses(version_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_clauses_parent ON clauses(parent_id)")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_clauses_section ON clauses(contract_id, section_number)"
+        )
 
         # Immutable copy of replaced clause sets. The current set stays in
         # clauses so existing readers do not change.
@@ -1234,6 +1455,40 @@ def init_db():
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_clause_history_contract "
             "ON clause_history(contract_id)"
+        )
+
+        # processing_log: per-stage ingestion/extraction/graph tracking for one
+        # contract version. Every pipeline attempt is recorded here so failed
+        # runs can be retried idempotently and operators can see where a
+        # document stalled. It is append-friendly (rows are updated in place for
+        # the latest attempt of a stage, but history is preserved via the audit
+        # trail) and never contains contract or clause text.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS processing_log (
+                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                contract_id INTEGER NOT NULL,
+                version_id INTEGER,
+                stage TEXT NOT NULL,
+                status TEXT NOT NULL,
+                attempt_no INTEGER NOT NULL DEFAULT 1,
+                started_at TEXT NOT NULL,
+                finished_at TEXT,
+                error_type TEXT,
+                error_message TEXT,
+                correlation_id TEXT,
+                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+                FOREIGN KEY (version_id) REFERENCES contract_versions(version_id) ON DELETE SET NULL ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_processing_log_contract "
+            "ON processing_log(contract_id, stage)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_processing_log_status "
+            "ON processing_log(status)"
         )
 
         # graph_builds: provenance for the published graph and diagnostics for

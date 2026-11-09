@@ -162,17 +162,29 @@ def get_clauses(contract_id: int, request: Request = None):
     _contract_or_404(contract_id, request)
     binding = adapter.get_graph_binding(contract_id)
     rows = adapter.list_clauses(contract_id)
+    def _provenance(row, meta, key):
+        value = row.get(key)
+        return value if value is not None else meta.get(key)
+
     out = []
     for row in rows:
         meta = adapter.clause_metadata(row)
         out.append({
             "clause_id": row["section_number"],
+            "section_number": row["section_number"],
             "heading": meta.get("heading", ""),
             "type": meta.get("type", "other"),
             "level": meta.get("level", 1),
             "text": row["clause_text"],
             "version_id": row.get("version_id"),
             "clause_sha256": row.get("clause_sha256"),
+            "page_number": _provenance(row, meta, "page_number"),
+            "char_start": _provenance(row, meta, "char_start"),
+            "char_end": _provenance(row, meta, "char_end"),
+            "parent_id": row.get("parent_id"),
+            "parent_section": meta.get("parent_section"),
+            "normalized_text": row.get("normalized_text")
+            or meta.get("normalized"),
             "references": clause_tools.find_references(row["clause_text"] or ""),
             "numbers": clause_tools.find_numbers(row["clause_text"] or ""),
         })

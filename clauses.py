@@ -34,17 +34,22 @@ SPLITTER_VERSION = "phase5.1"
 # ---------------------------------------------------------------------------
 CLAUSE_TYPES = [
     "definition", "payment", "fee", "interest", "default", "cure", "termination",
-    "notice", "sla", "confidentiality", "indemnity", "limitation", "force_majeure",
-    "governing_law", "dispute", "warranty", "term", "other",
+    "notice", "sla", "confidentiality", "indemnity", "limitation", "liability",
+    "force_majeure", "governing_law", "dispute", "warranty", "term",
+    "obligations", "other",
 ]
 
 # TYPE PRIORITY - the FIRST type whose keyword appears wins.
 # Ordered most-specific first. 'payment' and 'notice' sit near the end
 # because words like "payment" and "notice" appear all over a contract.
+# 'liability' follows 'limitation' so a clause headed 'Limitation of Liability'
+# stays typed limitation; only clauses that assume liability without a cap fall
+# into liability.
 TYPE_PRIORITY = [
     "fee", "interest", "default", "cure", "termination", "sla", "limitation",
-    "indemnity", "force_majeure", "governing_law", "dispute", "warranty",
-    "confidentiality", "definition", "term", "payment", "notice", "other",
+    "liability", "indemnity", "force_majeure", "governing_law", "dispute",
+    "warranty", "confidentiality", "definition", "term", "obligations",
+    "payment", "notice", "other",
 ]
 
 TYPE_KEYWORDS = {
@@ -62,6 +67,13 @@ TYPE_KEYWORDS = {
                     "termination upon"],
     "sla": ["service level", "availability", "uptime", "service credit"],
     "limitation": ["limitation of liability", "in no event", "aggregate liability"],
+    # A clause that assumes or allocates liability without being a cap or
+    # exclusion (which stays 'limitation'). Keywords are specific so a mere
+    # mention of 'liable' in a payment or indemnity clause does not retype it.
+    "liability": [
+        "shall be liable", "liable for", "liability of", "liability for",
+        "liability arising", "accepts liability",
+    ],
     "indemnity": ["indemnity", "indemnify", "hold harmless"],
     "force_majeure": ["force majeure", "beyond its reasonable control"],
     "governing_law": ["governed by the laws", "governing law", "laws of india"],
@@ -87,6 +99,10 @@ HEADING_CUES = {
     "fee": ["late payment"],
     "term": ["term"],
     "termination": ["termination"],
+    # Only a heading safely names an obligation clause.  The verb 'shall'
+    # appears in almost every operative clause, so it is deliberately not a
+    # body keyword.
+    "obligations": ["obligations", "duties", "responsibilities"],
 }
 
 # A heading that names a subject the frozen 18-type vocabulary has no type
@@ -217,7 +233,26 @@ def _split_hierarchy(section_text):
     return blocks
 
 
-def split_clauses(text, preserve_text=False):
+def _page_for_offset(pages, offset):
+    """Return the 1-based page number containing ``offset`` within ``text``.
+
+    ``pages`` is the per-page listing from :func:`extract.extract_pages`.
+    Returns None when no page information is available.
+    """
+    if not pages:
+        return None
+    for page in pages:
+        start = page.get("char_start", 0)
+        end = page.get("char_end", start)
+        if start <= offset < end:
+            return page["page_number"]
+    # Offset at the very end of the text belongs to the last page.
+    if pages and offset >= pages[-1].get("char_end", 0):
+        return pages[-1]["page_number"]
+    return None
+
+
+def split_clauses(text, preserve_text=False, include_offsets=False, pages=None):
     """Fine-grained clause list, ready for db.save_clauses().
 
     Returns a list of:
@@ -231,10 +266,17 @@ def split_clauses(text, preserve_text=False):
     including clause numbering, and text before the first nested clause stays
     with its parent section. This mode is used by the PDF upload path.
 
+    With include_offsets=True (or when pages is supplied), each row also
+    carries ``char_start``/``char_end`` into the source text and
+    metadata["page_number"] so every clause is traceable to its source page.
+
+    Sub-clauses (level 1) carry metadata["parent_section"] naming their
+    level-0 section, so the persistence layer can rebuild parent_id links.
+
     Returns [] if the top-level structure cannot be detected - we never
     invent structure.
     """
-    sections = extract.split_clauses(text)
+    sections = extract.split_clauses(text, include_offsets=True)
     if not sections:
         return []
 
@@ -242,6 +284,7 @@ def split_clauses(text, preserve_text=False):
     for section in sections:
         sec_no = section["section_number"]
         body = section["clause_text"]
+        section_char_start = section.get("char_start")
         first_line = body.splitlines()[0] if body.splitlines() else ""
 
         # In the demo ingestion mode, the section anchor is heading-only and
@@ -250,6 +293,19 @@ def split_clauses(text, preserve_text=False):
         anchor_heading = _clean_heading(
             re.sub(r"^\s*\d+(\.\d+)*\.?\s*", "", first_line).strip()
         ) or first_line.strip()[:70]
+
+        section_meta = {
+            "heading": anchor_heading,
+            "level": 0,
+            "source": "section",
+            "parent_section": None,
+        }
+        if section_char_start is not None:
+            section_meta["page_number"] = _page_for_offset(pages, section_char_start)
+        if include_offsets:
+            section_meta["char_start"] = section_char_start
+            section_meta["char_end"] = section.get("char_end")
+
         if preserve_text:
             lines = body.splitlines(keepends=True)
             starts = []
@@ -266,14 +322,18 @@ def split_clauses(text, preserve_text=False):
                     child_starts.append((line_index, match))
             parent_end = starts[child_starts[0][0]] if child_starts else len(body)
             parent_text = body[:parent_end]
+            if section_char_start is not None and "char_end" in section_meta:
+                # The parent row owns only its own source slice.  The section
+                # range spans its children, so using it here would make the
+                # stored evidence point at text the row does not contain.
+                section_meta["char_end"] = section_char_start + parent_end
         else:
             child_starts = []
             parent_text = first_line.strip()
         out.append({
             "section_number": sec_no,
             "clause_text": parent_text,
-            "metadata": {"heading": anchor_heading, "level": 0,
-                         "source": "section"},
+            "metadata": dict(section_meta),
         })
 
         if preserve_text:
@@ -283,21 +343,37 @@ def split_clauses(text, preserve_text=False):
                        if position + 1 < len(child_starts) else len(body))
                 clause_number = match.group(1).rstrip(".")
                 clause_body = match.group(2).strip()
+                sub_meta = {
+                    "heading": _clean_heading(clause_body),
+                    "level": 1,
+                    "source": "sub_clause",
+                    "parent_section": sec_no,
+                }
+                if section_char_start is not None and start is not None:
+                    full_start = section_char_start + start
+                    sub_meta["page_number"] = _page_for_offset(pages, full_start)
+                    if include_offsets:
+                        sub_meta["char_start"] = full_start
+                        sub_meta["char_end"] = section_char_start + end
                 out.append({
                     "section_number": clause_number,
                     "clause_text": body[start:end],
-                    "metadata": {"heading": _clean_heading(clause_body),
-                                 "level": 1, "source": "sub_clause"},
+                    "metadata": sub_meta,
                 })
         else:
             for sub in _split_hierarchy(body):
                 if not sub["section_number"]:
                     continue
+                sub_meta = {
+                    "heading": sub["heading"],
+                    "level": 1,
+                    "source": "sub_clause",
+                    "parent_section": sec_no,
+                }
                 out.append({
                     "section_number": sub["section_number"],
                     "clause_text": sub["text"],
-                    "metadata": {"heading": sub["heading"], "level": 1,
-                                 "source": "sub_clause"},
+                    "metadata": sub_meta,
                 })
 
     # de-duplicate section numbers, keeping the first occurrence

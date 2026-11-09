@@ -636,6 +636,59 @@
     flex-direction: column;
     gap: 8px;
   }
+  .processing-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fbfcfd;
+    padding: 12px;
+    margin: 0 0 16px;
+  }
+  .processing-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.82rem;
+  }
+  .processing-summary {
+    color: var(--text-muted);
+    font-size: 0.74rem;
+  }
+  .processing-stage-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .processing-stage-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    padding: 3px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .processing-stage-list li:last-child {
+    border-bottom: none;
+  }
+  .processing-stage-name {
+    font-family: var(--mono);
+    color: var(--text-muted);
+  }
+  .processing-retry {
+    margin-top: 10px;
+    width: 100%;
+    justify-content: center;
+  }
+  .processing-hint {
+    margin-top: 8px;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+  }
   .btn-block-action {
     display: flex;
     align-items: center;
@@ -1181,6 +1234,19 @@
                 <li><span style="color: var(--text-muted);">Provenance:</span> <strong id="drawer-provenance">Synthetic Seed</strong></li>
               </ul>
 
+              <div id="drawer-processing" class="processing-panel" hidden>
+                <div class="processing-panel-header">
+                  <strong>Ingestion stages</strong>
+                  <span id="drawer-processing-summary" class="processing-summary"></span>
+                </div>
+                <ul id="drawer-processing-stages" class="processing-stage-list"></ul>
+                <button type="button" id="btn-drawer-retry" class="btn-action-sm processing-retry" hidden>
+                  Retry failed stage
+                </button>
+                <div id="drawer-processing-hint" class="processing-hint" hidden></div>
+                <div id="drawer-retry-status" class="status-line" role="status" style="display: none;"></div>
+              </div>
+
               <div class="drawer-actions">
                 <a id="drawer-link-impact" href="/impact-analysis?contract=1" class="btn-block-action">
                   Run Impact Analysis &rarr;
@@ -1308,6 +1374,12 @@
   var drawerLifecycleBadge = document.getElementById("drawer-lifecycle-badge");
   var drawerLinkImpact = document.getElementById("drawer-link-impact");
   var drawerLinkExplain = document.getElementById("drawer-link-explain");
+  var drawerProcessing = document.getElementById("drawer-processing");
+  var drawerProcessingSummary = document.getElementById("drawer-processing-summary");
+  var drawerProcessingStages = document.getElementById("drawer-processing-stages");
+  var drawerProcessingHint = document.getElementById("drawer-processing-hint");
+  var drawerRetryBtn = document.getElementById("btn-drawer-retry");
+  var drawerRetryStatus = document.getElementById("drawer-retry-status");
 
   var uploadForm = document.getElementById("contract-upload-form");
   var uploadFile = document.getElementById("portfolio-upload-file");
@@ -1427,6 +1499,105 @@
       if (compareContractsBtn) compareContractsBtn.disabled = allContracts.length < 2;
     }
 
+  var processingRequestId = 0;
+  var retryInFlight = false;
+
+  function setDrawerRetryStatus(msg, isError) {
+    if (!drawerRetryStatus) return;
+    if (!msg) {
+      drawerRetryStatus.style.display = "none";
+      drawerRetryStatus.textContent = "";
+      return;
+    }
+    drawerRetryStatus.style.display = "block";
+    drawerRetryStatus.className = "status-line " + (isError ? "error" : "success");
+    drawerRetryStatus.textContent = msg;
+  }
+
+  function renderProcessingStages(payload) {
+    if (!drawerProcessing || !drawerProcessingStages) return;
+    drawerProcessing.hidden = false;
+    drawerProcessingStages.innerHTML = "";
+    if (drawerProcessingSummary) {
+      drawerProcessingSummary.textContent = payload.processing_status || "";
+    }
+
+    var order = ["extract", "segment", "classify", "persist", "graph"];
+    var latest = {};
+    (Array.isArray(payload.stages) ? payload.stages : []).forEach(function (row) {
+      latest[row.stage] = row;
+    });
+
+    var rendered = 0;
+    order.forEach(function (stage) {
+      var row = latest[stage];
+      if (!row) return;
+      rendered++;
+      var li = document.createElement("li");
+      var name = document.createElement("span");
+      name.className = "processing-stage-name";
+      name.textContent = stage;
+      var badge = document.createElement("span");
+      var css = row.status === "succeeded" ? "extracted" :
+        (row.status === "started" ? "processing" : "failed");
+      badge.className = "badge-status " + css;
+      badge.textContent = row.status + (row.attempt_no > 1 ? " \u00b7 attempt " + row.attempt_no : "");
+      li.appendChild(name);
+      li.appendChild(badge);
+      drawerProcessingStages.appendChild(li);
+    });
+
+    if (!rendered) {
+      var empty = document.createElement("li");
+      empty.textContent = "No processing history is recorded for this contract.";
+      drawerProcessingStages.appendChild(empty);
+    }
+
+    if (drawerProcessingHint) {
+      drawerProcessingHint.hidden = true;
+      drawerProcessingHint.textContent = "";
+      if (payload.processing_status === "extraction_failed") {
+        drawerProcessingHint.hidden = false;
+        drawerProcessingHint.textContent = "The rejected PDF was not retained. Re-upload the source file to try again.";
+      }
+    }
+    if (drawerRetryBtn) {
+      drawerRetryBtn.hidden = !payload.retryable;
+      drawerRetryBtn.disabled = false;
+      drawerRetryBtn.textContent = "Retry failed stage";
+    }
+  }
+
+  function loadProcessingStages(contractId) {
+    var requestId = ++processingRequestId;
+    setDrawerRetryStatus("", false);
+    if (drawerProcessing) drawerProcessing.hidden = false;
+    if (drawerProcessingSummary) drawerProcessingSummary.textContent = "loading...";
+    if (drawerProcessingStages) drawerProcessingStages.innerHTML = "";
+    if (drawerProcessingHint) drawerProcessingHint.hidden = true;
+    if (drawerRetryBtn) drawerRetryBtn.hidden = true;
+
+    return fetch("/contracts/" + encodeURIComponent(String(contractId)) + "/processing", {
+      headers: { "Accept": "application/json" }
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (payload) {
+        if (requestId !== processingRequestId) return;
+        renderProcessingStages(payload);
+      })
+      .catch(function (err) {
+        if (requestId !== processingRequestId) return;
+        if (drawerProcessingSummary) drawerProcessingSummary.textContent = "unavailable";
+        if (drawerProcessingHint) {
+          drawerProcessingHint.hidden = false;
+          drawerProcessingHint.textContent = "Processing history is unavailable: " + err.message;
+        }
+      });
+  }
+
   function selectContract(contract) {
     selectedContractId = contract.contract_id;
     if (drawerFilename) drawerFilename.textContent = contract.filename || "Untitled";
@@ -1459,6 +1630,7 @@
       aiContextText.textContent = "Context: " + (contract.filename || "Contract #" + contract.contract_id);
     }
     updateSuggestedQuestions(contract);
+    loadProcessingStages(contract.contract_id);
 
     // Highlight row
     if (contractsTableBody) {
@@ -1612,6 +1784,49 @@
       });
   }
 
+  // Retry handler for partial ingestion failures.
+  if (drawerRetryBtn) {
+    drawerRetryBtn.addEventListener("click", function () {
+      if (!selectedContractId || retryInFlight) return;
+      retryInFlight = true;
+      drawerRetryBtn.disabled = true;
+      drawerRetryBtn.textContent = "Retrying...";
+      setDrawerRetryStatus("Retrying the failed ingestion stage...", false);
+
+      fetch("/contracts/" + encodeURIComponent(String(selectedContractId)) + "/retry", {
+        method: "POST",
+        headers: { "Accept": "application/json" }
+      })
+        .then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (payload) {
+            if (!res.ok) throw new Error(payload.detail || ("HTTP " + res.status));
+            return payload;
+          });
+        })
+        .then(function (payload) {
+          setDrawerRetryStatus(payload.message || "Retry completed.", false);
+          var contractId = selectedContractId;
+          return loadContracts().then(function () {
+            var found = allContracts.filter(function (c) {
+              return String(c.contract_id) === String(contractId);
+            })[0];
+            if (found) selectContract(found);
+            loadProcessingStages(contractId);
+          });
+        })
+        .catch(function (err) {
+          setDrawerRetryStatus("Retry failed: " + err.message, true);
+        })
+        .finally(function () {
+          retryInFlight = false;
+          if (drawerRetryBtn) {
+            drawerRetryBtn.disabled = false;
+            drawerRetryBtn.textContent = "Retry failed stage";
+          }
+        });
+    });
+  }
+
   // Upload handler
   if (uploadForm) {
     uploadForm.addEventListener("submit", function(e) {
@@ -1663,7 +1878,25 @@
           return;
         }
         setUploadProgress(100);
-        setUploadStatus("Contract uploaded successfully. Clauses parsed: " + (payload.clauses_saved || "saved"), false);
+        if (payload.duplicate) {
+          setUploadStatus(
+            "Duplicate document: contract #" + payload.contract_id +
+            " was already ingested; no duplicate was created.",
+            false
+          );
+        } else if (payload.clause_split_status === "no_clauses_detected") {
+          setUploadStatus(
+            "Contract uploaded and text extracted, but no numbered clauses were detected.",
+            false
+          );
+        } else {
+          setUploadStatus(
+            "Contract uploaded successfully. Clauses parsed: " +
+            (payload.clauses_saved || "saved") +
+            (payload.analysis_status === "ready" ? ". Analysis is ready." : "."),
+            false
+          );
+        }
         if (uploadFile) uploadFile.value = "";
         loadContracts().then(function() {
           if (payload.contract_id) {

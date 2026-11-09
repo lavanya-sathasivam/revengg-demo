@@ -20,14 +20,10 @@ import audit
 import auth
 import clauses as clause_tools
 import db
+import ingest
 from app_config import DEFAULT_UPLOAD_MAX_BYTES
-from db import (
-    get_conn,
-    list_clauses,
-    save_clauses,
-)
+from db import get_conn, list_clauses, save_clauses
 from extract import PDFValidationError, extract_text
-import graph
 from reasoning import explain_with_retrieval
 
 logger = logging.getLogger("app")
@@ -626,6 +622,51 @@ def _normalize_section_number(value) -> str:
     return text.strip().rstrip(".").strip()
 
 
+def _extract_pages_for_upload(path, **kwargs):
+    """Page-aware extraction that keeps ``api_a.extract_text`` as the seam.
+
+    ``extract_text`` is resolved from this module at call time so existing
+    integrations (and tests) that patch ``api_a.extract_text`` still intercept
+    PDF extraction.  ``return_pages=True`` asks extract.py for the full
+    page-position result without a second parse.
+    """
+    return extract_text(path, return_pages=True, **kwargs)
+
+
+def _record_stage_safe(
+    contract_id,
+    stage,
+    status,
+    *,
+    version_id=None,
+    attempt_no=1,
+    started_at=None,
+    finished_at=None,
+    error_type=None,
+    correlation_id=None,
+):
+    """Best-effort processing-log write; never hides the pipeline error."""
+    try:
+        db.record_processing_stage(
+            contract_id,
+            stage,
+            status,
+            version_id=version_id,
+            attempt_no=attempt_no,
+            started_at=started_at,
+            finished_at=finished_at,
+            error_type=error_type,
+            correlation_id=correlation_id,
+        )
+    except Exception:
+        logger.exception(
+            "Could not record processing stage %s/%s for contract %s",
+            stage,
+            status,
+            contract_id,
+        )
+
+
 @router.get("/health")
 def health() -> dict:
     """Simple health check to confirm the API is running."""
@@ -729,20 +770,50 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
             status_code=500, detail="Could not save the uploaded file."
         )
 
+    # Duplicate-processing guard: the same bytes already ingested for this
+    # firm are not re-processed into a second contract.
+    duplicate = ingest.find_duplicate_contract(firm_id, staged.sha256)
+    if duplicate is not None:
+        _delete_file(staged.temp_path)
+        try:
+            audit.record_event(
+                action="upload.duplicate",
+                outcome="success",
+                firm_id=firm_id,
+                actor_user_id=principal.user_id,
+                actor_type="user",
+                target_type="contract",
+                target_id=duplicate["contract_id"],
+                correlation_id=correlation_id,
+                metadata={
+                    "reason": "duplicate_upload",
+                    "filename": staged.original_name,
+                    "source_sha256": staged.sha256,
+                    "duplicate_of_contract_id": duplicate["contract_id"],
+                },
+            )
+        except Exception:
+            logger.exception("Could not record duplicate-upload audit event")
+        return ingest.duplicate_result(duplicate)
+
+    extract_started_at = db.utc_now_iso()
     try:
-        text = extract_text(
-            staged.temp_path,
+        text, pages, _page_count = ingest.extract_document(
+            staged,
             max_pages=max_pages,
             max_extracted_chars=max_extracted_chars,
             max_processing_seconds=max_processing_seconds,
+            extractor=_extract_pages_for_upload,
         )
     except PDFValidationError as exc:
+        extract_finished_at = db.utc_now_iso()
         _delete_file(staged.temp_path)
         # Every failure after staging is content- or parser-related: the
         # extension and size checks already passed. Keep a failed version for
         # provenance, but do not retain the rejected bytes.
+        failed_contract_id = None
         try:
-            save_contract_with_trace(
+            failed_contract_id = save_contract_with_trace(
                 filename=staged.original_name,
                 status="extraction_failed",
                 raw_text=None,
@@ -782,6 +853,16 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
             raise HTTPException(
                 status_code=500, detail="Could not save the contract record."
             )
+        _record_stage_safe(
+            failed_contract_id,
+            db.PROCESSING_STAGE_EXTRACT,
+            db.PROCESSING_STATUS_FAILED,
+            version_id=db.get_current_version_id(failed_contract_id),
+            started_at=extract_started_at,
+            finished_at=extract_finished_at,
+            error_type=exc.code,
+            correlation_id=correlation_id,
+        )
         raise UploadValidationError(
             exc.status_code,
             f"Could not process '{staged.original_name}': "
@@ -911,22 +992,102 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
             ),
         )
 
-    # Split the extracted text into clauses. split_clauses never invents
-    # sections: it returns [] when no reliable sequence is found, and an
-    # empty list is stored as "no clauses" rather than fabricated content.
-    clauses = clause_tools.split_clauses(text, preserve_text=True)
-    for clause in clauses:
-        metadata = dict(clause.get("metadata") or {})
-        metadata["type"] = clause_tools.classify_type(
-            clause.get("clause_text") or "", metadata.get("heading", "")
-        )
-        clause["metadata"] = metadata
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_EXTRACT,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=version_id,
+        started_at=extract_started_at,
+        correlation_id=correlation_id,
+    )
 
+    # Segment the extracted text into clauses with page and character
+    # provenance. split_clauses never invents sections: it returns [] when no
+    # reliable sequence is found, and an empty list is stored as "no clauses"
+    # rather than fabricated content.
+    segment_started_at = db.utc_now_iso()
     try:
-        saved_clause_count = save_clauses(
+        clauses = ingest.segment_document(text, pages)
+    except Exception as exc:
+        logger.exception("Failed to segment clauses for contract %s", contract_id)
+        _record_stage_safe(
             contract_id,
-            clauses,
+            db.PROCESSING_STAGE_SEGMENT,
+            db.PROCESSING_STATUS_FAILED,
             version_id=version_id,
+            started_at=segment_started_at,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        mark_clause_failure(
+            contract_id,
+            f"Stored {len(text)} characters but failed to segment clauses for {original_name}.",
+            principal=principal,
+            firm_id=firm_id,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Contract text was stored, but its clauses could not be segmented. "
+                f"The contract (id={contract_id}) is marked 'clause_persistence_failed'."
+            ),
+        )
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_SEGMENT,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=version_id,
+        started_at=segment_started_at,
+        correlation_id=correlation_id,
+    )
+
+    classify_started_at = db.utc_now_iso()
+    try:
+        clauses = ingest.classify_clauses(clauses)
+    except Exception as exc:
+        logger.exception("Failed to classify clauses for contract %s", contract_id)
+        _record_stage_safe(
+            contract_id,
+            db.PROCESSING_STAGE_CLASSIFY,
+            db.PROCESSING_STATUS_FAILED,
+            version_id=version_id,
+            started_at=classify_started_at,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        mark_clause_failure(
+            contract_id,
+            f"Stored {len(text)} characters but failed to classify clauses for {original_name}.",
+            principal=principal,
+            firm_id=firm_id,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Contract text was stored, but its clauses could not be classified. "
+                f"The contract (id={contract_id}) is marked 'clause_persistence_failed'."
+            ),
+        )
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_CLASSIFY,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=version_id,
+        started_at=classify_started_at,
+        correlation_id=correlation_id,
+    )
+
+    persist_started_at = db.utc_now_iso()
+    try:
+        saved_clause_count = ingest.persist_clauses(
+            contract_id,
+            version_id,
+            clauses,
+            correlation_id,
             audit_event={
                 "action": "clauses.persisted",
                 "outcome": "success",
@@ -943,12 +1104,22 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
                     "processing_status": "extracted",
                 },
             },
+            saver=save_clauses,
         )
     except Exception as exc:
         # Contract row and version were already committed as 'extracted', so
         # flip the status and mark the draft version failed instead of
         # returning a misleading success.
         logger.exception("Failed to persist clauses for contract %s", contract_id)
+        _record_stage_safe(
+            contract_id,
+            db.PROCESSING_STAGE_PERSIST,
+            db.PROCESSING_STATUS_FAILED,
+            version_id=version_id,
+            started_at=persist_started_at,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
         mark_clause_failure(
             contract_id,
             f"Stored {len(text)} characters but failed to save clauses for {original_name}.",
@@ -964,12 +1135,20 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
                 f"The contract (id={contract_id}) is marked 'clause_persistence_failed'."
             ),
         )
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_PERSIST,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=version_id,
+        started_at=persist_started_at,
+        correlation_id=correlation_id,
+    )
 
+    graph_started_at = db.utc_now_iso()
     try:
-        graph_stats = graph.build_graph(
+        graph_stats = ingest.build_contract_graph(
             contract_id,
-            use_llm=False,
-            audit_context={
+            {
                 "firm_id": firm_id,
                 "actor_user_id": principal.user_id,
                 "actor_type": "user",
@@ -979,6 +1158,15 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         )
     except Exception as exc:
         logger.exception("Failed to build graph for contract %s", contract_id)
+        _record_stage_safe(
+            contract_id,
+            db.PROCESSING_STAGE_GRAPH,
+            db.PROCESSING_STATUS_FAILED,
+            version_id=version_id,
+            started_at=graph_started_at,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
         failure_recorded = mark_graph_failure(
             contract_id,
             f"Stored {len(text)} characters and {saved_clause_count} clauses, "
@@ -1000,6 +1188,14 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
                 )
             ),
         )
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_GRAPH,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=version_id,
+        started_at=graph_started_at,
+        correlation_id=correlation_id,
+    )
 
     if saved_clause_count == 0:
         logger.warning(
@@ -1027,6 +1223,439 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         "extracted_characters": len(text),
         "clauses_saved": saved_clause_count,
         "clause_split_status": clause_status,
+        "analysis_status": "ready" if saved_clause_count else "unavailable",
+        "graph": graph_stats,
+    }
+
+
+@router.get("/contracts/{contract_id}/processing")
+def get_contract_processing_route(contract_id: int, request: Request = None) -> dict:
+    """Return processing health and the per-stage ingestion history.
+
+    Stage rows contain only operational metadata (stage, status, attempt,
+    timestamps, error type).  They never contain contract or clause text.
+    """
+    principal = auth.principal_from_request(request)
+    contract = auth.authorized_contract(contract_id, principal)
+    return {
+        "contract_id": contract_id,
+        "processing_status": contract.get("processing_status"),
+        "retryable": contract.get("processing_status")
+        in ("clause_persistence_failed", "graph_build_failed"),
+        "stages": db.list_processing_log(contract_id),
+    }
+
+
+def _settings_limits(settings):
+    return (
+        getattr(settings, "upload_max_pages", None),
+        getattr(settings, "upload_max_extracted_chars", None),
+        getattr(settings, "upload_max_processing_seconds", None),
+    )
+
+
+@router.post("/contracts/{contract_id}/retry")
+def retry_contract_route(contract_id: int, request: Request = None) -> dict:
+    """Retry a failed ingestion stage without duplicating current clauses.
+
+    Two partial-failure states are retryable:
+
+    * ``clause_persistence_failed``: segmentation/classification/persistence is
+      re-run from the stored raw text into a NEW draft version.  Current clause
+      rows are replaced atomically (the old set is archived to clause history),
+      so a retry can never create a duplicate live clause set.
+    * ``graph_build_failed``: only the graph is rebuilt; the existing clause
+      set is left untouched.
+
+    ``extraction_failed`` is not retryable because rejected bytes are
+    deliberately not retained; the user must re-upload the source PDF.
+    """
+    principal = auth.principal_from_request(request)
+    firm_id = auth.require_upload_permission(principal)
+    contract = auth.authorized_contract(contract_id, principal)
+    status = contract.get("processing_status")
+    correlation_id = uuid.uuid4().hex
+
+    if status == "extraction_failed":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "The original PDF was not retained for a failed extraction. "
+                "Re-upload the source file to retry ingestion."
+            ),
+        )
+    if status not in ("clause_persistence_failed", "graph_build_failed"):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This contract is not in a retryable failed state "
+                "(processing_status=%s)." % status
+            ),
+        )
+
+    settings = _upload_settings(request)
+    max_pages, max_extracted_chars, max_processing_seconds = _settings_limits(
+        settings
+    )
+    version_id = db.get_current_version_id(contract_id)
+
+    if status == "graph_build_failed":
+        if not list_clauses(contract_id):
+            raise HTTPException(
+                status_code=409,
+                detail="No stored clauses are available to rebuild the graph.",
+            )
+        started_at = db.utc_now_iso()
+        attempt_no = db.next_processing_attempt(
+            contract_id, db.PROCESSING_STAGE_GRAPH
+        )
+        try:
+            graph_stats = ingest.build_contract_graph(
+                contract_id,
+                {
+                    "firm_id": firm_id,
+                    "actor_user_id": principal.user_id,
+                    "actor_type": "user",
+                    "correlation_id": correlation_id,
+                    "filename": contract.get("filename"),
+                },
+            )
+        except Exception as exc:
+            logger.exception("Retry failed to rebuild graph for %s", contract_id)
+            _record_stage_safe(
+                contract_id,
+                db.PROCESSING_STAGE_GRAPH,
+                db.PROCESSING_STATUS_FAILED,
+                version_id=version_id,
+                attempt_no=attempt_no,
+                started_at=started_at,
+                error_type=type(exc).__name__,
+                correlation_id=correlation_id,
+            )
+            mark_graph_failure(
+                contract_id,
+                f"Retry could not rebuild the graph for {contract.get('filename')}.",
+                principal=principal,
+                firm_id=firm_id,
+                error_type=type(exc).__name__,
+                correlation_id=correlation_id,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Graph rebuild failed; the previous graph was left intact.",
+            )
+        _record_stage_safe(
+            contract_id,
+            db.PROCESSING_STAGE_GRAPH,
+            db.PROCESSING_STATUS_SUCCEEDED,
+            version_id=version_id,
+            attempt_no=attempt_no,
+            started_at=started_at,
+            correlation_id=correlation_id,
+        )
+        db.set_processing_status(contract_id, "extracted")
+        audit.record_event(
+            action="contract.retry_succeeded",
+            outcome="success",
+            firm_id=firm_id,
+            actor_user_id=principal.user_id,
+            actor_type="user",
+            target_type="contract",
+            target_id=contract_id,
+            correlation_id=correlation_id,
+            metadata={
+                "stage": db.PROCESSING_STAGE_GRAPH,
+                "version_id": version_id,
+                "graph": graph_stats,
+            },
+        )
+        return {
+            "message": "Graph rebuilt successfully.",
+            "contract_id": contract_id,
+            "status": "extracted",
+            "retried_stage": db.PROCESSING_STAGE_GRAPH,
+            "graph": graph_stats,
+        }
+
+    # clause_persistence_failed: rebuild clauses from stored raw text.
+    raw_text = contract.get("raw_text")
+    if not raw_text or not raw_text.strip():
+        raise HTTPException(
+            status_code=409,
+            detail="Stored contract text is unavailable; re-upload the source PDF.",
+        )
+
+    old_version = db.get_contract_version(version_id) if version_id else None
+    if old_version is None:
+        raise HTTPException(
+            status_code=409,
+            detail="No contract version is available to retry.",
+        )
+
+    # Page provenance is reconstructed from the retained source file when it
+    # still exists.  A missing file only lowers page precision; the stored raw
+    # text remains authoritative and offsets stay exact within it.
+    pages = None
+    source_path = old_version.get("source_path")
+    if source_path and os.path.isfile(source_path):
+        try:
+            _retry_text, pages, _retry_pages = ingest.extract_document(
+                source_path,
+                max_pages=max_pages,
+                max_extracted_chars=max_extracted_chars,
+                max_processing_seconds=max_processing_seconds,
+            )
+        except Exception:
+            logger.warning(
+                "Retry could not re-read source pages for contract %s; "
+                "continuing with stored text and no page mapping.",
+                contract_id,
+                exc_info=True,
+            )
+            pages = None
+
+    try:
+        retry_version_id = db.create_contract_version(
+            contract_id,
+            firm_id=firm_id,
+            created_by=principal.user_id,
+            source_filename=old_version.get("source_filename")
+            or contract.get("filename"),
+            source_path=source_path,
+            source_sha256=old_version.get("source_sha256"),
+            source_size_bytes=old_version.get("source_size_bytes"),
+            source_mime=old_version.get("source_mime"),
+            extracted_text_sha256=db.sha256_text(raw_text),
+            extraction_status=db.EXTRACTION_STATUS_SUCCEEDED,
+            clause_splitter_version=clause_tools.SPLITTER_VERSION,
+            provenance_status=old_version.get("provenance_status")
+            or contract.get("provenance_status"),
+            source_kind=old_version.get("source_kind") or "upload",
+            status=db.VERSION_STATUS_DRAFT,
+        )
+    except Exception as exc:
+        logger.exception("Could not create retry version for %s", contract_id)
+        raise HTTPException(
+            status_code=500,
+            detail="Could not create a new contract version for the retry.",
+        ) from exc
+
+    segment_started_at = db.utc_now_iso()
+    segment_attempt = db.next_processing_attempt(
+        contract_id, db.PROCESSING_STAGE_SEGMENT
+    )
+    try:
+        clauses = ingest.segment_document(raw_text, pages)
+    except Exception as exc:
+        logger.exception("Retry failed to segment clauses for %s", contract_id)
+        _record_stage_safe(
+            contract_id,
+            db.PROCESSING_STAGE_SEGMENT,
+            db.PROCESSING_STATUS_FAILED,
+            version_id=retry_version_id,
+            attempt_no=segment_attempt,
+            started_at=segment_started_at,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        mark_clause_failure(
+            contract_id,
+            f"Retry failed to segment clauses for {contract.get('filename')}.",
+            principal=principal,
+            firm_id=firm_id,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="Clause segmentation failed during retry."
+        )
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_SEGMENT,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=retry_version_id,
+        attempt_no=segment_attempt,
+        started_at=segment_started_at,
+        correlation_id=correlation_id,
+    )
+
+    classify_started_at = db.utc_now_iso()
+    classify_attempt = db.next_processing_attempt(
+        contract_id, db.PROCESSING_STAGE_CLASSIFY
+    )
+    try:
+        clauses = ingest.classify_clauses(clauses)
+    except Exception as exc:
+        logger.exception("Retry failed to classify clauses for %s", contract_id)
+        _record_stage_safe(
+            contract_id,
+            db.PROCESSING_STAGE_CLASSIFY,
+            db.PROCESSING_STATUS_FAILED,
+            version_id=retry_version_id,
+            attempt_no=classify_attempt,
+            started_at=classify_started_at,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        mark_clause_failure(
+            contract_id,
+            f"Retry failed to classify clauses for {contract.get('filename')}.",
+            principal=principal,
+            firm_id=firm_id,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="Clause classification failed during retry."
+        )
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_CLASSIFY,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=retry_version_id,
+        attempt_no=classify_attempt,
+        started_at=classify_started_at,
+        correlation_id=correlation_id,
+    )
+
+    persist_started_at = db.utc_now_iso()
+    persist_attempt = db.next_processing_attempt(
+        contract_id, db.PROCESSING_STAGE_PERSIST
+    )
+    try:
+        saved_clause_count = ingest.persist_clauses(
+            contract_id,
+            retry_version_id,
+            clauses,
+            correlation_id,
+            audit_event={
+                "action": "clauses.persisted",
+                "outcome": "success",
+                "firm_id": firm_id,
+                "actor_user_id": principal.user_id,
+                "actor_type": "user",
+                "target_type": "contract",
+                "target_id": contract_id,
+                "correlation_id": correlation_id,
+                "metadata": {
+                    "filename": contract.get("filename"),
+                    "clause_count": len(clauses),
+                    "retry": True,
+                    "processing_status": "extracted",
+                },
+            },
+            saver=save_clauses,
+        )
+    except Exception as exc:
+        logger.exception("Retry failed to persist clauses for %s", contract_id)
+        _record_stage_safe(
+            contract_id,
+            db.PROCESSING_STAGE_PERSIST,
+            db.PROCESSING_STATUS_FAILED,
+            version_id=retry_version_id,
+            attempt_no=persist_attempt,
+            started_at=persist_started_at,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        mark_clause_failure(
+            contract_id,
+            f"Retry failed to save clauses for {contract.get('filename')}.",
+            principal=principal,
+            firm_id=firm_id,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500, detail="Clause persistence failed during retry."
+        )
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_PERSIST,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=retry_version_id,
+        attempt_no=persist_attempt,
+        started_at=persist_started_at,
+        correlation_id=correlation_id,
+    )
+
+    graph_started_at = db.utc_now_iso()
+    graph_attempt = db.next_processing_attempt(
+        contract_id, db.PROCESSING_STAGE_GRAPH
+    )
+    try:
+        graph_stats = ingest.build_contract_graph(
+            contract_id,
+            {
+                "firm_id": firm_id,
+                "actor_user_id": principal.user_id,
+                "actor_type": "user",
+                "correlation_id": correlation_id,
+                "filename": contract.get("filename"),
+            },
+        )
+    except Exception as exc:
+        logger.exception("Retry failed to build graph for %s", contract_id)
+        _record_stage_safe(
+            contract_id,
+            db.PROCESSING_STAGE_GRAPH,
+            db.PROCESSING_STATUS_FAILED,
+            version_id=retry_version_id,
+            attempt_no=graph_attempt,
+            started_at=graph_started_at,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        mark_graph_failure(
+            contract_id,
+            f"Clauses were saved but graph construction failed on retry for "
+            f"{contract.get('filename')}.",
+            principal=principal,
+            firm_id=firm_id,
+            error_type=type(exc).__name__,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Clauses were saved on retry, but analysis could not be completed. "
+                "The contract is marked 'graph_build_failed'."
+            ),
+        )
+    _record_stage_safe(
+        contract_id,
+        db.PROCESSING_STAGE_GRAPH,
+        db.PROCESSING_STATUS_SUCCEEDED,
+        version_id=retry_version_id,
+        attempt_no=graph_attempt,
+        started_at=graph_started_at,
+        correlation_id=correlation_id,
+    )
+
+    db.set_processing_status(contract_id, "extracted")
+    audit.record_event(
+        action="contract.retry_succeeded",
+        outcome="success",
+        firm_id=firm_id,
+        actor_user_id=principal.user_id,
+        actor_type="user",
+        target_type="contract",
+        target_id=contract_id,
+        correlation_id=correlation_id,
+        metadata={
+            "stage": db.PROCESSING_STAGE_PERSIST,
+            "version_id": retry_version_id,
+            "clause_count": saved_clause_count,
+            "graph": graph_stats,
+        },
+    )
+    return {
+        "message": "Contract reprocessed successfully.",
+        "contract_id": contract_id,
+        "status": "extracted",
+        "retried_stage": db.PROCESSING_STAGE_PERSIST,
+        "version_id": retry_version_id,
+        "clauses_saved": saved_clause_count,
         "analysis_status": "ready" if saved_clause_count else "unavailable",
         "graph": graph_stats,
     }
