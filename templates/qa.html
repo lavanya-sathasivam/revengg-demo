@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask Contracts · Contract Intelligence</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-soft: #f8fafc;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text: #0f172a;
+    --text-muted: #5b6778;
+    --accent: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --success: #166534;
+    --success-soft: #f0fdf4;
+    --warning: #92400e;
+    --warning-soft: #fffbeb;
+    --danger: #b91c1c;
+    --danger-soft: #fef2f2;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 8px 30px rgba(15, 23, 42, 0.07);
+    --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 248px;
+    flex: 0 0 248px;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .brand { padding: 22px 20px 16px; border-bottom: 1px solid rgba(148,163,184,.16); }
+  .brand a { color: #fff; text-decoration: none; display: block; }
+  .brand-title { font-weight: 700; font-size: 1rem; letter-spacing: .01em; }
+  .brand-sub { color: #94a3b8; font-size: .72rem; margin-top: 3px; }
+  .sidebar-nav { padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .nav-section-title {
+    color: #64748b; font-size: .66rem; text-transform: uppercase;
+    letter-spacing: .1em; padding: 0 9px 7px; font-weight: 700;
+  }
+  .nav-item {
+    display: block; color: #cbd5e1; text-decoration: none;
+    padding: 9px 11px; border-radius: 8px; font-size: .84rem; font-weight: 600;
+  }
+  .nav-item:hover { background: rgba(148,163,184,.12); color: #fff; }
+  .nav-item.active { background: #1e293b; color: #fff; box-shadow: inset 3px 0 0 #60a5fa; }
+  .sidebar-footer { margin-top: auto; padding: 16px 18px; border-top: 1px solid rgba(148,163,184,.16); }
+  .sidebar-footer a { color: #94a3b8; font-size: .75rem; text-decoration: none; }
+  .sidebar-footer a:hover { color: #fff; }
+  .auth-pill { display: inline-block; font-size: .7rem; color: #94a3b8; }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border); padding: 15px 26px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    position: sticky; top: 0; z-index: 5;
+  }
+  .topbar h1 { font-size: 1.05rem; margin: 0; }
+  .topbar-sub { color: var(--text-muted); font-size: .78rem; margin-top: 2px; }
+  .model-badge {
+    border: 1px solid var(--border); background: var(--surface-soft);
+    color: var(--text-muted); border-radius: 999px; padding: 6px 11px;
+    font-size: .72rem; font-family: var(--mono); white-space: nowrap;
+  }
+  .content { padding: 24px 26px 42px; max-width: 1360px; width: 100%; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 20px; align-items: start; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+  }
+  .panel-head { padding: 17px 20px 0; }
+  .panel-head h2 { margin: 0; font-size: .98rem; }
+  .panel-head p { margin: 4px 0 0; color: var(--text-muted); font-size: .78rem; }
+  .panel-body { padding: 16px 20px 20px; }
+  .question-box {
+    width: 100%; min-height: 108px; resize: vertical; border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); padding: 13px 14px; font: inherit; color: var(--text);
+    background: #fff; outline: none;
+  }
+  .question-box:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(29,78,216,.12); }
+  .actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .btn {
+    border: 1px solid transparent; border-radius: 9px; padding: 10px 16px;
+    font: inherit; font-weight: 700; font-size: .84rem; cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #1e40af; }
+  .btn-primary:disabled { background: #93b4f5; cursor: not-allowed; }
+  .btn-ghost { background: #fff; border-color: var(--border-strong); color: var(--text); }
+  .btn-ghost:hover { background: var(--surface-soft); }
+  .hint { color: var(--text-muted); font-size: .74rem; }
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .example {
+    background: var(--accent-soft); border: 1px solid #bfdbfe; color: #1e40af;
+    border-radius: 999px; padding: 6px 11px; font-size: .74rem; cursor: pointer;
+  }
+  .example:hover { background: #dbeafe; }
+  .scope-list {
+    width: 100%; min-height: 150px; border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); padding: 8px; font: inherit; font-size: .8rem;
+    background: #fff;
+  }
+  .scope-actions { display: flex; gap: 8px; margin-top: 9px; }
+  .scope-actions button { font-size: .72rem; padding: 6px 9px; }
+  .index-state { margin-top: 12px; font-size: .72rem; color: var(--text-muted); line-height: 1.55; }
+  .state {
+    padding: 22px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm);
+    background: var(--surface-soft); color: var(--text-muted); font-size: .84rem; text-align: center;
+  }
+  .state strong { color: var(--text); display: block; margin-bottom: 4px; }
+  .answer-card { border-left: 4px solid var(--accent); }
+  .answer-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+    padding: 4px 9px; font-size: .69rem; font-weight: 700; border: 1px solid transparent;
+  }
+  .badge-grounded { background: var(--success-soft); color: var(--success); border-color: #bbf7d0; }
+  .badge-insufficient { background: var(--warning-soft); color: var(--warning); border-color: #fde68a; }
+  .badge-error { background: var(--danger-soft); color: var(--danger); border-color: #fecaca; }
+  .badge-neutral { background: var(--surface-soft); color: var(--text-muted); border-color: var(--border); }
+  .answer-text { white-space: pre-wrap; font-size: .93rem; line-height: 1.72; }
+  .answer-text strong { color: var(--accent); }
+  .interpretation {
+    margin-top: 15px; padding: 12px 14px; border-radius: var(--radius-sm);
+    background: #f8fafc; border: 1px dashed var(--border-strong);
+    color: #334155; font-size: .8rem;
+  }
+  .interpretation b { color: #0f172a; }
+  .citations { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .citation {
+    border: 1px solid var(--border); border-radius: 11px; background: #fff;
+    padding: 14px 15px;
+  }
+  .citation-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .citation-id {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 26px; border-radius: 7px; background: var(--accent);
+    color: #fff; font: 700 .72rem var(--mono); padding: 0 7px;
+  }
+  .citation-title { font-size: .84rem; font-weight: 700; margin-left: 9px; }
+  .citation-sub { color: var(--text-muted); font-size: .72rem; margin-left: 9px; margin-top: 2px; }
+  .source-link {
+    color: var(--accent); text-decoration: none; font-size: .74rem; font-weight: 700;
+    white-space: nowrap;
+  }
+  .source-link:hover { text-decoration: underline; }
+  .quote {
+    margin: 12px 0 10px; padding: 11px 13px; border-left: 3px solid #bfdbfe;
+    background: #f8fbff; color: #1e293b; font-size: .84rem; line-height: 1.65;
+    white-space: pre-wrap;
+  }
+  .provenance {
+    display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--text-muted);
+    font-size: .69rem; font-family: var(--mono);
+  }
+  .score-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .score-chip {
+    background: var(--surface-soft); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 7px; font: .67rem var(--mono); color: var(--text-muted);
+  }
+  .details { margin-top: 18px; }
+  .details summary {
+    cursor: pointer; font-size: .78rem; font-weight: 700; color: var(--text-muted);
+  }
+  .details pre {
+    margin: 9px 0 0; padding: 12px; border-radius: 9px; background: #0f172a;
+    color: #dbeafe; font-size: .7rem; overflow: auto; max-height: 360px;
+  }
+  .error-card {
+    border-left: 4px solid var(--danger); background: var(--danger-soft);
+    color: #7f1d1d; padding: 14px 16px; border-radius: var(--radius-sm);
+    font-size: .84rem;
+  }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid #bfdbfe; border-top-color: var(--accent);
+    border-radius: 50%; display: inline-block; animation: spin .8s linear infinite;
+    vertical-align: -3px; margin-right: 7px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-lines { display: flex; flex-direction: column; gap: 9px; }
+  .loading-line {
+    height: 11px; border-radius: 999px;
+    background: linear-gradient(90deg, #eef2f7, #f8fafc, #eef2f7);
+    background-size: 220% 100%; animation: shimmer 1.25s ease-in-out infinite;
+  }
+  @keyframes shimmer { to { background-position: -220% 0; } }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { width: 210px; flex-basis: 210px; }
+  }
+  @media (max-width: 720px) {
+    .app { display: block; }
+    .sidebar { position: static; width: 100%; height: auto; }
+    .sidebar-nav { flex-direction: row; flex-wrap: wrap; }
+    .sidebar-footer { display: none; }
+    .content { padding: 18px 14px 32px; }
+    .topbar { padding: 13px 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <a href="/" title="Contract Intelligence Home">
+        <div class="brand-title">Contract Intelligence</div>
+        <div class="brand-sub">Evidence-grounded QA</div>
+      </a>
+    </div>
+    <nav class="sidebar-nav" aria-label="Main Navigation">
+      <div class="nav-section-title">Workspaces</div>
+      <a class="nav-item" href="/" id="nav-portfolio"><span>Portfolio &amp; Intake</span></a>
+      <a class="nav-item" href="/impact-analysis" id="nav-impact"><span>Conflict &amp; Change Impact</span></a>
+      <a class="nav-item" href="/explain" id="nav-explain"><span>Clause Explanation</span></a>
+      <a class="nav-item active" href="/ask" aria-current="page" id="nav-ask"><span>Ask Contracts</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="auth-status" class="auth-pill">Checking access…</div>
+      <div style="margin-top:8px;"><a href="/docs" target="_blank" rel="noopener">Developer API Docs →</a></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>Ask Contracts</h1>
+        <div class="topbar-sub">Hybrid semantic + keyword retrieval. Answers are limited to retrieved clause evidence.</div>
+      </div>
+      <div id="model-badge" class="model-badge">loading model…</div>
+    </header>
+
+    <div class="content">
+      <div class="layout">
+        <section>
+          <div class="panel" style="margin-bottom:20px;">
+            <div class="panel-head">
+              <h2>Your question</h2>
+              <p>Ask about payment, termination, liability, notices, service levels, or compare authorized contracts.</p>
+            </div>
+            <div class="panel-body">
+              <label for="question" class="hint" style="display:block;margin-bottom:6px;">Natural-language question</label>
+              <textarea id="question" class="question-box" maxlength="4000" placeholder="Example: How long does the customer have to pay an undisputed invoice?"></textarea>
+              <div class="actions">
+                <button id="ask-btn" type="button" class="btn btn-primary">Ask with evidence</button>
+                <span class="hint">Every answer cites clause IDs, page/offset provenance and an exact quote.</span>
+              </div>
+              <div class="examples" id="examples">
+                <button type="button" class="example" data-question="What is the payment period and when is payment due?">Payment period</button>
+                <button type="button" class="example" data-question="What happens if the customer pays late?">Late payment</button>
+                <button type="button" class="example" data-question="Can the supplier terminate the agreement for non-payment?">Termination</button>
+                <button type="button" class="example" data-question="What is the limitation of liability cap?">Liability cap</button>
+                <button type="button" class="example" data-question="Where will arbitration take place and which law governs?">Dispute resolution</button>
+                <button type="button" class="example" data-question="Does any contract contain a right of first refusal?">Absent provision (negative)</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="answer-area">
+            <div class="panel">
+              <div class="panel-body">
+                <div class="state">
+                  <strong>No question asked yet</strong>
+                  Ask a question to retrieve the most relevant clauses. If the contracts do not contain enough evidence, the system will say so instead of guessing.
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside>
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Contract scope</h2>
+              <p>Only contracts visible in your active firm are searchable.</p>
+            </div>
+            <div class="panel-body">
+              <label for="scope" class="hint" style="display:block;margin-bottom:6px;">Authorized contracts</label>
+              <select id="scope" class="scope-list" multiple aria-label="Contracts to search"></select>
+              <div class="scope-actions">
+                <button type="button" class="btn btn-ghost" id="select-all">Select all</button>
+                <button type="button" class="btn btn-ghost" id="select-none">Clear</button>
+              </div>
+              <div id="index-state" class="index-state">Checking retrieval index…</div>
+              <div class="index-state" style="border-top:1px solid var(--border);padding-top:10px;margin-top:12px;">
+                <b>Grounding rules</b><br>
+                Answers use only retrieved clauses. Direct quotes are separated from interpretation. A negative result is reported as insufficient evidence, not as proof that a term is absent.
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = { contracts: [], asking: false };
+
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function $(id) { return document.getElementById(id); }
+
+  function selectedContractIds() {
+    var select = $("scope");
+    var ids = [];
+    for (var i = 0; i < select.options.length; i += 1) {
+      if (select.options[i].selected) ids.push(Number(select.options[i].value));
+    }
+    return ids;
+  }
+
+  function setStatus(text) {
+    var node = $("auth-status");
+    if (node) node.textContent = text;
+  }
+
+  function renderScope(contracts) {
+    var select = $("scope");
+    select.innerHTML = "";
+    if (!contracts.length) {
+      var option = document.createElement("option");
+      option.textContent = "No contracts in this scope";
+      option.disabled = true;
+      select.appendChild(option);
+      return;
+    }
+    contracts.forEach(function (contract) {
+      var option = document.createElement("option");
+      option.value = String(contract.contract_id);
+      option.selected = true;
+      option.textContent = "#" + contract.contract_id + " · " + (contract.filename || "Untitled");
+      select.appendChild(option);
+    });
+  }
+
+  function renderIndexState(statusPayload) {
+    var node = $("index-state");
+    if (!node) return;
+    if (!statusPayload || !statusPayload.contracts) {
+      node.textContent = "Index status unavailable.";
+      return;
+    }
+    var ready = 0;
+    var total = 0;
+    var clauses = 0;
+    var indexed = 0;
+    statusPayload.contracts.forEach(function (item) {
+      total += 1;
+      if (item.ready) ready += 1;
+      clauses += Number(item.clause_count || 0);
+      indexed += Number(item.indexed_count || 0);
+    });
+    var storage = statusPayload.contracts.length && statusPayload.contracts[0].storage;
+    node.innerHTML =
+      "<b>Index:</b> " + ready + "/" + total + " contract(s) ready<br>" +
+      indexed + "/" + clauses + " clause vectors available" +
+      (storage ? "<br><span style=\"font-family:var(--mono);font-size:.67rem;\">" + esc(storage) + "</span>" : "");
+  }
+
+  function loadContracts() {
+    return fetch("/contracts", { headers: { "Accept": "application/json" } })
+      .then(function (response) {
+        if (!response.ok) throw new Error("Could not load contracts (HTTP " + response.status + ").");
+        return response.json();
+      })
+      .then(function (contracts) {
+        state.contracts = Array.isArray(contracts) ? contracts : [];
+        renderScope(state.contracts);
+      });
+  }
+
+  function loadAuth() {
+    return fetch("/auth/me", { headers: { "Accept": "application/json" } })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (data) {
+        if (!data) { setStatus("Access scope unavailable"); return; }
+        if (data.demo) { setStatus("Demo mode · synthetic read-only scope"); return; }
+        if (data.active_firm) {
+          setStatus((data.active_firm.name || "Active firm") + " · " + (data.active_firm.role || "member"));
+        } else if (data.authenticated) {
+          setStatus("No active firm selected");
+        } else {
+          setStatus("Not signed in");
+        }
+      })
+      .catch(function () { setStatus("Access scope unavailable"); });
+  }
+
+  function loadStatus() {
+    return fetch("/qa/status", { headers: { "Accept": "application/json" } })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (data) {
+        if (data && data.embedding_model) {
+          $("model-badge").textContent = data.embedding_model.model_key + " · " + data.embedding_model.dimension + "d";
+        }
+      })
+      .catch(function () { $("model-badge").textContent = "model status unavailable"; });
+  }
+
+  function loadIndexStatus() {
+    return fetch("/retrieval/status", { headers: { "Accept": "application/json" } })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(renderIndexState)
+      .catch(function () {
+        var node = $("index-state");
+        if (node) node.textContent = "Index status unavailable.";
+      });
+  }
+
+  function showLoading() {
+    $("answer-area").innerHTML =
+      '<div class="panel"><div class="panel-body">' +
+      '<div class="answer-meta"><span class="spinner"></span><span class="badge badge-neutral">Retrieving and grounding evidence…</span></div>' +
+      '<div class="loading-lines">' +
+      '<div class="loading-line" style="width:92%"></div>' +
+      '<div class="loading-line" style="width:76%"></div>' +
+      '<div class="loading-line" style="width:85%"></div>' +
+      '<div class="loading-line" style="width:58%"></div>' +
+      '</div></div></div>';
+    $("ask-btn").disabled = true;
+  }
+
+  function showError(message) {
+    $("answer-area").innerHTML =
+      '<div class="panel"><div class="panel-body">' +
+      '<div class="error-card"><span class="badge badge-error">Request failed</span><div style="margin-top:8px;">' +
+      esc(message) + '</div><div style="margin-top:10px;"><button type="button" class="btn btn-ghost" id="retry-btn">Try again</button></div></div>' +
+      '</div></div>';
+    var retry = $("retry-btn");
+    if (retry) retry.addEventListener("click", ask);
+    $("ask-btn").disabled = false;
+  }
+
+  function badgeForAnswer(data) {
+    if (data.insufficient_evidence) {
+      return '<span class="badge badge-insufficient">Insufficient evidence</span>';
+    }
+    if (data.grounding && data.grounding.status === "grounded") {
+      return '<span class="badge badge-grounded">Grounded in retrieved clauses</span>';
+    }
+    return '<span class="badge badge-neutral">Validation: ' + esc(data.grounding && data.grounding.status) + '</span>';
+  }
+
+  function renderCitation(citation) {
+    var page = citation.page_number == null ? "page unavailable" : "p. " + citation.page_number;
+    var offsets = citation.char_start == null || citation.char_end == null
+      ? "offsets unavailable"
+      : "chars " + citation.char_start + "–" + citation.char_end;
+    var hash = citation.clause_sha256 ? String(citation.clause_sha256).slice(0, 12) + "…" : "hash unavailable";
+    var scores = citation.retrieval_scores || {};
+    return '<article class="citation">' +
+      '<div class="citation-top"><div style="display:flex;align-items:flex-start;min-width:0;">' +
+      '<span class="citation-id">' + esc(citation.citation_id) + '</span>' +
+      '<div style="min-width:0;"><div class="citation-title">' + esc(citation.filename || ("Contract #" + citation.contract_id)) + ' · Clause ' + esc(citation.section_number) + '</div>' +
+      '<div class="citation-sub">' + esc(citation.heading || "No heading") + ' · ' + esc(citation.type || "other") + ' · ' + esc(page) + '</div></div></div>' +
+      '<a class="source-link" href="' + esc(citation.source_url || "#") + '">Open source →</a></div>' +
+      '<div class="quote">' + esc(citation.quote) + '</div>' +
+      '<div class="provenance"><span>' + esc(page) + '</span><span>' + esc(offsets) + '</span><span>v' + esc(citation.version_id == null ? "?" : citation.version_id) + '</span><span>' + esc(hash) + '</span></div>' +
+      '<div class="score-row">' +
+      '<span class="score-chip">semantic ' + esc((scores.semantic || 0).toFixed(3)) + '</span>' +
+      '<span class="score-chip">keyword ' + esc((scores.keyword || 0).toFixed(3)) + '</span>' +
+      '<span class="score-chip">fusion ' + esc((scores.fusion || 0).toFixed(3)) + '</span>' +
+      '<span class="score-chip">rerank ' + esc((scores.rerank || 0).toFixed(3)) + '</span>' +
+      '</div></article>';
+  }
+
+  function renderAnswer(data) {
+    var confidence = data.confidence || "unknown";
+    var analysis = data.query_understanding || {};
+    var citations = data.citations || [];
+    var interpretation = data.interpretation;
+    var retrieval = data.retrieval || {};
+    var html = '<div class="panel answer-card"><div class="panel-body">' +
+      '<div class="answer-meta">' + badgeForAnswer(data) +
+      '<span class="badge badge-neutral">confidence: ' + esc(confidence) + '</span>' +
+      (analysis.intent ? '<span class="badge badge-neutral">intent: ' + esc(analysis.intent) + '</span>' : '') +
+      (data.insufficient_reason ? '<span class="badge badge-neutral">' + esc(data.insufficient_reason) + '</span>' : '') +
+      '</div>' +
+      '<div class="answer-text">' + esc(data.answer) + '</div>';
+
+    if (interpretation) {
+      html += '<div class="interpretation"><b>Interpretation (separate from evidence)</b><br>' + esc(interpretation) + '</div>';
+    }
+    if (citations.length) {
+      html += '<div class="citations">' + citations.map(renderCitation).join("") + '</div>';
+    } else {
+      html += '<div class="state" style="margin-top:16px;text-align:left;"><strong>No supporting citation was returned</strong>The answer is explicitly marked insufficient instead of citing an unrelated clause.</div>';
+    }
+    html += '<details class="details"><summary>Retrieval details</summary><pre>' +
+      esc(JSON.stringify({
+        query_understanding: analysis,
+        grounding: data.grounding,
+        retrieval_counts: {
+          returned: retrieval.count,
+          candidates: retrieval.candidate_count,
+          index: retrieval.index,
+          thresholds: retrieval.thresholds
+        },
+        model: retrieval.model,
+        scope: data.scope
+      }, null, 2)) + '</pre></details>' +
+      '<div class="hint" style="margin-top:14px;">' + esc(data.disclaimer || "") + '</div>' +
+      '</div></div>';
+    $("answer-area").innerHTML = html;
+  }
+
+  function ask() {
+    if (state.asking) return;
+    var question = $("question").value.trim();
+    var ids = selectedContractIds();
+    if (!question) {
+      showError("Enter a question first.");
+      $("question").focus();
+      return;
+    }
+    if (!ids.length) {
+      showError("Select at least one contract in the scope panel. The scope list is limited to contracts you are authorized to read.");
+      return;
+    }
+    state.asking = true;
+    showLoading();
+    fetch("/qa/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ question: question, contract_ids: ids, top_k: 8 })
+    })
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (data) {
+          if (!response.ok) {
+            var detail = data && data.detail ? data.detail : "HTTP " + response.status;
+            if (typeof detail !== "string") detail = JSON.stringify(detail);
+            throw new Error(detail);
+          }
+          return data;
+        });
+      })
+      .then(function (data) {
+        renderAnswer(data);
+      })
+      .catch(function (error) {
+        showError(error.message || "The question could not be answered.");
+      })
+      .then(function () {
+        state.asking = false;
+        $("ask-btn").disabled = false;
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    $("ask-btn").addEventListener("click", ask);
+    $("question").addEventListener("keydown", function (event) {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        ask();
+      }
+    });
+    document.querySelectorAll(".example").forEach(function (button) {
+      button.addEventListener("click", function () {
+        $("question").value = button.getAttribute("data-question") || "";
+        $("question").focus();
+      });
+    });
+    $("select-all").addEventListener("click", function () {
+      var options = $("scope").options;
+      for (var i = 0; i < options.length; i += 1) options[i].selected = true;
+    });
+    $("select-none").addEventListener("click", function () {
+      var options = $("scope").options;
+      for (var i = 0; i < options.length; i += 1) options[i].selected = false;
+    });
+
+    Promise.all([loadAuth(), loadStatus(), loadContracts()])
+      .then(loadIndexStatus)
+      .catch(function (error) {
+        showError(error.message || "Initialization failed.");
+      });
+  });
+})();
+</script>
+</body>
+</html>

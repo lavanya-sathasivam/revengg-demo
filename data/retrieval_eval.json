@@ -1,0 +1,213 @@
+{
+  "generated_at": "2026-11-09T15:20:00",
+  "note": "Hand-annotated retrieval evaluation questions for Contracts A & B. Every question is answerable from the synthetic contracts, or explicitly negative (answer = insufficient evidence). No legal fact is fabricated; all answers are grounded in clause evidence.",
+  "questions": [
+    {
+      "id": "qa_001",
+      "question": "What is the payment period for an undisputed invoice?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["7.2"],
+      "expected_concepts": ["payment"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_002",
+      "question": "What late charge applies if an invoice is overdue?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["8.1"],
+      "expected_concepts": ["late_payment"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_003",
+      "question": "When may the Supplier terminate for non-payment?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["12.3"],
+      "expected_concepts": ["default", "termination"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_004",
+      "question": "What is the liability cap?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["13.1"],
+      "expected_concepts": ["liability"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_005",
+      "question": "What notice requirements apply?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["14.1"],
+      "expected_concepts": ["notice"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_006",
+      "question": "Which law governs the agreement?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["16.1"],
+      "expected_concepts": ["governing_law"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_007",
+      "question": "What service credits apply if availability falls below the service level?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["9.2", "SCHEDULE B"],
+      "expected_concepts": ["service_credit", "service_level"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_008",
+      "question": "What is the cure period for a payment failure?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["10.2"],
+      "expected_concepts": ["cure"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_009",
+      "question": "What is the payment period under the Customer Services Agreement?",
+      "contract_ids": [2],
+      "expected_clause_ids": ["5.2"],
+      "expected_concepts": ["payment"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_010",
+      "question": "Compare the payment periods in both contracts.",
+      "contract_ids": [1, 2],
+      "expected_clause_ids": ["7.2", "5.2"],
+      "expected_concepts": ["payment"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_011",
+      "question": "Where is the seat of arbitration?",
+      "contract_ids": [1, 2],
+      "expected_clause_ids": ["16.2", "8.2"],
+      "expected_concepts": ["arbitration"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_012",
+      "question": "What services are provided?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["9", "3.1"],
+      "expected_concepts": ["service_level"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_013",
+      "question": "What is the initial term of the agreement?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["4.1", "4.2"],
+      "expected_concepts": ["term"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_014",
+      "question": "How can the agreement be amended?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["17.1"],
+      "expected_concepts": ["amendment"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_015",
+      "question": "Can the customer withhold payment of a disputed invoice?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["7.3"],
+      "expected_concepts": ["dispute"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_016",
+      "question": "What happens if the supplier breaches confidentiality?",
+      "contract_ids": [1],
+      "expected_clause_ids": ["17.2"],
+      "expected_concepts": ["confidentiality"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_neg_001",
+      "question": "Does the contract contain a data protection obligation?",
+      "contract_ids": [1],
+      "expected_clause_ids": [],
+      "expected_answer_type": "insufficient_evidence",
+      "expected_insufficient_reason": "question_concept_not_supported",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_neg_002",
+      "question": "Is there an insurance requirement in the contract?",
+      "contract_ids": [1],
+      "expected_clause_ids": [],
+      "expected_answer_type": "insufficient_evidence",
+      "expected_insufficient_reason": "question_concept_not_supported",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_neg_003",
+      "question": "Does the contract include a non-solicitation clause?",
+      "contract_ids": [1],
+      "expected_clause_ids": [],
+      "expected_answer_type": "insufficient_evidence",
+      "expected_insufficient_reason": "question_concept_not_supported",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_neg_004",
+      "question": "Are there any force majeure termination rights?",
+      "contract_ids": [1],
+      "expected_clause_ids": [],
+      "expected_answer_type": "extractive_grounded",
+      "expected_insufficient_reason": null,
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_neg_005",
+      "question": "Does any contract contain a right of first refusal?",
+      "contract_ids": [1, 2],
+      "expected_clause_ids": [],
+      "expected_answer_type": "insufficient_evidence",
+      "expected_insufficient_reason": "question_concept_not_supported",
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa_cc_001",
+      "question": "What are the key differences in payment periods between the two contracts?",
+      "contract_ids": [1, 2],
+      "expected_clause_ids": ["7.2", "5.2"],
+      "expected_concepts": ["payment"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa_cc_002",
+      "question": "Which contract has the longer cure period?",
+      "contract_ids": [1, 2],
+      "expected_clause_ids": ["10.2"],
+      "expected_concepts": ["cure"],
+      "expected_answer_type": "extractive_grounded",
+      "difficulty": "medium"
+    }
+  ]
+}

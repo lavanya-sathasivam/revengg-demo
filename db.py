@@ -1432,6 +1432,83 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_clauses_section ON clauses(contract_id, section_number)"
         )
 
+        # Phase 4: embedding model metadata, per-clause vectors and an
+        # auditable incremental-index run log.  These tables are additive and
+        # contain no contract text beyond the clause identity hashes.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS embedding_models (
+                model_key TEXT PRIMARY KEY,
+                provider TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                model_version TEXT NOT NULL,
+                dimension INTEGER NOT NULL,
+                distance_metric TEXT NOT NULL DEFAULT 'cosine',
+                config_json TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS clause_embeddings (
+                embedding_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                contract_id INTEGER NOT NULL,
+                version_id INTEGER,
+                clause_id INTEGER,
+                section_number TEXT NOT NULL,
+                clause_sha256 TEXT NOT NULL,
+                input_sha256 TEXT NOT NULL,
+                model_key TEXT NOT NULL,
+                dimension INTEGER NOT NULL,
+                vector BLOB NOT NULL,
+                indexed_at TEXT NOT NULL,
+                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id)
+                    ON DELETE CASCADE ON UPDATE CASCADE,
+                FOREIGN KEY (model_key) REFERENCES embedding_models(model_key)
+                    ON DELETE RESTRICT ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_clause_embeddings_identity "
+            "ON clause_embeddings(contract_id, IFNULL(version_id, 0), "
+            "section_number, model_key)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_clause_embeddings_scope "
+            "ON clause_embeddings(model_key, contract_id, version_id)"
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS retrieval_index_runs (
+                run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                contract_id INTEGER NOT NULL,
+                version_id INTEGER,
+                model_key TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                status TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                finished_at TEXT,
+                clause_count INTEGER NOT NULL DEFAULT 0,
+                embedded_count INTEGER NOT NULL DEFAULT 0,
+                reused_count INTEGER NOT NULL DEFAULT 0,
+                updated_count INTEGER NOT NULL DEFAULT 0,
+                removed_count INTEGER NOT NULL DEFAULT 0,
+                error_type TEXT,
+                error_message TEXT,
+                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id)
+                    ON DELETE CASCADE ON UPDATE CASCADE,
+                FOREIGN KEY (model_key) REFERENCES embedding_models(model_key)
+                    ON DELETE RESTRICT ON UPDATE CASCADE
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_retrieval_runs_contract "
+            "ON retrieval_index_runs(contract_id, run_id)"
+        )
+
         # Immutable copy of replaced clause sets. The current set stays in
         # clauses so existing readers do not change.
         cur.execute(

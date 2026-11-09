@@ -17,6 +17,7 @@ import api_auth
 import api_b
 import api_chat
 import api_firms
+import api_qa
 import audit
 import auth
 import db
@@ -28,6 +29,7 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 OVERVIEW_HTML = TEMPLATES_DIR / "overview.html"
 IMPACT_HTML = TEMPLATES_DIR / "index.html"
 EXPLAIN_HTML = TEMPLATES_DIR / "explain.html"
+ASK_HTML = TEMPLATES_DIR / "qa.html"
 
 
 def _database_config(settings: AppSettings) -> db.DatabaseConfig:
@@ -206,6 +208,10 @@ def create_app(
     def explain_page() -> FileResponse:
         return _serve(EXPLAIN_HTML, "Clause explanation")
 
+    @app.get("/ask", include_in_schema=False)
+    def ask_page() -> FileResponse:
+        return _serve(ASK_HTML, "Contract question answering")
+
     @app.get("/login", include_in_schema=False)
     def login_page() -> FileResponse:
         return _serve(TEMPLATES_DIR / "login.html", "Login")
@@ -223,6 +229,7 @@ def create_app(
     _include_router_once(app, api_a.router)
     _include_router_once(app, api_b.router)
     _include_router_once(app, api_chat.router)
+    _include_router_once(app, api_qa.router)
     _include_router_once(app, api_firms.router)
 
     return app

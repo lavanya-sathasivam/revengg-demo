@@ -89,6 +89,7 @@ def seed(reset=True, db_path=None):
 
     import adapter
     import graph
+    import retrieval_index
 
     adapter.init_db()
 
@@ -117,10 +118,12 @@ def seed(reset=True, db_path=None):
         )
         n_clauses = graph.ingest_contract(cid, text)
         stats = graph.build_graph(cid, use_llm=False)
+        index_stats = retrieval_index.index_contract(cid)
         made.append((cid, title, n_clauses, stats))
         print("Contract %d: %s" % (cid, title))
-        print("   clauses=%d nodes=%d edges=%d" %
-              (stats["clauses"], stats["nodes"], stats["edges"]))
+        print("   clauses=%d nodes=%d edges=%d embeddings=%d" %
+              (stats["clauses"], stats["nodes"], stats["edges"],
+               index_stats.get("embedded_count", 0)))
 
     return made
 

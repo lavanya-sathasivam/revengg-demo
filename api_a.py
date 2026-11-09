@@ -21,6 +21,7 @@ import auth
 import clauses as clause_tools
 import db
 import ingest
+import retrieval_index
 from app_config import DEFAULT_UPLOAD_MAX_BYTES
 from db import get_conn, list_clauses, save_clauses
 from extract import PDFValidationError, extract_text
@@ -667,6 +668,38 @@ def _record_stage_safe(
         )
 
 
+def _try_index_contract(contract_id: int) -> dict:
+    """Incrementally build the Phase 4 retrieval index for one contract.
+
+    Ingestion has already succeeded by the time this runs.  A failure here is
+    reported in the upload/retry response so the operator can rebuild the
+    index explicitly, but it never discards stored text, clauses or graph
+    data.
+    """
+    try:
+        result = retrieval_index.index_contract(contract_id)
+    except Exception as exc:
+        logger.exception(
+            "Retrieval indexing failed for contract %s after ingestion",
+            contract_id,
+        )
+        return {
+            "status": "failed",
+            "error_type": type(exc).__name__,
+            "error_message": str(exc)[:500],
+        }
+    return {
+        "status": result.get("status"),
+        "model_key": result.get("model_key"),
+        "version_id": result.get("version_id"),
+        "clause_count": result.get("clause_count", 0),
+        "embedded_count": result.get("embedded_count", 0),
+        "reused_count": result.get("reused_count", 0),
+        "run_id": result.get("run_id"),
+        "duration_ms": result.get("duration_ms"),
+    }
+
+
 @router.get("/health")
 def health() -> dict:
     """Simple health check to confirm the API is running."""
@@ -1197,6 +1230,11 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         correlation_id=correlation_id,
     )
 
+    # Phase 4: index the new clause set.  A retrieval-index failure must not
+    # discard an otherwise successful ingestion; it is reported explicitly and
+    # the query path can retry the incremental index later.
+    index_info = _try_index_contract(contract_id)
+
     if saved_clause_count == 0:
         logger.warning(
             "No clauses detected for contract %s (%s); contract kept as 'extracted'.",
@@ -1225,6 +1263,7 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
         "clause_split_status": clause_status,
         "analysis_status": "ready" if saved_clause_count else "unavailable",
         "graph": graph_stats,
+        "retrieval_index": index_info,
     }
 
 
@@ -1633,6 +1672,7 @@ def retry_contract_route(contract_id: int, request: Request = None) -> dict:
     )
 
     db.set_processing_status(contract_id, "extracted")
+    index_info = _try_index_contract(contract_id)
     audit.record_event(
         action="contract.retry_succeeded",
         outcome="success",
@@ -1658,6 +1698,7 @@ def retry_contract_route(contract_id: int, request: Request = None) -> dict:
         "clauses_saved": saved_clause_count,
         "analysis_status": "ready" if saved_clause_count else "unavailable",
         "graph": graph_stats,
+        "retrieval_index": index_info,
     }
 
 
