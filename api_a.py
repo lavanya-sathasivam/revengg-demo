@@ -1033,10 +1033,121 @@ def upload_contract(request: Request, file: UploadFile = File(...)) -> dict:
 
 
 @router.get("/contracts")
-def list_contracts_route(request: Request = None) -> list:
-    """Return only contracts visible in the request's active scope."""
+def list_contracts_route(
+    request: Request = None,
+    search: str = None,
+    processing_status: str = None,
+    lifecycle_status: str = None,
+) -> list:
+    """Return only contracts visible in the request's active scope.
+
+    Optional query parameters filter the listing:
+    ``search`` matches the filename, ``processing_status`` and
+    ``lifecycle_status`` match exactly.  Results are always scoped to the
+    active firm (or the demo scope).
+    """
     principal = auth.principal_from_request(request)
-    return auth.authorized_contracts(principal)
+    return auth.authorized_contracts(
+        principal,
+        search=search,
+        processing_status=processing_status,
+        lifecycle_status=lifecycle_status,
+    )
+
+
+@router.get("/contracts/{contract_id}/versions")
+def list_contract_versions_route(contract_id: int, request: Request = None) -> list:
+    """Return the version history of one contract in the active scope.
+
+    Every version records who created it, when, the source file hash/size/MIME,
+    extraction status, and the lifecycle status of the contract at that time.
+    Older versions are immutable (published/superseded).
+    """
+    principal = auth.principal_from_request(request)
+    auth.authorized_contract(contract_id, principal)
+    return db.list_contract_versions(contract_id)
+
+
+@router.patch("/contracts/{contract_id}/lifecycle")
+async def set_contract_lifecycle_route(
+    contract_id: int, request: Request = None
+) -> dict:
+    """Update the lifecycle status of one contract in the active scope.
+
+    Body: ``{"lifecycle_status": "draft|under_review|approved|active|expired|archived"}``.
+
+    Only members with upload-level roles (administrator, lawyer, paralegal)
+    may advance the lifecycle.  The change is audited with the acting user,
+    firm, contract, previous and new status, and timestamp.
+    """
+
+    principal = auth.principal_from_request(request)
+    contract = auth.authorized_contract(contract_id, principal)
+    if principal.role not in auth.UPLOAD_ROLES:
+        auth._record_audit(
+            "contract.lifecycle_denied",
+            "denied",
+            principal=principal,
+            firm_id=principal.firm_id,
+            target_type="contract",
+            target_id=contract_id,
+            metadata={
+                "reason": "insufficient_role",
+                "role": principal.role,
+                "requested": None,
+            },
+            swallow=True,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Your firm role does not permit contract lifecycle changes.",
+        )
+    body = None
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    new_status = db.valid_lifecycle_status(body.get("lifecycle_status"))
+    if new_status is None:
+        raise HTTPException(
+            status_code=400,
+            detail="lifecycle_status must be one of: %s"
+            % ", ".join(sorted(db.LIFECYCLE_STATUSES)),
+        )
+    old_status = contract.get("lifecycle_status")
+    if old_status == new_status:
+        return {
+            "ok": True,
+            "contract_id": contract_id,
+            "lifecycle_status": new_status,
+            "message": "Lifecycle status unchanged.",
+        }
+    updated = db.set_contract_lifecycle_status(
+        contract_id, new_status, principal.firm_id
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    auth._record_audit(
+        "contract.lifecycle_changed",
+        principal=principal,
+        firm_id=principal.firm_id,
+        target_type="contract",
+        target_id=contract_id,
+        metadata={
+            "previous": old_status,
+            "current": new_status,
+            "filename": contract.get("filename"),
+        },
+    )
+    return {
+        "ok": True,
+        "contract_id": contract_id,
+        "lifecycle_status": new_status,
+        "previous": old_status,
+        "message": "Contract lifecycle status updated.",
+    }
 
 
 @router.get("/contracts/{contract_id}")

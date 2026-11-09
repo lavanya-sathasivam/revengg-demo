@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firm Members — Contract Intelligence</title>
+<style>
+  :root {
+    --bg-app: #0b1329;
+    --sidebar-bg: #0f172a;
+    --sidebar-hover: #1e293b;
+    --sidebar-active: #1e3a8a;
+    --sidebar-border: #1e293b;
+    --sidebar-text: #94a3b8;
+    --sidebar-text-active: #ffffff;
+
+    --bg-main: #f8fafc;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+
+    --accent: #1e40af;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+
+    --danger: #b91c1c;
+    --danger-soft: #fee2e2;
+    --danger-border: #fecaca;
+
+    --ok: #15803d;
+    --ok-soft: #dcfce7;
+    --ok-border: #bbf7d0;
+
+    --radius-lg: 12px;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-main);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- App Layout Shell ---------- */
+  .app-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  .app-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 100;
+  }
+
+  .sidebar-header {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .brand-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+  }
+  .brand-text { display: flex; flex-direction: column; }
+  .brand-title { color: #ffffff; font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; }
+  .brand-tag { color: #64748b; font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .sidebar-nav {
+    padding: 16px 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .nav-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #475569;
+    padding: 8px 12px 4px;
+    margin-top: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 550;
+    transition: all 0.15s ease;
+  }
+  .nav-item:hover { background: var(--sidebar-hover); color: #ffffff; }
+  .nav-item.active { background: var(--sidebar-active); color: var(--sidebar-text-active); }
+
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: #090e1a;
+  }
+  .auth-widget { margin-bottom: 12px; }
+  .auth-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    background: #1e293b;
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .auth-pill.demo { border-color: #334155; color: #94a3b8; }
+  .auth-pill.firm { border-color: #065f46; background: #064e3b; color: #6ee7b7; }
+  .auth-pill.warn { border-color: #78350f; background: #451a03; color: #fcd34d; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+  .status-dot.firm { background: #34d399; }
+  .status-dot.warn { background: #f59e0b; }
+  .status-dot.demo { background: #60a5fa; }
+  .auth-logout-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #475569;
+    color: #94a3b8;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    padding: 2px 7px;
+    cursor: pointer;
+  }
+  .auth-logout-btn:hover { color: #fff; border-color: #94a3b8; }
+
+  .workspace-wrap {
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .workspace-label {
+    display: block;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+    color: var(--text-subtle);
+  }
+  .workspace-select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    color: var(--text);
+    font-size: 0.82rem;
+    font-family: inherit;
+  }
+
+  /* ---------- Main ---------- */
+  .app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .app-topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+  .page-title { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--text); }
+  .content-container {
+    padding: 24px 28px 60px;
+    max-width: 1360px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .card-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .card-panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+  }
+  .card-panel-header h2 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text); }
+  .card-panel-body { padding: 20px; }
+
+  .field-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .form-input, .form-select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    font-family: inherit;
+    background: #ffffff;
+    color: var(--text);
+  }
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
+  }
+
+  .banner-msg {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.84rem;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .banner-msg.err { background: var(--danger-soft); border: 1px solid var(--danger-border); color: var(--danger); }
+  .banner-msg.ok { background: var(--ok-soft); border: 1px solid var(--ok-border); color: var(--ok); }
+
+  .btn-primary {
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 650;
+    cursor: pointer;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-ghost {
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--text);
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-danger {
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--danger-border);
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  .btn-danger:hover { background: var(--danger); color: #ffffff; }
+
+  table.members-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 8px; }
+  table.members-table th {
+    background: #f8fafc; color: var(--text-muted); font-weight: 650;
+    font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 11px 16px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  table.members-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  table.members-table tr:last-child td { border-bottom: none; }
+  table.members-table tr:hover { background: var(--surface-2); }
+
+  .badge-role {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 650;
+    text-transform: capitalize;
+  }
+  .badge-role.administrator { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-border); }
+  .badge-role.lawyer { background: #fdf4ff; color: #a21caf; border: 1px solid #f0abfc; }
+  .badge-role.paralegal { background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok-border); }
+  .badge-role.reviewer, .badge-role.viewer { background: #f1f5f9; color: var(--text-muted); border: 1px solid var(--border); }
+
+  .add-member-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto auto;
+    gap: 10px;
+    align-items: end;
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--surface-2);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+  .empty-state { padding: 40px; text-align: center; color: var(--text-muted); }
+
+  .role-label { font-weight: 600; font-size: 0.82rem; }
+
+  @media (max-width: 900px) {
+    .app-sidebar { position: fixed; transform: translateX(-100%); }
+    .add-member-form { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar">
+    <div>
+      <div class="sidebar-header">
+        <a href="/" class="brand-link" title="Contract Intelligence Home">
+          <div class="brand-icon">⚖️</div>
+          <div class="brand-text">
+            <div class="brand-title">Contract Intel</div>
+            <div class="brand-tag">Firm Members</div>
+          </div>
+        </a>
+      </div>
+      <nav class="sidebar-nav" aria-label="Main Navigation">
+        <div class="nav-section-title">Workspaces</div>
+        <a class="nav-item" href="/">Portfolio &amp; Intake</a>
+        <a class="nav-item" href="/impact-analysis">Conflict &amp; Change Impact</a>
+        <a class="nav-item active" href="/explain">Clause Explanation</a>
+      </nav>
+    </div>
+    <div class="sidebar-footer">
+      <div class="auth-widget">
+        <div id="auth-status" class="auth-status" aria-live="polite">
+          <span class="auth-pill demo"><span class="status-dot demo"></span>Checking access...</span>
+        </div>
+        <div id="workspace-switcher-wrap" class="workspace-wrap" style="display:none;">
+          <label for="workspace-switcher" class="workspace-label">Workspace</label>
+          <select id="workspace-switcher" class="workspace-select" aria-label="Switch active firm workspace"></select>
+        </div>
+      </div>
+      <div class="sidebar-docs-row">
+        <a href="/docs" target="_blank" rel="noopener"> Developer API Docs &rarr;</a>
+      </div>
+    </div>
+  </aside>
+
+  <main class="app-main">
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <h1 class="page-title">Firm Members</h1>
+      </div>
+    </header>
+
+    <div class="content-container">
+      <div id="auth-banner" class="banner-msg err" style="display:none;"></div>
+
+      <section class="card-panel" id="members-section" style="display:none;">
+        <div class="card-panel-header">
+          <h2 id="members-firm-name">Members</h2>
+        </div>
+        <div class="card-panel-body">
+          <div id="members-error" class="banner-msg err"></div>
+          <div id="members-ok" class="banner-msg ok"></div>
+
+          <div class="add-member-form" id="add-member-form" style="display:none;">
+            <div>
+              <label class="field-label">Subject (email or username)</label>
+              <input type="text" id="add-subject" class="form-input" placeholder="new@firm.example" autocomplete="username">
+            </div>
+            <div>
+              <label class="field-label">Display name</label>
+              <input type="text" id="add-display-name" class="form-input" placeholder="Name">
+            </div>
+            <div>
+              <label class="field-label">Role</label>
+              <select id="add-role" class="form-select">
+                <option value="viewer">Viewer</option>
+                <option value="reviewer">Reviewer</option>
+                <option value="paralegal">Paralegal</option>
+                <option value="lawyer">Lawyer</option>
+                <option value="administrator">Administrator</option>
+              </select>
+            </div>
+            <div>
+              <button type="button" id="btn-add-member" class="btn-primary">Add</button>
+            </div>
+          </div>
+
+          <table class="members-table" aria-label="Firm Members">
+            <thead>
+              <tr>
+                <th style="width: 200px;">Subject</th>
+                <th>Display Name</th>
+                <th style="width: 150px;">Role</th>
+                <th style="width: 110px;">Status</th>
+                <th style="width: 220px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="members-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var container = document.getElementById("auth-status");
+  var switcherWrap = document.getElementById("workspace-switcher-wrap");
+  var switcher = document.getElementById("workspace-switcher");
+  var membersSection = document.getElementById("members-section");
+  var membersTableBody = document.getElementById("members-table-body");
+  var membersFirmName = document.getElementById("members-firm-name");
+  var membersError = document.getElementById("members-error");
+  var membersOk = document.getElementById("members-ok");
+  var addMemberForm = document.getElementById("add-member-form");
+  var btnAddMember = document.getElementById("btn-add-member");
+  var authBanner = document.getElementById("auth-banner");
+
+  var activeFirmId = null;
+  var isAdmin = false;
+
+  function show(msgEl, text, kind) {
+    msgEl.textContent = text;
+    msgEl.className = "banner-msg " + kind;
+    msgEl.style.display = text ? "block" : "none";
+  }
+
+  function fetchJson(path, init) {
+    return fetch(path, init).then(function(res) {
+      if (res.status === 401) throw new Error("Session expired. Please sign in again.");
+      if (!res.ok) {
+        var detail = "";
+        try { detail = res.json().detail || ""; } catch (e) {}
+        throw new Error(detail || "Request failed (HTTP " + res.status + ").");
+      }
+      return res.json();
+    });
+  }
+
+  function renderMembers(members) {
+    membersTableBody.innerHTML = "";
+    if (!members || members.length === 0) {
+      membersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">No members.</td></tr>';
+      return;
+    }
+    members.forEach(function(m) {
+      var tr = document.createElement("tr");
+      var canEdit = isAdmin;
+      var roleHtml = '<span class="badge-role ' + esc(String(m.role || "viewer")) + '">' + esc(String(m.role || "viewer")) + '</span>';
+      var statusHtml = '<span class="badge-role ' + (m.disabled ? "disabled" : "viewer") + '">' + (m.disabled ? "disabled" : "active") + '</span>';
+      var actions = [];
+      if (canEdit) {
+        actions.push('<button type="button" class="btn-ghost" onclick="membersApp.changeRole(' + m.user_id + ',\'viewer\')">Viewer</button>');
+        actions.push('<button type="button" class="btn-ghost" onclick="membersApp.changeRole(' + m.user_id + ',\'reviewer\')">Reviewer</button>');
+        actions.push('<button type="button" class="btn-ghost" onclick="membersApp.changeRole(' + m.user_id + ',\'paralegal\')">Paralegal</button>');
+        actions.push('<button type="button" class="btn-ghost" onclick="membersApp.changeRole(' + m.user_id + ',\'lawyer\')">Lawyer</button>');
+        actions.push('<button type="button" class="btn-ghost" onclick="membersApp.changeRole(' + m.user_id + ',\'administrator\')">Administrator</button>');
+        if (!m.disabled) {
+          actions.push('<button type="button" class="btn-danger" onclick="membersApp.removeMember(' + m.user_id + ')">Remove</button>');
+        }
+      }
+      tr.innerHTML =
+        '<td><strong>' + esc(m.subject) + '</strong></td>' +
+        '<td>' + esc(m.display_name || "") + '</td>' +
+        '<td>' + roleHtml + '</td>' +
+        '<td>' + statusHtml + '</td>' +
+        '<td>' + actions.join(" ") + '</td>';
+      membersTableBody.appendChild(tr);
+    });
+  }
+
+  var membersApp = {
+    load: function() {
+      fetchJson("/auth/me").then(function(data) {
+        if (data.demo) {
+          show(authBanner, "Member management is not available in read-only demo mode.", "err");
+          return;
+        }
+        if (!data.authenticated || !data.active_firm) {
+          show(authBanner, "You must select an active firm workspace to manage members.", "err");
+          return;
+        }
+        activeFirmId = data.active_firm.firm_id;
+        isAdmin = (data.active_firm.role === "administrator");
+        membersFirmName.textContent = "Members — " + esc(data.active_firm.name || ("Firm #" + activeFirmId));
+        membersSection.style.display = "block";
+        addMemberForm.style.display = isAdmin ? "grid" : "none";
+        return fetchJson("/firms/" + activeFirmId + "/members");
+      }).then(function(members) {
+        renderMembers(members);
+      }).catch(function(err) {
+        show(authBanner, err.message, "err");
+      });
+    },
+    changeRole: function(userId, role) {
+      fetchJson("/firms/" + activeFirmId + "/members/" + userId, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role: role }),
+      }).then(function() {
+        show(membersOk, "Role updated.", "ok");
+        membersApp.load();
+      }).catch(function(err) { show(membersError, err.message, "err"); });
+    },
+    removeMember: function(userId) {
+      if (!confirm("Remove this member from the firm?")) return;
+      fetchJson("/firms/" + activeFirmId + "/members/" + userId, { method: "DELETE" })
+        .then(function() {
+          show(membersOk, "Member removed.", "ok");
+          membersApp.load();
+        }).catch(function(err) { show(membersError, err.message, "err"); });
+    },
+    addMember: function() {
+      var subject = document.getElementById("add-subject").value;
+      var displayName = document.getElementById("add-display-name").value;
+      var role = document.getElementById("add-role").value;
+      if (!subject) { show(membersError, "Subject is required.", "err"); return; }
+      fetchJson("/firms/" + activeFirmId + "/members", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subject: subject, display_name: displayName || undefined, role: role }),
+      }).then(function() {
+        show(membersOk, "Member added.", "ok");
+        document.getElementById("add-subject").value = "";
+        document.getElementById("add-display-name").value = "";
+        membersApp.load();
+      }).catch(function(err) { show(membersError, err.message, "err"); });
+    }
+  };
+
+  window.membersApp = membersApp;
+
+  function esc(s) {
+    return String(s === undefined || s === null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Auth + workspace switcher (shared pattern).
+  fetch("/auth/me", { headers: { "Accept": "application/json" } })
+    .then(function(res) {
+      if (res.status === 401) {
+        return { demo: false, authenticated: false, active_firm: null, memberships: [] };
+      }
+      if (!res.ok) throw new Error("Auth check failed (" + res.status + ")");
+      return res.json();
+    })
+    .then(function(data) {
+      if (!container) return;
+      if (data.demo) {
+        container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Demo Mode &middot; Read-Only</span>';
+        if (switcherWrap) switcherWrap.style.display = "none";
+        show(authBanner, "Member management is not available in read-only demo mode.", "err");
+      } else if (data.authenticated && data.active_firm) {
+        var fName = data.active_firm.name || ("Firm #" + data.active_firm.firm_id);
+        var uName = (data.user && data.user.display_name) || "User";
+        container.innerHTML =
+          '<span class="auth-pill firm"><span class="status-dot firm"></span><strong>' +
+          esc(fName) + '</strong> &middot; ' + esc(uName) + '</span>' +
+          '<button type="button" class="auth-logout-btn" id="btn-logout" title="Log out">Log out</button>';
+        var bOut = document.getElementById("btn-logout");
+        if (bOut) bOut.addEventListener("click", function() { fetch("/auth/logout", { method: "POST" }).finally(function() { window.location.reload(); }); });
+        var memberships = Array.isArray(data.memberships) ? data.memberships : [];
+        if (switcherWrap && switcher) {
+          switcher.innerHTML = "";
+          memberships.forEach(function(m) {
+            var opt = document.createElement("option");
+            opt.value = m.firm_id;
+            opt.textContent = (m.name || "Firm #" + m.firm_id) + " (" + m.role + ")";
+            if (data.active_firm && m.firm_id === data.active_firm.firm_id) opt.selected = true;
+            switcher.appendChild(opt);
+          });
+          switcherWrap.style.display = memberships.length > 1 ? "block" : "none";
+          switcher.addEventListener("change", function() {
+            var firmId = parseInt(switcher.value, 10);
+            if (!firmId) return;
+            fetch("/auth/firm", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ firm_id: firmId }),
+            }).then(function(res) {
+              if (res.ok) window.location.reload();
+            });
+          });
+        }
+        membersApp.load();
+      } else {
+        container.innerHTML = '<span class="auth-pill warn"><span class="status-dot warn"></span>Auth Required</span>';
+        if (switcherWrap) switcherWrap.style.display = "none";
+        show(authBanner, "Please sign in to manage firm members.", "err");
+      }
+    })
+    .catch(function() {
+      if (container) container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Server Offline</span>';
+      if (switcherWrap) switcherWrap.style.display = "none";
+      show(authBanner, "Could not reach the server.", "err");
+    });
+
+  if (btnAddMember) btnAddMember.addEventListener("click", membersApp.addMember);
+})();
+</script>
+
+</body>
+</html>

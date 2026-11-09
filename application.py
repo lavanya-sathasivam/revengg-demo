@@ -16,6 +16,7 @@ import api_a
 import api_auth
 import api_b
 import api_chat
+import api_firms
 import audit
 import auth
 import db
@@ -205,10 +206,23 @@ def create_app(
     def explain_page() -> FileResponse:
         return _serve(EXPLAIN_HTML, "Clause explanation")
 
+    @app.get("/login", include_in_schema=False)
+    def login_page() -> FileResponse:
+        return _serve(TEMPLATES_DIR / "login.html", "Login")
+
+    @app.get("/register", include_in_schema=False)
+    def register_page() -> FileResponse:
+        return _serve(TEMPLATES_DIR / "register.html", "Register")
+
+    @app.get("/members", include_in_schema=False)
+    def members_page() -> FileResponse:
+        return _serve(TEMPLATES_DIR / "members.html", "Firm Members")
+
     # Register each router exactly once, through this factory only.
     _include_router_once(app, api_auth.router)
     _include_router_once(app, api_a.router)
     _include_router_once(app, api_b.router)
     _include_router_once(app, api_chat.router)
+    _include_router_once(app, api_firms.router)
 
     return app

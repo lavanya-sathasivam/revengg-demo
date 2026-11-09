@@ -18,6 +18,7 @@ valid session and always scopes data to the session's active firm.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import secrets
 from dataclasses import dataclass
@@ -54,6 +55,10 @@ UPLOAD_ROLES = frozenset({ROLE_ADMINISTRATOR, ROLE_LAWYER, ROLE_PARALEGAL})
 PUBLIC_PATHS = frozenset(
     {
         "/",
+        "/login",
+        "/register",
+        "/auth/login",
+        "/auth/register",
         "/impact-analysis",
         "/explain",
         "/health",
@@ -316,6 +321,189 @@ def list_memberships(user_id: int) -> list[dict]:
             (user_id,),
         ).fetchall()
         return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Password authentication (Phase 2: local credential store)
+# ---------------------------------------------------------------------------
+
+_PASSWORD_ALGORITHM = "pbkdf2_sha256"
+_PASSWORD_ITERATIONS = 210_000
+
+
+def _hash_password(password: str) -> str:
+    """Hash a password with PBKDF2-HMAC-SHA256 and a random 16-byte salt.
+
+    Returns ``algorithm$iterations$salt$hash`` so the verifier can keep up
+    with parameter changes without a migration.
+    """
+
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt, _PASSWORD_ITERATIONS
+    )
+    return "%s$%d$%s$%s" % (
+        _PASSWORD_ALGORITHM,
+        _PASSWORD_ITERATIONS,
+        salt.hex(),
+        digest.hex(),
+    )
+
+
+def _verify_password(password: str, stored: str | None) -> bool:
+    """Verify ``password`` against a stored ``algorithm$iterations$salt$hash``."""
+
+    if not stored:
+        return False
+    parts = stored.split("$")
+    if len(parts) != 4 or parts[0] != _PASSWORD_ALGORITHM:
+        return False
+    try:
+        iterations = int(parts[1])
+        salt = bytes.fromhex(parts[2])
+        digest = bytes.fromhex(parts[3])
+    except (ValueError, IndexError):
+        return False
+    if iterations <= 0:
+        return False
+    expected = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt, iterations
+    )
+    return hmac.compare_digest(digest, expected)
+
+
+def register_user(subject: str, display_name: str | None = None, password: str | None = None) -> int:
+    """Create a user and, when a password is supplied, store its hash.
+
+    Returns the existing user id when the subject already exists, without
+    changing its password.  A user created without a password cannot log in
+    with credentials until ``set_password`` is called.
+    """
+
+    subject = (subject or "").strip()
+    if not subject:
+        raise ValueError("User subject is required.")
+    display_name = (display_name or subject).strip() or subject
+    password_hash = _hash_password(password) if password else None
+
+    conn = db.get_conn()
+    try:
+        existing = conn.execute(
+            "SELECT user_id, password_hash FROM users WHERE subject = ?", (subject,)
+        ).fetchone()
+        if existing is not None:
+            # Idempotent registration: an existing subject is returned without
+            # changing its password (that avoids user enumeration and keeps
+            # registration distinct from password reset).  Callers that need to
+            # set or rotate a password use set_password().
+            return existing["user_id"]
+        cur = conn.execute(
+            """INSERT INTO users (subject, display_name, created_at, disabled, password_hash)
+               VALUES (?, ?, ?, 0, ?)""",
+            (subject, display_name, _iso(_now()), password_hash),
+        )
+        user_id = cur.lastrowid
+        _record_audit(
+            "user.created",
+            target_type="user",
+            target_id=user_id,
+            metadata={"user_id": user_id},
+            conn=conn,
+            commit=False,
+        )
+        conn.commit()
+        return user_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def authenticate_user(subject: str, password: str):
+    """Verify credentials and return the user row, or None on failure.
+
+    Failed attempts are audited (without recording the password).  A disabled
+    user never authenticates.
+    """
+
+    subject = (subject or "").strip()
+    conn = db.get_conn()
+    try:
+        row = conn.execute(
+            """SELECT user_id, subject, display_name, disabled, password_hash
+               FROM users WHERE subject = ?""",
+            (subject,),
+        ).fetchone()
+        if row is None or row["disabled"]:
+            _record_audit(
+                "auth.login_failed",
+                "failure",
+                actor_type="anonymous",
+                target_type="user",
+                target_id=subject or "<unknown>",
+                metadata={"reason": "unknown_or_disabled_user"},
+                swallow=True,
+            )
+            return None
+        if not _verify_password(password, row["password_hash"]):
+            _record_audit(
+                "auth.login_failed",
+                "failure",
+                actor_user_id=row["user_id"],
+                actor_type="user",
+                target_type="user",
+                target_id=row["user_id"],
+                metadata={"reason": "wrong_password"},
+                swallow=True,
+            )
+            return None
+        _record_audit(
+            "auth.login",
+            "success",
+            actor_user_id=row["user_id"],
+            actor_type="user",
+            target_type="user",
+            target_id=row["user_id"],
+            metadata={"user_id": row["user_id"]},
+        )
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def set_password(user_id: int, password: str) -> None:
+    """Set or replace a user's password hash (admin/password-reset operation)."""
+
+    if not password:
+        raise ValueError("Password is required.")
+    password_hash = _hash_password(password)
+    conn = db.get_conn()
+    try:
+        row = conn.execute(
+            "SELECT user_id FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError("User does not exist.")
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE user_id = ?",
+            (password_hash, user_id),
+        )
+        _record_audit(
+            "user.password_changed",
+            actor_user_id=user_id,
+            actor_type="user",
+            target_type="user",
+            target_id=user_id,
+            conn=conn,
+            commit=False,
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -617,11 +805,27 @@ def authorized_contract(contract_id: int, principal: Principal) -> dict:
     return contract
 
 
-def authorized_contracts(principal: Principal) -> list[dict]:
+def authorized_contracts(
+    principal: Principal,
+    *,
+    search=None,
+    processing_status=None,
+    lifecycle_status=None,
+) -> list[dict]:
     if principal.demo:
-        return db.list_contracts_for_firm(None)
+        return db.list_contracts_for_firm(
+            None,
+            search=search,
+            processing_status=processing_status,
+            lifecycle_status=lifecycle_status,
+        )
     firm_id = require_active_firm(principal)
-    return db.list_contracts_for_firm(firm_id)
+    return db.list_contracts_for_firm(
+        firm_id,
+        search=search,
+        processing_status=processing_status,
+        lifecycle_status=lifecycle_status,
+    )
 
 
 def context_payload(principal: Principal) -> dict:

@@ -22,6 +22,35 @@ VERSION_STATUS_PUBLISHED = "published"
 VERSION_STATUS_SUPERSEDED = "superseded"
 VERSION_STATUS_FAILED = "failed"
 
+# Contract lifecycle statuses. Distinct from processing_status, which describes
+# ingestion/extraction/graph health. lifecycle_status describes the legal
+# lifecycle of the contract as managed by the firm.
+LIFECYCLE_DRAFT = "draft"
+LIFECYCLE_UNDER_REVIEW = "under_review"
+LIFECYCLE_APPROVED = "approved"
+LIFECYCLE_ACTIVE = "active"
+LIFECYCLE_EXPIRED = "expired"
+LIFECYCLE_ARCHIVED = "archived"
+
+LIFECYCLE_STATUSES = frozenset(
+    {
+        LIFECYCLE_DRAFT,
+        LIFECYCLE_UNDER_REVIEW,
+        LIFECYCLE_APPROVED,
+        LIFECYCLE_ACTIVE,
+        LIFECYCLE_EXPIRED,
+        LIFECYCLE_ARCHIVED,
+    }
+)
+
+
+def valid_lifecycle_status(status):
+    """Return the status if it is a known lifecycle status, else None."""
+    if status is None:
+        return None
+    status = str(status).strip()
+    return status if status in LIFECYCLE_STATUSES else None
+
 EXTRACTION_STATUS_SUCCEEDED = "succeeded"
 EXTRACTION_STATUS_FAILED = "failed"
 
@@ -196,6 +225,11 @@ def _contract_select_extras(conn) -> str:
     extras.append(
         "firm_id" if "firm_id" in columns else "NULL AS firm_id"
     )
+    extras.append(
+        "lifecycle_status"
+        if "lifecycle_status" in columns
+        else "'%s' AS lifecycle_status" % LIFECYCLE_DRAFT
+    )
     return ", ".join(extras)
 
 
@@ -240,19 +274,47 @@ def get_contract_for_firm(contract_id: int, firm_id):
         conn.close()
 
 
-def list_contracts_for_firm(firm_id):
-    """Return lightweight contract rows scoped to the demo or one firm."""
+def list_contracts_for_firm(
+    firm_id,
+    *,
+    search=None,
+    processing_status=None,
+    lifecycle_status=None,
+):
+    """Return lightweight contract rows scoped to the demo or one firm.
+
+    Optional filters are combined with the firm scope. ``search`` matches the
+    filename (case-insensitive substring). ``processing_status`` and
+    ``lifecycle_status`` match exactly.
+    """
 
     conn = get_conn()
     try:
         scope_sql, params = _contract_scope(conn, firm_id)
+        filters = []
+        values = list(params)
+        if search:
+            filters.append("filename LIKE ?")
+            values.append("%" + search + "%")
+        if processing_status is not None:
+            filters.append("processing_status = ?")
+            values.append(processing_status)
+        if lifecycle_status is not None:
+            filters.append("lifecycle_status = ?")
+            values.append(lifecycle_status)
+        filter_sql = ""
+        if filters:
+            filter_sql = " AND " + " AND ".join(filters)
         cur = conn.execute(
             """SELECT contract_id, filename, upload_timestamp, processing_status,
                       %s
                FROM contracts
-               WHERE 1 = 1""" % _contract_select_extras(conn) + scope_sql + """
+               WHERE 1 = 1""" % _contract_select_extras(conn)
+            + scope_sql
+            + filter_sql
+            + """
                ORDER BY contract_id ASC""",
-            params,
+            values,
         )
         return [dict(row) for row in cur.fetchall()]
     finally:
@@ -800,6 +862,36 @@ def list_contract_versions(contract_id):
         conn.close()
 
 
+def set_contract_lifecycle_status(contract_id, lifecycle_status, firm_id):
+    """Advance the lifecycle status of a firm-scoped contract.
+
+    Returns the updated contract row as a dict, or None when the contract does
+    not exist or is outside the firm scope.  The status is validated against
+    the known lifecycle set before writing.
+    """
+
+    lifecycle_status = valid_lifecycle_status(lifecycle_status)
+    if lifecycle_status is None:
+        return None
+    conn = get_conn()
+    try:
+        contract = get_contract_for_firm(contract_id, firm_id)
+        if contract is None:
+            return None
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE contracts SET lifecycle_status = ? WHERE contract_id = ?",
+            (lifecycle_status, contract_id),
+        )
+        conn.commit()
+        return get_contract_for_firm(contract_id, firm_id)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def list_clause_history(contract_id, version_id=None):
     conn = get_conn()
     try:
@@ -967,6 +1059,12 @@ def init_db():
                 "provenance_status",
                 "TEXT NOT NULL DEFAULT 'legacy_unclassified'",
             ),
+            (
+                "lifecycle_status",
+                "TEXT NOT NULL DEFAULT 'draft' "
+                "CHECK (lifecycle_status IN ('draft', 'under_review', 'approved', "
+                "'active', 'expired', 'archived'))",
+            ),
         )
         for column, coltype in contract_migrations:
             if column not in contract_columns:
@@ -975,6 +1073,10 @@ def init_db():
                 )
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_contracts_firm_id ON contracts(firm_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_contracts_lifecycle_status "
+            "ON contracts(lifecycle_status)"
         )
 
         # Authentication / firm membership. These are additive tables only:
@@ -1000,6 +1102,10 @@ def init_db():
             )
             """
         )
+        cur.execute("PRAGMA table_info(users)")
+        user_columns = [row[1] for row in cur.fetchall()]
+        if "password_hash" not in user_columns:
+            cur.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS firm_memberships (

@@ -220,6 +220,34 @@
   }
   .auth-logout-btn:hover { color: #fff; border-color: #94a3b8; }
 
+  .workspace-wrap {
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .workspace-label {
+    display: block;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+    color: var(--text-subtle);
+  }
+  .workspace-select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    color: var(--text);
+    font-size: 0.82rem;
+    font-family: inherit;
+  }
+  .workspace-select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
   .sidebar-docs-row a {
     color: #64748b;
     font-size: 0.78rem;
@@ -1015,6 +1043,10 @@
         <div id="auth-status" class="auth-status" aria-live="polite">
           <span class="auth-pill demo"><span class="status-dot demo"></span>Checking access...</span>
         </div>
+        <div id="workspace-switcher-wrap" class="workspace-wrap" style="display:none;">
+          <label for="workspace-switcher" class="workspace-label">Workspace</label>
+          <select id="workspace-switcher" class="workspace-select" aria-label="Switch active firm workspace"></select>
+        </div>
       </div>
       <div class="sidebar-docs-row">
         <a href="/docs" target="_blank" rel="noopener"> Developer API Docs &rarr;</a>
@@ -1145,6 +1177,7 @@
                 <li><span style="color: var(--text-muted);">Version ID:</span> <strong id="drawer-version-id">1</strong></li>
                 <li><span style="color: var(--text-muted);">Graph Build:</span> <strong id="drawer-graph-build">1</strong></li>
                 <li><span style="color: var(--text-muted);">Processing:</span> <span id="drawer-status-badge" class="badge-status ready">extracted</span></li>
+                <li><span style="color: var(--text-muted);">Lifecycle:</span> <span id="drawer-lifecycle-badge" class="badge-status draft">draft</span></li>
                 <li><span style="color: var(--text-muted);">Provenance:</span> <strong id="drawer-provenance">Synthetic Seed</strong></li>
               </ul>
 
@@ -1272,6 +1305,7 @@
   var drawerGraphBuild = document.getElementById("drawer-graph-build");
   var drawerStatusBadge = document.getElementById("drawer-status-badge");
   var drawerProvenance = document.getElementById("drawer-provenance");
+  var drawerLifecycleBadge = document.getElementById("drawer-lifecycle-badge");
   var drawerLinkImpact = document.getElementById("drawer-link-impact");
   var drawerLinkExplain = document.getElementById("drawer-link-explain");
 
@@ -1340,6 +1374,7 @@
     function availableMetadata(c) {
       var values = [];
       if (c.provenance_status) values.push("provenance:" + String(c.provenance_status));
+      if (c.lifecycle_status) values.push("lifecycle:" + String(c.lifecycle_status));
       if (c.current_graph_build_id || c.graph_build_id) values.push("graph");
       if (c.current_version_id || c.version_id) values.push("versioned");
       return values;
@@ -1406,6 +1441,12 @@
       drawerStatusBadge.textContent = st;
     }
 
+    if (drawerLifecycleBadge) {
+      var lc = (contract.lifecycle_status || "draft").toLowerCase();
+      drawerLifecycleBadge.className = "badge-status " + lc;
+      drawerLifecycleBadge.textContent = lc;
+    }
+
     if (drawerLinkImpact) {
       drawerLinkImpact.href = "/impact-analysis?contract=" + encodeURIComponent(String(contract.contract_id));
     }
@@ -1456,6 +1497,7 @@
             '<span>' + esc(c.filename || "Untitled") + '</span>' +
             ((c.current_version_id || c.version_id) ? '<span class="contract-id-pill">Version ' + esc(c.current_version_id || c.version_id) + '</span>' : '') +
             (c.provenance_status ? '<span class="contract-id-pill">' + esc(c.provenance_status) + '</span>' : '') +
+            (c.lifecycle_status ? '<span class="contract-id-pill">Lifecycle: ' + esc(c.lifecycle_status) + '</span>' : '') +
           '</div>' +
         '</td>' +
         '<td><span class="badge-status ' + esc(st) + '">' + esc(st) + '</span></td>' +
@@ -1646,12 +1688,14 @@
 
   function initAuthContext() {
     var container = document.getElementById("auth-status");
+    var switcherWrap = document.getElementById("workspace-switcher-wrap");
+    var switcher = document.getElementById("workspace-switcher");
     fetch("/auth/me", { headers: { "Accept": "application/json" } })
       .then(function(res) {
         // An anonymous request in firm mode is rejected by the middleware.
         // That is an expected "signed out" state, not a server outage.
         if (res.status === 401) {
-          return { demo: false, authenticated: false, active_firm: null };
+          return { demo: false, authenticated: false, active_firm: null, memberships: [] };
         }
         if (!res.ok) throw new Error("Auth check failed (" + res.status + ")");
         return res.json();
@@ -1666,6 +1710,7 @@
 
         if (isDemoMode) {
           container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Demo Mode &middot; Read-Only</span>';
+          if (switcherWrap) switcherWrap.style.display = "none";
         } else if (data.authenticated && data.active_firm) {
           var fName = data.active_firm.name || ("Firm #" + data.active_firm.firm_id);
           var uName = (data.user && data.user.display_name) || "User";
@@ -1679,12 +1724,38 @@
               fetch("/auth/logout", { method: "POST" }).finally(function() { window.location.reload(); });
             });
           }
+          // Workspace switcher: list memberships and allow switching.
+          var memberships = Array.isArray(data.memberships) ? data.memberships : [];
+          if (switcherWrap && switcher) {
+            switcher.innerHTML = "";
+            memberships.forEach(function(m) {
+              var opt = document.createElement("option");
+              opt.value = m.firm_id;
+              opt.textContent = (m.name || "Firm #" + m.firm_id) + " (" + m.role + ")";
+              if (data.active_firm && m.firm_id === data.active_firm.firm_id) opt.selected = true;
+              switcher.appendChild(opt);
+            });
+            switcherWrap.style.display = memberships.length > 1 ? "block" : "none";
+            switcher.addEventListener("change", function() {
+              var firmId = parseInt(switcher.value, 10);
+              if (!firmId) return;
+              fetch("/auth/firm", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ firm_id: firmId }),
+              }).then(function(res) {
+                if (res.ok) window.location.reload();
+              });
+            });
+          }
         } else {
           container.innerHTML = '<span class="auth-pill warn"><span class="status-dot warn"></span>Auth Required</span>';
+          if (switcherWrap) switcherWrap.style.display = "none";
         }
       })
       .catch(function() {
         if (container) container.innerHTML = '<span class="auth-pill demo"><span class="status-dot demo"></span>Server Offline</span>';
+        if (switcherWrap) switcherWrap.style.display = "none";
       });
   }
 
