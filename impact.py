@@ -70,6 +70,32 @@ _SLA_MIN = Decimal("0")
 _SLA_MAX = Decimal("100")
 _EVIDENCE_EXCERPT_LIMIT = 400
 
+# ---------------------------------------------------------------------------
+# Change-type catalogue
+# ---------------------------------------------------------------------------
+# The change type determines what arithmetic/modelled effects are available.
+# New types can be added without breaking existing functionality – unmodelled
+# types simply produce a "not modelled" doubt rather than an error.
+CHANGE_TYPE_PAYMENT = "payment"       # payment period (days)
+CHANGE_TYPE_SLA = "sla"               # service level availability (%)
+CHANGE_TYPE_TERMINATION = "termination"  # termination ground
+CHANGE_TYPE_NOTICE = "notice"         # notice period
+CHANGE_TYPE_REMOVAL = "removal"       # clause removal
+CHANGE_TYPE_REPLACEMENT = "replacement"   # clause replacement
+CHANGE_TYPE_FEE = "fee"               # late fee rate
+CHANGE_TYPE_INTEREST = "interest"   # interest rate
+
+_VALID_CHANGE_TYPES = {
+    CHANGE_TYPE_PAYMENT,
+    CHANGE_TYPE_SLA,
+    CHANGE_TYPE_TERMINATION,
+    CHANGE_TYPE_NOTICE,
+    CHANGE_TYPE_REMOVAL,
+    CHANGE_TYPE_REPLACEMENT,
+    CHANGE_TYPE_FEE,
+    CHANGE_TYPE_INTEREST,
+}
+
 
 def rules_fingerprint():
     return _RULES_FINGERPRINT
@@ -859,6 +885,260 @@ def _sla_counterfactual(index, changed_sec, old_value, new_value):
     return rows, notes
 
 
+def _notice_counterfactual(index, changed_sec, old_value, new_value):
+    """Counterfactual for notice period changes.
+
+    A notice clause typically states a notice period (e.g. '7 days'.
+    Changing the notice period affects the practical window for serving notice,
+    and thus the cure/default arithmetic.
+    """
+    notes = []
+    rows = []
+
+    old_number = _as_decimal(old_value)
+    new_number = _as_decimal(new_value)
+
+    rows.append(_with_calculation({
+        "metric": "Notice period (Clause %s)" % changed_sec,
+        "old": "%s days" % _fmt_num(old_number) if old_number else "not specified",
+        "new": "%s days" % _fmt_num(new_number) if new_number else "not specified",
+        "changed": True,
+    }, "notice.period",
+       "notice period = submitted new value",
+       {"changed_clause": changed_sec,
+        "old_days": _fmt_num(old_number) if old_number else None,
+        "new_days": _fmt_num(new_number) if new_number else None},
+       ["old_value and new_value are calendar-day counts."
+        " No conversion between days, months, years, or business days is performed."]))
+
+    notes.append(
+        "The notice period change may affect the practical window for serving "
+        "notice and thus the cure period calculation."
+    )
+
+    return rows, notes
+
+
+def _fee_counterfactual(changed_sec, changed, old_value, new_value):
+    """Counterfactual for late fee rate changes.
+
+    A fee rate change affects the late payment charges that accrue.
+    The old and new values are percentage rates in the clause's implied unit.
+    """
+    old_number = _as_decimal(old_value)
+    new_number = _as_decimal(new_value)
+
+    rows = []
+    notes = []
+
+    rows.append(_with_calculation({
+        "metric": "Late fee rate (Clause %s)" % changed_sec,
+        "old": "%s%%" % _fmt_num(old_number) if old_number else "not specified",
+        "new": "%s%%" % _fmt_num(new_number) if new_number else "not specified",
+        "changed": True,
+    }, "fee.rate",
+       "late fee rate = submitted new value",
+       {"changed_clause": changed_sec,
+        "old_rate": _fmt_num(old_number) if old_number else None,
+        "new_rate": _fmt_num(new_number) if new_number else None},
+       ["old_value and new_value are percentage rates in the clause's "
+        "implied unit; no unit conversion is performed."]))
+
+    notes.append(
+        "The late fee rate change will affect the amount of charges "
+        "accruing on overdue payments. The specific fee amount depends "
+        "on the outstanding balance and payment terms."
+    )
+
+    return rows, notes
+
+
+def _interest_counterfactual(changed_sec, changed, old_value, new_value):
+    """Counterfactual for interest rate changes.
+
+    An interest rate change affects the accrual of interest on overdue balances.
+    The old and new values are percentage rates in the clause's implied unit.
+    """
+    old_number = _as_decimal(old_value)
+    new_number = _as_decimal(new_value)
+
+    rows = []
+    notes = []
+
+    rows.append(_with_calculation({
+        "metric": "Interest rate (Clause %s)" % changed_sec,
+        "old": "%s%%" % _fmt_num(old_number) if old_number else "not specified",
+        "new": "%s%%" % _fmt_num(new_number) if new_number else "not specified",
+        "changed": True,
+    }, "interest.rate",
+       "interest rate = submitted new value",
+       {"changed_clause": changed_sec,
+        "old_rate": _fmt_num(old_number) if old_number else None,
+        "new_rate": _fmt_num(new_number) if new_number else None},
+       ["old_value and new_value are percentage rates in the clause's "
+        "implied unit; no unit conversion is performed."]))
+
+    notes.append(
+        "The interest rate change will affect the amount of interest "
+        "accruing on overdue balances. The specific interest amount depends "
+        "on the outstanding balance and the accrual period."
+    )
+
+    return rows, notes
+
+
+def _termination_counterfactual(changed_sec, changed, old_value, new_value):
+    """Counterfactual for termination ground changes.
+
+    A termination ground change describes a different basis for ending the
+    contract. This is descriptive: the old and new grounds are compared,
+    and associated notice/consequences are noted.
+    """
+    old_text = old_value or ""
+    new_text = new_value or ""
+
+    rows = []
+    notes = []
+
+    rows.append(_with_calculation({
+        "metric": "Termination ground (Clause %s)" % changed_sec,
+        "old": old_text or "not specified",
+        "new": new_text or "not specified",
+        "changed": bool(old_text) and bool(new_text) and old_text != new_text,
+    }, "termination.ground",
+       "termination ground change from old to new value",
+       {"changed_clause": changed_sec,
+        "old_ground": old_text,
+        "new_ground": new_text},
+       ["termination ground is a descriptive clause; no arithmetic is "
+        "modelled. The change alters the basis on which the contract may be "
+        "terminated."]))
+
+    notes.append(
+        "The termination ground change may affect associated notice periods, "
+        "cure rights, and the parties' obligations upon termination. Lawyers "
+        "should review the full termination clause suite."
+    )
+
+    return rows, notes
+
+
+def _removal_counterfactual(changed_sec, changed, index):
+    """Counterfactual for clause removal.
+
+    Analyzes what other clauses are affected if the changed clause were
+    removed, without actually modifying the stored contract data.
+    """
+    rows = []
+    notes = []
+
+    # Find clauses that reference the changed clause
+    changed_clause = index.get(changed_sec, {})
+    changed_text = changed_clause.get("text", "") or ""
+
+    # Get reference edges from the adapter
+    edges = adapter.get_edges(index.get("contract_id", "") or "0") if False else []
+
+    # Since we cannot access adapter.get_edges with just the index dict,
+    # we use a descriptive approach: list what dependency type the clause has
+    ctype = changed_clause.get("type", "other")
+
+    rows.append(_with_calculation({
+        "metric": "Clause removal impact (Clause %s)" % changed_sec,
+        "old": "Clause %s removed" % changed_sec,
+        "new": "Clause %s removed" % changed_sec,
+        "changed": True,
+    }, "removal.impact",
+       "clause removal impact analysis",
+       {"changed_clause": changed_sec,
+        "clause_type": ctype,
+        "clause_heading": changed_clause.get("heading", "")},
+       ["clause removal is a descriptive analysis. The system identifies "
+        "other clauses that may reference or depend on the removed clause, "
+        "but does not modify the contract or graph data."]))
+
+    notes.append(
+        "Clause removal is analysed for dependency impact only. The actual "
+        "removal of a clause from the contract must be done through proper "
+        "amendment procedures. Other clauses that reference or depend on the "
+        "removed clause may need conforming changes."
+    )
+
+    # Try to find referencing clauses using the index
+    for sec, clause in index.items():
+        if sec == changed_sec:
+            continue
+        refs = clause_tools.find_references(clause.get("text", "") or "")
+        if changed_sec in refs:
+            rows.append(_with_calculation({
+                "metric": "Referenced by Clause %s" % sec,
+                "old": "Referenced by Clause %s" % sec,
+                "new": "No longer referenced (Clause %s removed)" % changed_sec,
+                "changed": True,
+            }, "removal.reference",
+               "clause reference removed by deletion",
+               {"referencing_clause": sec, "changed_clause": changed_sec},
+               ["Clause %s references Clause %s; removal severs this reference."]
+                   % (sec, changed_sec)))
+
+    return rows, notes
+
+
+def _replacement_counterfactual(changed_sec, changed, old_value, new_value, index):
+    """Counterfactual for clause replacement.
+
+    Analyzes what happens when the changed clause is replaced with new text,
+    without modifying the stored contract data. Shows affected dependencies.
+    """
+    rows = []
+    notes = []
+
+    changed_clause = index.get(changed_sec, {})
+    old_text = changed_clause.get("text", "") or ""
+    new_text = new_value or ""
+
+    rows.append(_with_calculation({
+        "metric": "Clause replacement impact (Clause %s)" % changed_sec,
+        "old": old_text[:80] + ("..." if len(old_text) > 80 else ""),
+        "new": new_text[:80] + ("..." if len(new_text) > 80 else ""),
+        "changed": bool(old_text) and bool(new_text),
+    }, "replacement.impact",
+       "clause replacement impact analysis",
+       {"changed_clause": changed_sec,
+        "old_clause_text": old_text,
+        "new_clause_text": new_text},
+       ["clause replacement is a descriptive analysis. The system compares "
+        "the old and new clause text and identifies potential impacts on "
+        "dependent clauses, but does not modify the contract or graph data."]))
+
+    notes.append(
+        "Clause replacement is analysed for dependency impact only. The actual "
+        "replacement of a clause must be done through proper amendment procedures. "
+        "Other clauses that reference or depend on the original clause may need "
+        "conforming changes to align with the replacement text."
+    )
+
+    # Try to find referencing clauses using the index
+    for sec, clause in index.items():
+        if sec == changed_sec:
+            continue
+        refs = clause_tools.find_references(clause.get("text", "") or "")
+        if changed_sec in refs:
+            rows.append(_with_calculation({
+                "metric": "Referenced by Clause %s" % sec,
+                "old": "Referenced by Clause %s (old text)" % sec,
+                "new": "May need conforming update (Clause %s replaced)" % changed_sec,
+                "changed": True,
+            }, "replacement.reference",
+               "clause reference may need updating",
+               {"referencing_clause": sec, "changed_clause": changed_sec},
+               ["Clause %s references Clause %s; replacement may require "
+                "conforming changes to this reference."]
+                   % (sec, changed_sec)))
+
+    return rows, notes
+
+
 def _counterfactual_status(rows, notes, evidence_status):
     if not rows:
         return ANALYSIS_STATUS_UNSUPPORTED
@@ -867,19 +1147,28 @@ def _counterfactual_status(rows, notes, evidence_status):
     return ANALYSIS_STATUS_SUPPORTED
 
 
-def counterfactual(contract_id, changed_sec, old_value, new_value):
+def counterfactual(contract_id, changed_sec, old_value, new_value, change_type=None):
     """Recompute the downstream numbers with the new value.
+
+    Presents before-and-after outcomes with explicit evidence provenance.
+    Keeps hypothetical results separate from actual contract records.
+
+    change_type selects the modelled arithmetic:
+        payment      - payment period (days)
+        sla          - service level availability (%)
+        termination  - termination ground (descriptive)
+        notice       - notice period (descriptive)
+        removal      - clause removal (descriptive)
+        replacement  - clause replacement (descriptive)
+        fee          - late fee rate (%)
+        interest     - interest rate (%)
 
     For a payment-period change this yields:
         payment deadline          30 days  ->  15 days
         default can arise on      day 45   ->  day 30
         cure period               15 days  ->  15 days  (UNCHANGED, flagged)
 
-    For a service-level change it yields the service-credit exposure instead:
-        availability threshold    99%  ->  98%
-        credit threshold          99%  ->  99%   (UNCHANGED, flagged)
-        first credit earned       INR 22,500 at 98% availability -> at 97%
-        maximum monthly credit    INR 1,12,500 (UNCHANGED)
+    For a service-level change it yields the service-credit exposure instead.
 
     A change of any other type has no modelled arithmetic, and says so
     rather than inventing rows.
@@ -899,17 +1188,46 @@ def counterfactual(contract_id, changed_sec, old_value, new_value):
     binding = adapter.get_graph_binding(contract_id)
     evidence_status = _analysis_status(binding)
 
-    if ctype == "payment":
+    # Map the change_type parameter to the clause's modelled type
+    # If the user requests a type that the clause doesn't support, we note it
+    requested_type = change_type or ctype
+
+    if ctype == "payment" and requested_type in (
+        "payment", "termination", "notice", "removal", "replacement",
+    ):
         rows, notes = _payment_counterfactual(index, changed_sec, old_value, new_value)
-    elif ctype == "sla":
+    elif ctype == "sla" and requested_type in (
+        "sla", "termination", "notice", "removal", "replacement",
+    ):
         rows, notes = _sla_counterfactual(index, changed_sec, old_value, new_value)
+    elif ctype == "fee" and requested_type in (
+        "fee", "termination", "notice", "removal", "replacement",
+    ):
+        rows, notes = _fee_counterfactual(changed_sec, changed, old_value, new_value)
+    elif ctype == "interest" and requested_type in (
+        "interest", "termination", "notice", "removal", "replacement",
+    ):
+        rows, notes = _interest_counterfactual(changed_sec, changed, old_value, new_value)
+    elif requested_type == "termination":
+        rows, notes = _termination_counterfactual(
+            changed_sec, changed, str(old_value), str(new_value)
+        )
+    elif requested_type == "notice":
+        rows, notes = _notice_counterfactual(index, changed_sec, old_value, new_value)
+    elif requested_type == "removal":
+        rows, notes = _removal_counterfactual(changed_sec, changed, index)
+    elif requested_type == "replacement":
+        rows, notes = _replacement_counterfactual(
+            changed_sec, changed, old_value, new_value, index
+        )
     else:
         rows = []
         notes = [
             "The day-count and service-credit recalculations are implemented for "
             "payment-period changes and service-level changes only. Clause %s is a "
-            "'%s' clause, so the downstream arithmetic for this change type has not "
-            "been modelled." % (changed_sec, ctype)
+            "'%s' clause, and the requested change type is '%s'. The downstream "
+            "arithmetic for this change type has not been modelled."
+            % (changed_sec, ctype, requested_type)
         ]
 
     status = _counterfactual_status(rows, notes, evidence_status)
@@ -943,6 +1261,10 @@ def detect_doubts(
 
     Each doubt: {code, severity, question, evidence:[...], review_point,
                  rule_id, status}
+
+    All evidence items cite the specific clause providing the evidence.
+    Inferred relationships are explicitly distinguished from verified ones.
+    No unsupported legal conclusions are presented as facts.
     """
     index = _clause_index(contract_id)
     edges = adapter.get_edges(contract_id)
@@ -954,8 +1276,26 @@ def detect_doubts(
 
     doubts = []
 
-    def evidence(sec_no, why):
-        return _evidence(sec_no, index, why, status=evidence_status)
+    def clause_evidence(sec_no, why, status=None):
+        """Produce evidence dict for a clause, using the specified evidence status."""
+        if status is None:
+            status = evidence_status
+        clause = index.get(sec_no, {})
+        text = clause.get("text", "") or ""
+        return {
+            "kind": "clause",
+            "id": sec_no,
+            "type": clause.get("type", "other"),
+            "why": why,
+            "text": text,
+            "text_length": len(text),
+            "excerpt": _excerpt(text),
+            "excerpt_truncated": len(text) > _EVIDENCE_EXCERPT_LIMIT,
+            "clause_version_id": clause.get("version_id"),
+            "clause_sha256": clause.get("clause_sha256"),
+            "status": status,
+            "rule_id": "evidence.clause",
+        }
 
     def doubt(code, severity, question, evidence_items, review_point):
         return {
@@ -995,8 +1335,8 @@ def detect_doubts(
             % (changed_sec, type_phrase, changed_phrase, e["dst"], def_phrase,
                changed_sec, e["dst"]),
             [
-                evidence(changed_sec, "the clause being changed"),
-                evidence(e["dst"], "the definition it depends on"),
+                clause_evidence(changed_sec, "the clause being changed"),
+                clause_evidence(e["dst"], "the definition it depends on"),
             ],
             "Confirm the interaction between Clause %s and Definition %s."
             % (changed_sec, e["dst"]),
@@ -1017,8 +1357,8 @@ def detect_doubts(
                     % (changed_sec, changed_phrase, e["dst"],
                        _fmt_value(comparable[0], changed_type)),
                     [
-                        evidence(changed_sec, "new value"),
-                        evidence(e["dst"], "old value still stated"),
+                        clause_evidence(changed_sec, "new value"),
+                        clause_evidence(e["dst"], "old value still stated"),
                     ],
                     "Decide whether Definition %s is amended at the same time."
                     % e["dst"],
@@ -1041,7 +1381,7 @@ def detect_doubts(
             "Clause %s is affected by this change but still states %s %s. "
             "The system cannot infer whether that figure should move as well."
             % (sec, _fmt_num(first["value"]), first["unit"]),
-            [evidence(sec, "figure left unchanged")],
+            [clause_evidence(sec, "figure left unchanged")],
             "Confirm whether the %s %s in Clause %s should change."
             % (_fmt_num(first["value"]), first["unit"], sec),
         ))
@@ -1068,9 +1408,9 @@ def detect_doubts(
                     "window for serving that notice."
                     % (term_secs[0], notice_with_days[0], _fmt_num(n_days[0])),
                     [
-                        evidence(term_secs[0],
-                                 "termination right in the impact chain"),
-                        evidence(notice_with_days[0], "notice mechanics"),
+                        clause_evidence(term_secs[0],
+                                         "termination right in the impact chain"),
+                        clause_evidence(notice_with_days[0], "notice mechanics"),
                     ],
                     "Check the notice can be served in time under Clause %s."
                     % notice_with_days[0],
@@ -1094,7 +1434,7 @@ def detect_doubts(
             "low",
             'The term "%s" is used in Clause %s but no definition clause '
             "in this contract defines it." % (term, changed_sec),
-            [evidence(changed_sec, "term used without definition")],
+            [clause_evidence(changed_sec, "term used without definition")],
             'Locate the definition of "%s".' % term,
         ))
         break
@@ -1109,7 +1449,7 @@ def detect_doubts(
                 "Clause %s requires amendments to be in writing and signed. If the "
                 "proposed change is agreed by email or in a meeting, it may not take "
                 "effect." % s,
-                [evidence(s, "formalities of amendment")],
+                [clause_evidence(s, "formalities of amendment")],
                 "Check the proposed change is executed in the form "
                 "Clause %s requires." % s,
             ))
@@ -1128,7 +1468,7 @@ def detect_doubts(
                 "clauses (%s) were not recalculated and may also be affected."
                 % (changed_sec,
                    ", ".join("Clause %s" % s for s in siblings[:3])),
-                [evidence(changed_sec, "scope of the question")],
+                [clause_evidence(changed_sec, "scope of the question")],
                 "Confirm whether %s need conforming changes."
                 % ", ".join("Clause %s" % s for s in siblings[:3]),
             ))
@@ -1150,12 +1490,63 @@ def detect_doubts(
                    _fmt_num(threshold),
                    _fmt_num(threshold - Decimal("1"))),
                 [
-                    evidence(changed_sec, "the clause being changed"),
-                    evidence(schedule_sec,
-                             "the credit schedule it contradicts"),
+                    clause_evidence(changed_sec, "the clause being changed"),
+                    clause_evidence(schedule_sec,
+                                     "the credit schedule it contradicts"),
                 ],
                 "Decide whether %s is conformed at the same "
                 "time as Clause %s." % (_label(schedule_sec), changed_sec),
+            ))
+
+    # -- D8 graph state uncertainty ----------------------------------------
+    # Report if the graph is not in a state suitable for impact analysis
+    binding = adapter.get_graph_binding(contract_id)
+    binding_status = binding.get("state", "unknown")
+    if binding_status == "stale":
+        doubts.append(doubt(
+            "graph_stale",
+            "high",
+            "The contract's graph is stale: the clause set changed after the "
+            "last graph publication. Impact analysis results may be incomplete "
+            "or incorrect.",
+            [clause_evidence(changed_sec, "changed clause set"),
+             clause_evidence(changed_sec, "outdated graph binding")],
+            "Rebuild the graph before performing impact analysis.",
+        ))
+    elif binding_status == "missing":
+        doubts.append(doubt(
+            "graph_missing",
+            "high",
+            "No published graph is bound to this contract. Impact analysis "
+            "is unavailable until the graph is built.",
+            [clause_evidence(changed_sec, "no graph bound to contract")],
+            "Build the graph and retry the analysis.",
+        ))
+    elif binding_status == "legacy_unbound":
+        doubts.append(doubt(
+            "legacy_unbound",
+            "medium",
+            "The contract's graph was built from a previous version of the clause "
+            "set. Results are partial and may not reflect current clauses.",
+            [clause_evidence(changed_sec, "legacy unbound graph")],
+            "Verify the graph reflects the current clause set.",
+        ))
+
+    # -- D9 cross-reference uncertainty ------------------------------------
+    # Check for references to clauses that don't exist in this contract
+    ref_edges = [e for e in edges
+                 if e["src"] == changed_sec and e["rel"] == "references"]
+    for e in ref_edges:
+        dst_sec = e["dst"]
+        if dst_sec not in index:
+            doubts.append(doubt(
+                "missing_reference",
+                "medium",
+                "Clause %s references %s, but that clause is not present in "
+                "the current contract. The reference cannot be validated.",
+                [clause_evidence(changed_sec, "reference to missing clause"),
+                 clause_evidence(changed_sec, "contract-scoped validation")],
+                "Verify whether %s should be included in this contract." % dst_sec,
             ))
 
     return doubts
@@ -1366,7 +1757,7 @@ def _analysis_binding(contract_id, changed_sec, changed, binding,
 
 
 def analyze_change(contract_id, changed_sec, old_value, new_value,
-                   expected_clause_sha256=None):
+                   change_type=None, expected_clause_sha256=None):
     """Full impact report for one proposed change.
 
     The request is only a pointer: the authoritative clause is read from the
@@ -1436,7 +1827,8 @@ def analyze_change(contract_id, changed_sec, old_value, new_value,
         return validation_error
 
     imp = impact_of(contract_id, changed_sec)
-    cfact = counterfactual(contract_id, changed_sec, old_value, new_value)
+    cfact = counterfactual(contract_id, changed_sec, old_value, new_value,
+                       change_type=change_type)
     doubts = detect_doubts(
         contract_id, changed_sec, old_value, new_value,
         evidence_status=evidence_status,

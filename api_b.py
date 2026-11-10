@@ -102,6 +102,15 @@ class ImpactRequest(BaseModel):
         ..., examples=[15],
         description="Proposed value in the same implied unit.",
     )
+    change_type: str | None = Field(
+        None,
+        description=(
+            "Type of change being analysed. When omitted, the system infers "
+            "from the clause type: 'payment' for payment-period changes, "
+            "'sla' for service-level changes. Supported types: payment, sla, "
+            "termination, notice, removal, replacement, fee, interest."
+        ),
+    )
     expected_clause_sha256: str | None = Field(
         default=None,
         min_length=64,
@@ -214,6 +223,7 @@ def analyze(req: ImpactRequest, request: Request = None):
         req.clause_id,
         req.old_value,
         req.new_value,
+        change_type=req.change_type,
         expected_clause_sha256=req.expected_clause_sha256,
     )
     if "error" in report:

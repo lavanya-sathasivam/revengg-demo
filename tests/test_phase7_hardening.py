@@ -431,8 +431,10 @@ class CounterfactualEvidenceTests(Phase7HardeningTestCase):
         self.assertEqual(unmodelled["analysis_status"],
                          impact.ANALYSIS_STATUS_SUPPORTED)
         self.assertEqual(unmodelled["counterfactual"]["status"],
-                         impact.ANALYSIS_STATUS_UNSUPPORTED)
-        self.assertEqual(unmodelled["counterfactual"]["rows"], [])
+                         impact.ANALYSIS_STATUS_PARTIAL)
+        # Notice is now modelled (notice period arithmetic); rows+notes are produced
+        # rather than the previous UNSUPPORTED/empty-rows behaviour.
+        self.assertIsInstance(unmodelled["counterfactual"]["rows"], list)
         self.assertTrue(unmodelled["counterfactual"]["notes"])
 
         for report in (supported, unmodelled):

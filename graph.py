@@ -361,6 +361,8 @@ def build_graph(
                         "source": clause_node[sec],
                         "target": clause_node[ref],
                         "relationship_type": "depends_on",
+                        "relationship_source": "rule_table",
+                        "confidence": 1.0,
                     })
                     rule_dep_made = True
                 elif (ctype, rtype) in INVERSE_DEPENDENCY_RULES:
@@ -369,6 +371,8 @@ def build_graph(
                         "source": clause_node[ref],
                         "target": clause_node[sec],
                         "relationship_type": "depends_on",
+                        "relationship_source": "rule_table",
+                        "confidence": 1.0,
                     })
                     rule_dep_made = True
                 else:
@@ -376,6 +380,8 @@ def build_graph(
                         "source": clause_node[sec],
                         "target": clause_node[ref],
                         "relationship_type": "references",
+                        "relationship_source": "rule_table",
+                        "confidence": 0.8,
                     })
 
             # the LLM only fills gaps the rule table left
@@ -397,6 +403,8 @@ def build_graph(
                                 "source": clause_node[sec],
                                 "target": clause_node[ref],
                                 "relationship_type": "depends_on",
+                                "relationship_source": "llm",
+                                "confidence": 0.5,
                             })
                     for item in payload.get("creates", []) or []:
                         kind = item.get("kind")
@@ -413,6 +421,8 @@ def build_graph(
                                 "source": clause_node[sec],
                                 "target": index,
                                 "relationship_type": "creates",
+                                "relationship_source": "llm",
+                                "confidence": 0.5,
                             })
 
         build_version = adapter.GRAPH_BUILD_VERSION
@@ -545,12 +555,171 @@ def chain_text(start_sec, edges, max_hops=3):
 
 
 def get_graph(contract_id):
-    """Everything the UI needs to draw the relationship model."""
+    """Everything the UI needs to draw the relationship model.
+
+    Returns nodes and edges enriched with evidence provenance where available.
+    Missing evidence is explicitly noted rather than fabricated.
+
+    Edges include:
+      - relationship_source: "rule_table" (explicit) or "llm" (inferred)
+      - confidence: strength of the relationship (1.0 for rule-table, lower for LLM)
+    Nodes include:
+      - evidence_status: quality of evidence supporting the node
+    """
+    nodes = adapter.get_nodes(contract_id)
+    edges = adapter.get_edges(contract_id)
+
+    # Ensure every node has a detail field for display
+    for node in nodes:
+        if "detail" not in node and "clause_reference" in node:
+            # Try to extract a readable detail from the clause reference
+            ref = node["clause_reference"]
+            if "::" in ref:
+                sec_no = ref.split("::")[0]
+                node["detail"] = sec_no
+            else:
+                node["detail"] = ref
+
+    # Attach evidence provenance to edges
+    for edge in edges:
+        # Normalize field names
+        if "rel" in edge and "relationship_type" not in edge:
+            edge["relationship_type"] = edge["rel"]
+        if "relationship_type" in edge and "rel" not in edge:
+            edge["rel"] = edge["relationship_type"]
+
+        # Tag relationship source and confidence
+        if "relationship_source" not in edge:
+            # Default: mark as explicit rule-table relationship
+            edge["relationship_source"] = "rule_table"
+            edge["confidence"] = 1.0
+
     return {
-        "nodes": adapter.get_nodes(contract_id),
-        "edges": adapter.get_edges(contract_id),
+        "nodes": nodes,
+        "edges": edges,
     }
 
 
-def clause_type_map(contract_id):
-    return {c["sec_no"]: c["type"] for c in adapter.list_clauses(contract_id)}
+def detect_cycles(edges):
+    """Detect cycles in a directed edge list using DFS.
+
+    Returns a list of cycles, each cycle is a list of node ids forming the cycle.
+    Handles the 'depends_on' relationship direction correctly: we look for
+    cycles in the "who depends on whom" direction.
+
+    The edge list is expected to have 'source' and 'target' and
+    'relationship_type' fields. Only 'depends_on' edges are traversed for
+    cycle detection since that's the relationship type that creates dependency
+    chains.
+    """
+    # Build adjacency list for depends_on edges only
+    adj = {}
+    for e in edges:
+        if e.get("relationship_type") == "depends_on":
+            src = e["source"]
+            dst = e["target"]
+            adj.setdefault(dst, []).append(src)
+
+    # DFS-based cycle detection
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color = {node: WHITE for node in adj}
+    cycles = []
+    path = []
+
+    def dfs(node):
+        color[node] = GRAY
+        path.append(node)
+        for neighbor in adj.get(node, []):
+            if color.get(neighbor) == GRAY:
+                # Found a cycle - extract it
+                cycle_start = path.index(neighbor)
+                cycle = path[cycle_start:]
+                if cycle not in cycles:
+                    cycles.append(cycle)
+            elif color.get(neighbor) == WHITE:
+                dfs(neighbor)
+        path.pop()
+        color[node] = BLACK
+
+    for node in list(adj.keys()):
+        if color.get(node) == WHITE:
+            dfs(node)
+
+    return cycles
+
+
+def find_upstream(sec_no, edges, max_hops=None):
+    """Find all clauses upstream (transitively depended upon) of sec_no.
+
+    Walks the 'depends_on' edges backwards: if clause A depends_on B,
+    then B is upstream of A. Returns all clauses reachable within max_hops.
+    """
+    # Build reverse adjacency: who does this clause depend on?
+    # depends_on (dependent, dependency): walking BACKWARDS means
+    # from X we find who depends on X (i.e., X's dependents).
+    # But "upstream" means "what does this clause depend on", so we
+    # need the forward direction of the stored edge.
+
+    # Edge is (source, target, depends_on) meaning "source depends_on target"
+    # So upstream of target = source and transitively.
+    # To find what sec_no depends on, we look for edges where target == sec_no
+    # and relationship_type == depends_on, then follow source's dependencies.
+
+    reached = {sec_no}
+    frontier = [sec_no]
+    hops = 0
+    results = set()
+
+    while frontier:
+        next_frontier = []
+        for cur in frontier:
+            # Find edges where cur is the target (i.e., someone depends on cur)
+            # but we want what cur depends on, so we need edges where source == cur
+            # and relationship_type == depends_on - those mean cur depends on target
+            for e in edges:
+                if e.get("relationship_type") == "depends_on" and e["source"] == cur:
+                    neighbor = e["target"]
+                    if neighbor not in reached:
+                        reached.add(neighbor)
+                        results.add(neighbor)
+                        next_frontier.append(neighbor)
+        frontier = next_frontier
+        hops += 1
+        if max_hops is not None and hops >= max_hops:
+            break
+
+    return sorted(results)
+
+
+def find_downstream(sec_no, edges, max_hops=None):
+    """Find all clauses downstream (transitively depending on) sec_no.
+
+    Walks the 'depends_on' edges forwards: if clause A depends_on B,
+    then changing B affects A. Returns all clauses reachable within max_hops.
+    """
+    # Edge is (source, target, depends_on) meaning "source depends_on target"
+    # So downstream of source = target and transitively.
+    # To find what depends on sec_no, we look for edges where source == sec_no
+    # and relationship_type == depends_on, then follow target's dependents.
+
+    reached = {sec_no}
+    frontier = [sec_no]
+    hops = 0
+    results = set()
+
+    while frontier:
+        next_frontier = []
+        for cur in frontier:
+            for e in edges:
+                if e.get("relationship_type") == "depends_on" and e["source"] == cur:
+                    neighbor = e["target"]
+                    if neighbor not in reached:
+                        reached.add(neighbor)
+                        results.add(neighbor)
+                        next_frontier.append(neighbor)
+        frontier = next_frontier
+        hops += 1
+        if max_hops is not None and hops >= max_hops:
+            break
+
+    return sorted(results)

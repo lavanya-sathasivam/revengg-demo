@@ -1438,6 +1438,23 @@
                   <input id="newv" type="number" class="form-input" placeholder="Enter a value" disabled>
                 </div>
               </div>
+              <div id="change-type-selector" style="margin-top: 12px; padding: 10px; background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+                <label class="field-label" style="display: block; font-size: 0.8rem; font-weight: 650; color: var(--text); margin-bottom: 6px;">Change type</label>
+                <select id="change-type" class="form-select" style="font-size: 0.86rem;">
+                  <option value="payment">Payment period (days)</option>
+                  <option value="sla">Service level availability (%)</option>
+                  <option value="termination">Termination ground</option>
+                  <option value="notice">Notice period (days)</option>
+                  <option value="removal">Clause removal</option>
+                  <option value="replacement">Clause replacement</option>
+                  <option value="fee">Late fee rate (%)</option>
+                  <option value="interest">Interest rate (%</option>
+                </select>
+                <small style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; display: block;">
+                  Select the type of change you want to analyze. The system will model
+                  arithmetic where supported and surface uncertainties otherwise.
+                </small>
+              </div>
               <div id="unit-tip-note" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">
                 Select a clause to configure a supported parameter.
               </div>
@@ -2083,6 +2100,7 @@
       clause_id: requestedClauseId,
       old_value: oldValue,
       new_value: newValue,
+      change_type: changeParameter ? changeParameter.type : null
     };
     if (clause && clause.clause_sha256) {
       payload.expected_clause_sha256 = clause.clause_sha256;
