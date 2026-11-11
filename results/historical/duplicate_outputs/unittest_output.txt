@@ -1,0 +1,689 @@
+STDOUT:
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+Contract 1: Contract A - Supplier Service Agreement (SYNTHETIC)
+   clauses=59 nodes=95 edges=63 embeddings=59
+Contract 2: Contract B - Customer Services Agreement (SYNTHETIC)
+   clauses=22 nodes=36 edges=18 embeddings=22
+Contract 3: Contract A - Supplier Service Agreement (SYNTHETIC) clauses=59 embedded=59 reused=0
+Contract 4: Contract B - Customer Services Agreement (SYNTHETIC) clauses=22 embedded=22 reused=0
+STDERR:
+test_read_only_connection_rejects_a_write (test_app_factory.DemoReadOnlyTests.test_read_only_connection_rejects_a_write) ... ok
+test_upload_is_rejected_without_changing_the_demo_database (test_app_factory.DemoReadOnlyTests.test_upload_is_rejected_without_changing_the_demo_database) ... ok
+test_existing_contract_and_clause_routes_are_accessible (test_app_factory.DemoReadRoutesTests.test_existing_contract_and_clause_routes_are_accessible) ... ok
+test_existing_explanation_route_is_accessible (test_app_factory.DemoReadRoutesTests.test_existing_explanation_route_is_accessible) ... ok
+test_existing_impact_route_is_accessible (test_app_factory.DemoReadRoutesTests.test_existing_impact_route_is_accessible) ... ok
+test_reads_do_not_change_the_seeded_database (test_app_factory.DemoReadRoutesTests.test_reads_do_not_change_the_seeded_database) ... ok
+test_app_and_server_entrypoints_expose_the_same_manifest (test_app_factory.RouteManifestTests.test_app_and_server_entrypoints_expose_the_same_manifest) ... ok
+test_building_and_inspecting_routes_does_not_create_a_database (test_app_factory.RouteManifestTests.test_building_and_inspecting_routes_does_not_create_a_database) ... ok
+test_every_router_route_is_mounted_exactly_once (test_app_factory.RouteManifestTests.test_every_router_route_is_mounted_exactly_once) ... ok
+test_homepage_is_the_contract_intelligence_overview (test_app_factory.RouteManifestTests.test_homepage_is_the_contract_intelligence_overview) ... ok
+test_import_and_route_registration_do_not_create_app_db (test_app_factory.RouteManifestTests.test_import_and_route_registration_do_not_create_app_db) ... ok
+test_app_state_exposes_the_selected_mode (test_app_factory.UploadModeConfigurationTests.test_app_state_exposes_the_selected_mode) ... ok
+test_explicit_database_path_selects_upload_mode (test_app_factory.UploadModeConfigurationTests.test_explicit_database_path_selects_upload_mode) ... ok
+test_upload_mode_rejects_the_synthetic_demo_database (test_app_factory.UploadModeConfigurationTests.test_upload_mode_rejects_the_synthetic_demo_database) ... ok
+test_upload_mode_requires_an_explicit_database_path (test_app_factory.UploadModeConfigurationTests.test_upload_mode_requires_an_explicit_database_path) ... ok
+test_upload_mode_writes_only_to_its_own_database_and_storage (test_app_factory.UploadModeConfigurationTests.test_upload_mode_writes_only_to_its_own_database_and_storage) ... ok
+test_all_roles_can_read (test_auth_authorization.AuthorizedAccessTests.test_all_roles_can_read) ... ok
+test_firm_member_reads_only_its_own_contracts (test_auth_authorization.AuthorizedAccessTests.test_firm_member_reads_only_its_own_contracts) ... ok
+test_upload_is_assigned_to_the_session_firm_not_the_client (test_auth_authorization.AuthorizedAccessTests.test_upload_is_assigned_to_the_session_firm_not_the_client) ... ok
+test_client_supplied_firm_id_does_not_widen_scope (test_auth_authorization.CrossFirmAccessTests.test_client_supplied_firm_id_does_not_widen_scope) ... ok
+test_demo_contract_is_not_visible_to_firm_members (test_auth_authorization.CrossFirmAccessTests.test_demo_contract_is_not_visible_to_firm_members) ... ok
+test_foreign_clause_number_does_not_resolve_on_own_contract (test_auth_authorization.CrossFirmAccessTests.test_foreign_clause_number_does_not_resolve_on_own_contract) ... ok
+test_foreign_contract_and_nested_routes_are_404 (test_auth_authorization.CrossFirmAccessTests.test_foreign_contract_and_nested_routes_are_404) ... ok
+test_foreign_contract_cannot_be_analyzed_or_compared (test_auth_authorization.CrossFirmAccessTests.test_foreign_contract_cannot_be_analyzed_or_compared) ... ok
+test_demo_mode_ignores_an_authenticated_firm_cookie (test_auth_authorization.DemoIsolationTests.test_demo_mode_ignores_an_authenticated_firm_cookie) ... ok
+test_demo_mode_sees_only_null_firm_rows_and_stays_read_only (test_auth_authorization.DemoIsolationTests.test_demo_mode_sees_only_null_firm_rows_and_stays_read_only) ... ok
+test_member_can_switch_between_authorized_firms (test_auth_authorization.FirmSwitchTests.test_member_can_switch_between_authorized_firms) ... ok
+test_multi_firm_session_without_active_firm_requires_explicit_switch (test_auth_authorization.FirmSwitchTests.test_multi_firm_session_without_active_firm_requires_explicit_switch) ... ok
+test_removed_membership_is_revalidated_on_every_request (test_auth_authorization.FirmSwitchTests.test_removed_membership_is_revalidated_on_every_request) ... ok
+test_switching_to_a_non_member_firm_is_denied_and_keeps_scope (test_auth_authorization.FirmSwitchTests.test_switching_to_a_non_member_firm_is_denied_and_keeps_scope) ... ok
+test_user_without_membership_cannot_access_or_switch (test_auth_authorization.FirmSwitchTests.test_user_without_membership_cannot_access_or_switch) ... ok
+test_me_reports_role_and_upload_permission (test_auth_authorization.RoleRestrictionTests.test_me_reports_role_and_upload_permission) ... ok
+test_upload_roles_can_upload (test_auth_authorization.RoleRestrictionTests.test_upload_roles_can_upload) ... ok
+test_viewer_and_reviewer_cannot_upload (test_auth_authorization.RoleRestrictionTests.test_viewer_and_reviewer_cannot_upload) ... ok
+test_expired_session_is_rejected (test_auth_authorization.SessionLifecycleTests.test_expired_session_is_rejected) ... ok
+test_invalid_and_revoked_sessions_are_rejected (test_auth_authorization.SessionLifecycleTests.test_invalid_and_revoked_sessions_are_rejected) ... ok
+test_logout_revokes_the_session (test_auth_authorization.SessionLifecycleTests.test_logout_revokes_the_session) ... ok
+test_health_and_html_shells_are_public (test_auth_authorization.UnauthenticatedAccessTests.test_health_and_html_shells_are_public) ... ok
+test_protected_endpoints_reject_anonymous_requests (test_auth_authorization.UnauthenticatedAccessTests.test_protected_endpoints_reject_anonymous_requests) ... ok
+test_upload_rejects_anonymous_requests (test_auth_authorization.UnauthenticatedAccessTests.test_upload_rejects_anonymous_requests) ... ok
+test_chat_gemini_rate_limit_429 (test_chat.ChatEndpointTests.test_chat_gemini_rate_limit_429) ... Gemini API error (HTTP 429): {"error": {"message": "Resource exhausted"}}
+ok
+test_chat_gemini_server_error_502 (test_chat.ChatEndpointTests.test_chat_gemini_server_error_502) ... Gemini API error (HTTP 500): {"error": {"message": "Backend crash"}}
+ok
+test_chat_live_with_real_key_if_configured (test_chat.ChatEndpointTests.test_chat_live_with_real_key_if_configured)
+Exercise live Gemini call if GEMINI_API_KEY is present in env. ... ok
+test_chat_returns_503_when_no_api_key (test_chat.ChatEndpointTests.test_chat_returns_503_when_no_api_key) ... ok
+test_chat_status_endpoint (test_chat.ChatEndpointTests.test_chat_status_endpoint) ... ok
+test_chat_successful_call_with_contract_and_clause (test_chat.ChatEndpointTests.test_chat_successful_call_with_contract_and_clause) ... ok
+test_chat_unauthorized_nonexistent_contract (test_chat.ChatEndpointTests.test_chat_unauthorized_nonexistent_contract) ... ok
+test_chat_validation_empty_message (test_chat.ChatEndpointTests.test_chat_validation_empty_message) ... ok
+test_chat_validation_message_too_long (test_chat.ChatEndpointTests.test_chat_validation_message_too_long) ... ok
+test_chat_validation_whitespace_only_message (test_chat.ChatEndpointTests.test_chat_validation_whitespace_only_message) ... ok
+test_prompt_injection_defense_in_system_prompt (test_chat.ChatEndpointTests.test_prompt_injection_defense_in_system_prompt) ... ok
+test_a_definition_is_recognised_by_its_quoted_term (test_evaluate.TestClassificationRules.test_a_definition_is_recognised_by_its_quoted_term) ... ok
+test_a_mention_of_termination_is_not_a_termination_right (test_evaluate.TestClassificationRules.test_a_mention_of_termination_is_not_a_termination_right)
+Clause 17.4 says 'shall survive termination'. It grants nothing. ... ok
+test_a_schedule_is_not_an_operative_clause (test_evaluate.TestClassificationRules.test_a_schedule_is_not_an_operative_clause) ... ok
+test_a_tax_clause_is_not_a_payment_clause (test_evaluate.TestClassificationRules.test_a_tax_clause_is_not_a_payment_clause)
+The vocabulary has no tax type, so a tax clause is 'other' - even ... ok
+test_an_sla_clause_must_state_a_level (test_evaluate.TestClassificationRules.test_an_sla_clause_must_state_a_level)
+Clause 3.2 points at the Service Levels but states none. ... ok
+test_bare_heading_names_the_subject (test_evaluate.TestClassificationRules.test_bare_heading_names_the_subject) ... ok
+test_keywords_match_whole_words_only (test_evaluate.TestClassificationRules.test_keywords_match_whole_words_only)
+'term' must not match 'termination'. ... ok
+test_annotated_numbers_are_found (test_evaluate.TestGroundTruthIsSane.test_annotated_numbers_are_found) ... ok
+test_clause_count_matches_the_inventory (test_evaluate.TestGroundTruthIsSane.test_clause_count_matches_the_inventory) ... ok
+test_every_annotated_type_is_in_the_frozen_vocabulary (test_evaluate.TestGroundTruthIsSane.test_every_annotated_type_is_in_the_frozen_vocabulary) ... ok
+test_full_annotation_covers_every_extracted_clause (test_evaluate.TestGroundTruthIsSane.test_full_annotation_covers_every_extracted_clause) ... ok
+test_original_types_agree_with_the_full_annotation (test_evaluate.TestGroundTruthIsSane.test_original_types_agree_with_the_full_annotation) ... ok
+test_a_change_of_an_unmodelled_type_says_so (test_evaluate.TestHeadlineMetrics.test_a_change_of_an_unmodelled_type_says_so)
+A change to, say, the confidentiality clause must not invent ... ok
+test_clause_types (test_evaluate.TestHeadlineMetrics.test_clause_types) ... ok
+test_counterfactual_arithmetic (test_evaluate.TestHeadlineMetrics.test_counterfactual_arithmetic) ... ok
+test_cross_contract (test_evaluate.TestHeadlineMetrics.test_cross_contract) ... ok
+test_definition_drift (test_evaluate.TestHeadlineMetrics.test_definition_drift) ... ok
+test_dependency_edges (test_evaluate.TestHeadlineMetrics.test_dependency_edges) ... ok
+test_doubts (test_evaluate.TestHeadlineMetrics.test_doubts) ... ok
+test_element_node_numbers_are_grounded (test_evaluate.TestHeadlineMetrics.test_element_node_numbers_are_grounded)
+A number stated in an element node must occur in its own clause. ... ok
+test_every_doubt_carries_a_clause_reference (test_evaluate.TestHeadlineMetrics.test_every_doubt_carries_a_clause_reference) ... ok
+test_impact (test_evaluate.TestHeadlineMetrics.test_impact) ... ok
+test_numbers (test_evaluate.TestHeadlineMetrics.test_numbers) ... ok
+test_reference_edges (test_evaluate.TestHeadlineMetrics.test_reference_edges) ... ok
+test_segmentation (test_evaluate.TestHeadlineMetrics.test_segmentation) ... ok
+test_sla_counterfactual_arithmetic (test_evaluate.TestHeadlineMetrics.test_sla_counterfactual_arithmetic)
+The service-credit exposure rows for an SLA change. ... ok
+test_sla_counterfactual_has_no_calendar_day_arithmetic (test_evaluate.TestHeadlineMetrics.test_sla_counterfactual_has_no_calendar_day_arithmetic)
+A percentage change must not produce 'day 45' style rows. ... ok
+test_sla_doubts (test_evaluate.TestHeadlineMetrics.test_sla_doubts)
+An SLA change must raise the schedule-mismatch doubt. ... ok
+test_a_clause_that_imposes_no_fee_creates_no_charge_obligation (test_evaluate.TestNodePrecision.test_a_clause_that_imposes_no_fee_creates_no_charge_obligation)
+Clause 8.3 ('... are not a penalty') creates no obligation. ... ok
+test_a_payment_clause_does_not_get_a_dispute_deadline (test_evaluate.TestNodePrecision.test_a_payment_clause_does_not_get_a_dispute_deadline)
+Clause 7.2 pays 'each undisputed Invoice'. The word 'undisputed' ... ok
+test_late_charges_clause_still_creates_its_obligation (test_evaluate.TestNodePrecision.test_late_charges_clause_still_creates_its_obligation) ... ok
+test_service_credits_create_a_right_not_a_charge_obligation (test_evaluate.TestNodePrecision.test_service_credits_create_a_right_not_a_charge_obligation) ... ok
+test_the_dispute_clause_keeps_its_dispute_deadline (test_evaluate.TestNodePrecision.test_the_dispute_clause_keeps_its_dispute_deadline) ... ok
+test_an_unreadable_schedule_returns_none_not_a_guess (test_evaluate.TestSlaMechanics.test_an_unreadable_schedule_returns_none_not_a_guess) ... ok
+test_mentions_dispute_ignores_undisputed (test_evaluate.TestSlaMechanics.test_mentions_dispute_ignores_undisputed) ... ok
+test_rupee_amounts_are_parsed_with_indian_grouping (test_evaluate.TestSlaMechanics.test_rupee_amounts_are_parsed_with_indian_grouping) ... ok
+test_rupee_formatting_uses_indian_grouping (test_evaluate.TestSlaMechanics.test_rupee_formatting_uses_indian_grouping) ... ok
+test_service_credit_schedule_is_parsed (test_evaluate.TestSlaMechanics.test_service_credit_schedule_is_parsed) ... ok
+test_ask_json_never_raises (test_evaluate.TestTheLlmPath.test_ask_json_never_raises) ... ok
+test_ask_json_returns_the_parsed_object (test_evaluate.TestTheLlmPath.test_ask_json_returns_the_parsed_object) ... ok
+test_ask_json_survives_a_useless_answer (test_evaluate.TestTheLlmPath.test_ask_json_survives_a_useless_answer) ... ok
+test_the_graph_still_builds_when_the_llm_fails (test_evaluate.TestTheLlmPath.test_the_graph_still_builds_when_the_llm_fails) ... ok
+test_the_llm_call_count_is_capped (test_evaluate.TestTheLlmPath.test_the_llm_call_count_is_capped) ... ok
+test_the_llm_can_add_a_dependency_the_rules_missed (test_evaluate.TestTheLlmPath.test_the_llm_can_add_a_dependency_the_rules_missed)
+Clause 3.3 references 17.1, and (other, other) is not in the ... ok
+test_the_llm_can_add_a_node (test_evaluate.TestTheLlmPath.test_the_llm_can_add_a_node) ... ok
+test_the_llm_is_only_asked_about_the_target_clause (test_evaluate.TestTheLlmPath.test_the_llm_is_only_asked_about_the_target_clause)
+A live key must not mean dozens of API calls. ... ok
+test_with_no_key_the_demo_is_unchanged (test_evaluate.TestTheLlmPath.test_with_no_key_the_demo_is_unchanged)
+Remove the key and the rule table does all the work. ... ok
+test_markdown_report (test_evaluate.TestTheReportRenders.test_markdown_report) ... ok
+test_prf_arithmetic (test_evaluate.TestTheScorerItself.test_prf_arithmetic) ... ok
+test_prf_with_nothing_to_find (test_evaluate.TestTheScorerItself.test_prf_with_nothing_to_find) ... ok
+test_scorer_reports_a_partly_wrong_answer (test_evaluate.TestTheScorerItself.test_scorer_reports_a_partly_wrong_answer) ... ok
+test_scorer_reports_a_wrong_answer (test_evaluate.TestTheScorerItself.test_scorer_reports_a_wrong_answer)
+NEGATIVE CONTROL. A deliberately wrong expectation must not score ... ok
+test_set_prf_counts_both_directions (test_evaluate.TestTheScorerItself.test_set_prf_counts_both_directions) ... ok
+test_compare_endpoint (test_graph.TestApiSurface.test_compare_endpoint) ... ok
+test_graph_endpoint_returns_nodes_and_edges (test_graph.TestApiSurface.test_graph_endpoint_returns_nodes_and_edges) ... ok
+test_impact_endpoint_rejects_unknown_clause (test_graph.TestApiSurface.test_impact_endpoint_rejects_unknown_clause) ... ok
+test_impact_endpoint_rejects_unknown_contract (test_graph.TestApiSurface.test_impact_endpoint_rejects_unknown_contract) ... ok
+test_impact_endpoint_returns_all_twelve_mvp_items (test_graph.TestApiSurface.test_impact_endpoint_returns_all_twelve_mvp_items) ... ok
+test_router_exposes_the_endpoints (test_graph.TestApiSurface.test_router_exposes_the_endpoints) ... ok
+test_suggest_endpoint_finds_the_payment_clause (test_graph.TestApiSurface.test_suggest_endpoint_finds_the_payment_clause) ... ok
+test_clause_types (test_graph.TestClassification.test_clause_types) ... ok
+test_numbers_extracted (test_graph.TestClassification.test_numbers_extracted) ... ok
+test_cross_contract_mismatch (test_graph.TestConflictAndCrossContract.test_cross_contract_mismatch) ... ok
+test_definition_drift_in_contract_b (test_graph.TestConflictAndCrossContract.test_definition_drift_in_contract_b) ... ok
+test_no_false_conflict_in_contract_a (test_graph.TestConflictAndCrossContract.test_no_false_conflict_in_contract_a) ... ok
+test_analysis_keeps_legacy_review_points_in_ranked_order (test_graph.TestImpact.test_analysis_keeps_legacy_review_points_in_ranked_order) ... ok
+test_chain (test_graph.TestImpact.test_chain) ... ok
+test_changed_clause_effects_are_separate (test_graph.TestImpact.test_changed_clause_effects_are_separate) ... ok
+test_counterfactual_dates (test_graph.TestImpact.test_counterfactual_dates) ... ok
+test_direct_and_indirect (test_graph.TestImpact.test_direct_and_indirect) ... ok
+test_doubts_detected (test_graph.TestImpact.test_doubts_detected) ... ok
+test_every_doubt_has_evidence (test_graph.TestImpact.test_every_doubt_has_evidence) ... ok
+test_impact_does_not_cross_contracts (test_graph.TestImpact.test_impact_does_not_cross_contracts)
+Changing 7.2 in Contract A must not reach into Contract B. ... ok
+test_report_surfaces_legal_meaning_not_just_clause_numbers (test_graph.TestImpact.test_report_surfaces_legal_meaning_not_just_clause_numbers)
+MVP spec items 3, 4, 5: related obligations, conditions affected, ... ok
+test_review_points_rank_by_severity_impact_and_evidence (test_graph.TestImpact.test_review_points_rank_by_severity_impact_and_evidence) ... ok
+test_summary_reports_counts (test_graph.TestImpact.test_summary_reports_counts) ... ok
+test_definition_clause_is_not_a_hard_dependency (test_graph.TestRelationshipModel.test_definition_clause_is_not_a_hard_dependency)
+Clause 2.4 defines a term, so it is a DOUBT, not an impact. ... ok
+test_dependency_edges (test_graph.TestRelationshipModel.test_dependency_edges) ... ok
+test_edges_do_not_leak_between_contracts (test_graph.TestRelationshipModel.test_edges_do_not_leak_between_contracts)
+Both contracts use similar clause numbers, so edge reference pairs ... ok
+test_nodes_are_scoped_to_their_contract (test_graph.TestRelationshipModel.test_nodes_are_scoped_to_their_contract)
+Two contracts can both have a clause '7.2' - they must not collide. ... ok
+test_nodes_exist (test_graph.TestRelationshipModel.test_nodes_exist) ... ok
+test_reference_edges (test_graph.TestRelationshipModel.test_reference_edges) ... ok
+test_same_clause_number_in_two_contracts_is_two_nodes (test_graph.TestRelationshipModel.test_same_clause_number_in_two_contracts_is_two_nodes)
+Contract A and B both have a clause '1.1' - they must be separate ... ok
+test_empty_contract_builds_empty_graph (test_graph.TestRobustness.test_empty_contract_builds_empty_graph) ... ok
+test_garbage_text_does_not_crash_segmentation (test_graph.TestRobustness.test_garbage_text_does_not_crash_segmentation) ... ok
+test_graph_helpers_work_before_init_db (test_graph.TestRobustness.test_graph_helpers_work_before_init_db)
+Reading the graph on a database that has no tables must not raise ... ok
+test_llm_failure_does_not_break_graph (test_graph.TestRobustness.test_llm_failure_does_not_break_graph)
+llm.ask_json must never raise, even with no API key configured. ... ok
+test_person_a_tests_still_pass (test_graph.TestRobustness.test_person_a_tests_still_pass)
+Branch B must not break branch A. ... ok
+test_unknown_clause_returns_error_not_crash (test_graph.TestRobustness.test_unknown_clause_returns_error_not_crash) ... ok
+test_clause_count (test_graph.TestSegmentation.test_clause_count) ... ok
+test_clause_text_is_not_empty (test_graph.TestSegmentation.test_clause_text_is_not_empty) ... ok
+test_headings_extracted (test_graph.TestSegmentation.test_headings_extracted) ... ok
+test_known_clause_numbers_exist (test_graph.TestSegmentation.test_known_clause_numbers_exist) ... ok
+test_subclauses_are_found (test_graph.TestSegmentation.test_subclauses_are_found)
+A's splitter finds top-level sections; we add the sub-clause layer. ... ok
+test_a_change_type_with_no_arithmetic_returns_no_rows_and_says_so (test_integration.TestImpactContractIsStable.test_a_change_type_with_no_arithmetic_returns_no_rows_and_says_so)
+The screen must be able to tell 'we do not know' from 'broken'. ... ok
+test_every_doubt_is_evidence_linked (test_integration.TestImpactContractIsStable.test_every_doubt_is_evidence_linked) ... ok
+test_the_seam_still_isolates_the_database (test_integration.TestImpactContractIsStable.test_the_seam_still_isolates_the_database)
+adapter is the only thing that knows how the data is stored. ... D:\Desktop\revengg-demo\tests\test_integration.py:208: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\adapter.py' mode='r' encoding='utf-8'>
+  source = open(os.path.join(ROOT, "adapter.py"), encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+D:\Desktop\revengg-demo\tests\test_integration.py:212: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\clauses.py' mode='r' encoding='utf-8'>
+  text = open(os.path.join(ROOT, name), encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+D:\Desktop\revengg-demo\tests\test_integration.py:212: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\graph.py' mode='r' encoding='utf-8'>
+  text = open(os.path.join(ROOT, name), encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+D:\Desktop\revengg-demo\tests\test_integration.py:212: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\impact.py' mode='r' encoding='utf-8'>
+  text = open(os.path.join(ROOT, name), encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+D:\Desktop\revengg-demo\tests\test_integration.py:212: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\api_b.py' mode='r' encoding='utf-8'>
+  text = open(os.path.join(ROOT, name), encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_the_sla_change_is_modelled (test_integration.TestImpactContractIsStable.test_the_sla_change_is_modelled) ... ok
+test_the_twelve_mvp_keys_are_present (test_integration.TestImpactContractIsStable.test_the_twelve_mvp_keys_are_present) ... ok
+test_explanation_always_carries_a_disclaimer (test_integration.TestReasoningMeetsTheEngine.test_explanation_always_carries_a_disclaimer) ... ok
+test_explanation_has_the_documented_shape (test_integration.TestReasoningMeetsTheEngine.test_explanation_has_the_documented_shape) ... ok
+test_explanation_never_asserts_a_legal_outcome (test_integration.TestReasoningMeetsTheEngine.test_explanation_never_asserts_a_legal_outcome)
+The engine's output is decision support, not advice. ... ok
+test_explanation_of_a_clause_with_no_authority_says_so (test_integration.TestReasoningMeetsTheEngine.test_explanation_of_a_clause_with_no_authority_says_so)
+Honesty over coverage: if nothing matched, it must say that. ... ok
+test_a_real_clause_retrieves_the_right_authority (test_integration.TestRetrievalMeetsTheDemoContracts.test_a_real_clause_retrieves_the_right_authority)
+Clause 8.3 says the late charges are not a penalty. Section 74 of ... ok
+test_a_section_reference_is_not_stripped_into_a_bare_number (test_integration.TestRetrievalMeetsTheDemoContracts.test_a_section_reference_is_not_stripped_into_a_bare_number)
+'1.' and '2(h)' must keep their digits: they are section ... ok
+test_force_majeure_reaches_a_frustration_authority (test_integration.TestRetrievalMeetsTheDemoContracts.test_force_majeure_reaches_a_frustration_authority) ... ok
+test_no_authority_is_fabricated (test_integration.TestRetrievalMeetsTheDemoContracts.test_no_authority_is_fabricated)
+A clause with no legal question must return nothing, not a ... ok
+test_the_corpus_is_reachable_from_the_demo_contracts (test_integration.TestRetrievalMeetsTheDemoContracts.test_the_corpus_is_reachable_from_the_demo_contracts)
+A retrieval layer that never fires on the demo documents is a ... ok
+test_the_last_word_of_a_clause_is_matchable (test_integration.TestRetrievalMeetsTheDemoContracts.test_the_last_word_of_a_clause_is_matchable)
+'... is not a penalty.' must match the keyword 'penalty'. ... ok
+test_the_written_amendment_clause_reaches_an_amendment_authority (test_integration.TestRetrievalMeetsTheDemoContracts.test_the_written_amendment_clause_reaches_an_amendment_authority) ... ok
+test_change_configuration_is_clause_aware_and_not_hardcoded (test_integration.TestTheUiServesTheEngine.test_change_configuration_is_clause_aware_and_not_hardcoded) ... D:\Desktop\revengg-demo\tests\test_integration.py:284: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\templates\\index.html' mode='r' encoding='utf-8'>
+  encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_change_configuration_validates_units_and_selection_switches (test_integration.TestTheUiServesTheEngine.test_change_configuration_validates_units_and_selection_switches) ... D:\Desktop\revengg-demo\tests\test_integration.py:296: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\templates\\index.html' mode='r' encoding='utf-8'>
+  encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_changing_clause_invalidates_pending_analysis_results (test_integration.TestTheUiServesTheEngine.test_changing_clause_invalidates_pending_analysis_results)
+Clause changes clear the visible report before a pending response returns. ... D:\Desktop\revengg-demo\tests\test_integration.py:273: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\templates\\index.html' mode='r' encoding='utf-8'>
+  encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_clause_explainer_carries_selected_contract_to_impact_page (test_integration.TestTheUiServesTheEngine.test_clause_explainer_carries_selected_contract_to_impact_page) ... D:\Desktop\revengg-demo\tests\test_integration.py:310: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\templates\\explain.html' mode='r' encoding='utf-8'>
+  encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_the_clause_explainer_is_still_reachable (test_integration.TestTheUiServesTheEngine.test_the_clause_explainer_is_still_reachable)
+The existing explanation workspace is preserved, not replaced. ... ok
+test_the_homepage_is_the_contract_intelligence_overview (test_integration.TestTheUiServesTheEngine.test_the_homepage_is_the_contract_intelligence_overview) ... ok
+test_the_impact_page_uploads_and_selects_the_returned_contract (test_integration.TestTheUiServesTheEngine.test_the_impact_page_uploads_and_selects_the_returned_contract) ... ok
+test_the_impact_workspace_serves_the_engine (test_integration.TestTheUiServesTheEngine.test_the_impact_workspace_serves_the_engine) ... ok
+test_the_page_and_the_engine_agree_on_the_keys (test_integration.TestTheUiServesTheEngine.test_the_page_and_the_engine_agree_on_the_keys)
+Every field the page renders must exist in the engine's payload. ... ok
+test_the_page_exposes_shareable_parameters (test_integration.TestTheUiServesTheEngine.test_the_page_exposes_shareable_parameters)
+?clause=7.2&old=30&new=15 must load and run the analysis. ... D:\Desktop\revengg-demo\tests\test_integration.py:325: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Desktop\\revengg-demo\\templates\\index.html' mode='r' encoding='utf-8'>
+  encoding="utf-8").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_firm_creation_is_audited (test_phase2_contract_lifecycle.AuditTrailTests.test_firm_creation_is_audited) ... ok
+test_lifecycle_change_is_audited (test_phase2_contract_lifecycle.AuditTrailTests.test_lifecycle_change_is_audited) ... ok
+test_membership_change_is_audited (test_phase2_contract_lifecycle.AuditTrailTests.test_membership_change_is_audited) ... ok
+test_administrator_can_advance_lifecycle (test_phase2_contract_lifecycle.ContractLifecycleTests.test_administrator_can_advance_lifecycle) ... ok
+test_all_lifecycle_statuses_can_be_set (test_phase2_contract_lifecycle.ContractLifecycleTests.test_all_lifecycle_statuses_can_be_set) ... ok
+test_foreign_contract_lifecycle_is_404 (test_phase2_contract_lifecycle.ContractLifecycleTests.test_foreign_contract_lifecycle_is_404) ... ok
+test_invalid_lifecycle_status_is_rejected (test_phase2_contract_lifecycle.ContractLifecycleTests.test_invalid_lifecycle_status_is_rejected) ... ok
+test_uploaded_contract_starts_as_draft (test_phase2_contract_lifecycle.ContractLifecycleTests.test_uploaded_contract_starts_as_draft) ... ok
+test_viewer_cannot_change_lifecycle (test_phase2_contract_lifecycle.ContractLifecycleTests.test_viewer_cannot_change_lifecycle) ... ok
+test_lifecycle_status_filter (test_phase2_contract_lifecycle.ContractListingFilterTests.test_lifecycle_status_filter) ... ok
+test_list_contracts_is_firm_scoped (test_phase2_contract_lifecycle.ContractListingFilterTests.test_list_contracts_is_firm_scoped) ... ok
+test_search_filters_by_filename (test_phase2_contract_lifecycle.ContractListingFilterTests.test_search_filters_by_filename) ... ok
+test_create_firm_makes_caller_administrator_and_active (test_phase2_contract_lifecycle.FirmTests.test_create_firm_makes_caller_administrator_and_active) ... ok
+test_create_firm_requires_authentication (test_phase2_contract_lifecycle.FirmTests.test_create_firm_requires_authentication) ... ok
+test_create_firm_requires_name (test_phase2_contract_lifecycle.FirmTests.test_create_firm_requires_name) ... ok
+test_list_firms_shows_memberships_and_roles (test_phase2_contract_lifecycle.FirmTests.test_list_firms_shows_memberships_and_roles) ... ok
+test_login_creates_session_and_sets_cookie (test_phase2_contract_lifecycle.LoginTests.test_login_creates_session_and_sets_cookie) ... ok
+test_login_rejects_unknown_subject (test_phase2_contract_lifecycle.LoginTests.test_login_rejects_unknown_subject) ... ok
+test_login_rejects_wrong_password (test_phase2_contract_lifecycle.LoginTests.test_login_rejects_wrong_password) ... ok
+test_multi_firm_login_has_no_active_firm_until_switch (test_phase2_contract_lifecycle.LoginTests.test_multi_firm_login_has_no_active_firm_until_switch) ... ok
+test_administrator_can_add_list_change_remove_members (test_phase2_contract_lifecycle.MemberManagementTests.test_administrator_can_add_list_change_remove_members) ... ok
+test_cannot_add_member_to_foreign_firm (test_phase2_contract_lifecycle.MemberManagementTests.test_cannot_add_member_to_foreign_firm) ... ok
+test_cannot_remove_oneself (test_phase2_contract_lifecycle.MemberManagementTests.test_cannot_remove_oneself) ... ok
+test_non_administrator_cannot_manage_members (test_phase2_contract_lifecycle.MemberManagementTests.test_non_administrator_cannot_manage_members) ... ok
+test_register_creates_user_and_returns_user_id (test_phase2_contract_lifecycle.RegistrationTests.test_register_creates_user_and_returns_user_id) ... ok
+test_register_rejects_duplicate_subject (test_phase2_contract_lifecycle.RegistrationTests.test_register_rejects_duplicate_subject) ... ok
+test_register_rejects_short_password (test_phase2_contract_lifecycle.RegistrationTests.test_register_rejects_short_password) ... ok
+test_foreign_contract_versions_is_404 (test_phase2_contract_lifecycle.VersionHistoryTests.test_foreign_contract_versions_is_404) ... ok
+test_list_contract_versions (test_phase2_contract_lifecycle.VersionHistoryTests.test_list_contract_versions) ... ok
+test_duplicate_scope_is_per_firm_and_reads_are_isolated (test_phase3_ingestion.DuplicateAndIsolationTests.test_duplicate_scope_is_per_firm_and_reads_are_isolated) ... ok
+test_duplicate_upload_returns_existing_contract_and_keeps_one_clause_set (test_phase3_ingestion.DuplicateAndIsolationTests.test_duplicate_upload_returns_existing_contract_and_keeps_one_clause_set) ... ok
+test_normalization_is_conservative_and_preserves_structure (test_phase3_ingestion.NormalizationTests.test_normalization_is_conservative_and_preserves_structure) ... ok
+test_normalize_section_number_has_one_meaning (test_phase3_ingestion.NormalizationTests.test_normalize_section_number_has_one_meaning) ... ok
+test_clause_classification_keeps_required_categories (test_phase3_ingestion.PageExtractionTests.test_clause_classification_keeps_required_categories) ... ok
+test_extract_pages_preserves_page_boundaries_and_offsets (test_phase3_ingestion.PageExtractionTests.test_extract_pages_preserves_page_boundaries_and_offsets) ... ok
+test_processing_log_records_each_successful_stage (test_phase3_ingestion.PageExtractionTests.test_processing_log_records_each_successful_stage) ... ok
+test_uploaded_clauses_have_page_offsets_and_hierarchy (test_phase3_ingestion.PageExtractionTests.test_uploaded_clauses_have_page_offsets_and_hierarchy) ... ok
+test_clause_persistence_failure_is_retryable_without_duplicate_clauses (test_phase3_ingestion.RetryTests.test_clause_persistence_failure_is_retryable_without_duplicate_clauses) ... Failed to persist clauses for contract 1
+Traceback (most recent call last):
+  File "D:\Desktop\revengg-demo\api_a.py", line 1119, in upload_contract
+    saved_clause_count = ingest.persist_clauses(
+                         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Desktop\revengg-demo\ingest.py", line 147, in persist_clauses
+    saved = save(
+            ^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1183, in _execute_mock_call
+    raise effect
+RuntimeError: simulated save failure
+ok
+test_extraction_failure_is_not_retryable_without_source_bytes (test_phase3_ingestion.RetryTests.test_extraction_failure_is_not_retryable_without_source_bytes) ... ok
+test_graph_failure_is_retryable_without_touching_clauses (test_phase3_ingestion.RetryTests.test_graph_failure_is_retryable_without_touching_clauses) ... Failed to build graph for contract 1
+Traceback (most recent call last):
+  File "D:\Desktop\revengg-demo\api_a.py", line 1182, in upload_contract
+    graph_stats = ingest.build_contract_graph(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Desktop\revengg-demo\ingest.py", line 163, in build_contract_graph
+    return graph.build_graph(
+           ^^^^^^^^^^^^^^^^^^
+  File "D:\Desktop\revengg-demo\graph.py", line 435, in build_graph
+    published = adapter.replace_graph(
+                ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1183, in _execute_mock_call
+    raise effect
+RuntimeError: graph down
+ok
+test_extractive_citations_have_exact_quotes (test_phase4_retrieval.CitationTests.test_extractive_citations_have_exact_quotes)
+Citations should contain exact quotes from the clause text. ... ok
+test_insufficient_evidence_for_missing_concept (test_phase4_retrieval.CitationTests.test_insufficient_evidence_for_missing_concept)
+Questions about concepts not in the contract return insufficient evidence. ... ok
+test_clause_embedding_text_builder (test_phase4_retrieval.EmbeddingDeterminismTests.test_clause_embedding_text_builder)
+Clause embedding text builder produces canonical form. ... ok
+test_different_clauses_near_orthogonal (test_phase4_retrieval.EmbeddingDeterminismTests.test_different_clauses_near_orthogonal)
+Vectors for different clauses should not be maximally similar. ... ok
+test_different_text_produces_different_vector (test_phase4_retrieval.EmbeddingDeterminismTests.test_different_text_produces_different_vector)
+Different text should not produce identical vectors. ... ok
+test_embedding_is_deterministic (test_phase4_retrieval.EmbeddingDeterminismTests.test_embedding_is_deterministic)
+Same text always produces the same vector. ... ok
+test_self_similarity_is_one (test_phase4_retrieval.EmbeddingDeterminismTests.test_self_similarity_is_one)
+A vector against itself should have cosine similarity 1.0. ... ok
+test_firm_isolation_contract_lists_differ (test_phase4_retrieval.FirmIsolationTests.test_firm_isolation_contract_lists_differ)
+Firm isolation at DB level: contracts have firm_id and are findable. ... ok
+test_clause_reference_boost (test_phase4_retrieval.HybridRankingTests.test_clause_reference_boost)
+A query with a clause reference should boost that clause. ... ok
+test_hybrid_search_returns_ranked_results (test_phase4_retrieval.HybridRankingTests.test_hybrid_search_returns_ranked_results)
+Search should return ranked results with scores. ... ok
+test_legal_concept_coverage_in_top_k (test_phase4_retrieval.HybridRankingTests.test_legal_concept_coverage_in_top_k)
+Top results should cover the primary legal concept. ... ok
+test_semantic_vs_keyword_balance (test_phase4_retrieval.HybridRankingTests.test_semantic_vs_keyword_balance)
+Both semantic and keyword scores should be present. ... ok
+test_incremental_index_reuses_existing_vectors (test_phase4_retrieval.IncrementalIndexingTests.test_incremental_index_reuses_existing_vectors)
+Second index_contract call reuses vectors; status should succeed. ... ok
+test_incremental_index_with_force_reembeds (test_phase4_retrieval.IncrementalIndexingTests.test_incremental_index_with_force_reembeds)
+force=True re-embeds every clause even when unchanged. ... ok
+test_answer_is_extractively_grounded (test_phase4_retrieval.QAGroundednessTests.test_answer_is_extractively_grounded)
+Answer should be extractive and grounded in retrieved clauses. ... ok
+test_negative_question_insufficient (test_phase4_retrieval.QAGroundednessTests.test_negative_question_insufficient)
+Negative questions about absent provisions return insufficient evidence. ... ok
+test_embedding_status_reports (test_phase4_retrieval.RetrievalStatusTests.test_embedding_status_reports)
+embedding_status should report storage, readiness, and counts. ... ok
+test_version_isolation_old_version_not_returned (test_phase4_retrieval.VersionIsolationTests.test_version_isolation_old_version_not_returned)
+Changing contract version should not return old embedding vectors. ... ok
+test_failed_rebuild_rolls_back_and_records_failure (test_phase5_integrity.AtomicGraphTests.test_failed_rebuild_rolls_back_and_records_failure) ... ok
+test_graph_hash_is_stable_and_content_sensitive (test_phase5_integrity.AtomicGraphTests.test_graph_hash_is_stable_and_content_sensitive) ... ok
+test_graph_version_must_belong_to_the_contract (test_phase5_integrity.AtomicGraphTests.test_graph_version_must_belong_to_the_contract) ... ok
+test_invalid_graph_is_rejected_before_publication (test_phase5_integrity.AtomicGraphTests.test_invalid_graph_is_rejected_before_publication) ... ok
+test_audit_events_are_append_only_and_store_sanitized_metadata (test_phase5_integrity.AuditTrailTests.test_audit_events_are_append_only_and_store_sanitized_metadata) ... ok
+test_sanitizer_removes_secrets_and_truncates_long_values (test_phase5_integrity.AuditTrailTests.test_sanitizer_removes_secrets_and_truncates_long_values) ... ok
+test_legacy_reads_are_labelled_and_do_not_run_ddl (test_phase5_integrity.LegacyDatabaseTests.test_legacy_reads_are_labelled_and_do_not_run_ddl) ... ok
+test_legacy_without_node_contract_scope_fails_closed (test_phase5_integrity.LegacyDatabaseTests.test_legacy_without_node_contract_scope_fails_closed) ... ok
+test_writable_migration_is_additive_and_keeps_legacy_provenance (test_phase5_integrity.LegacyDatabaseTests.test_writable_migration_is_additive_and_keeps_legacy_provenance) ... ok
+test_reset_clears_contract_data_but_preserves_audit_history (test_phase5_integrity.SeedResetTests.test_reset_clears_contract_data_but_preserves_audit_history) ... ok
+test_anonymous_and_role_denials_are_audited (test_phase5_integrity.UploadAndAuthorizationAuditTests.test_anonymous_and_role_denials_are_audited) ... ok
+test_foreign_contract_denial_is_audited (test_phase5_integrity.UploadAndAuthorizationAuditTests.test_foreign_contract_denial_is_audited) ... ok
+test_upload_records_source_provenance_and_lifecycle_audit (test_phase5_integrity.UploadAndAuthorizationAuditTests.test_upload_records_source_provenance_and_lifecycle_audit) ... ok
+test_contract_with_versions_cannot_be_deleted_directly (test_phase5_integrity.VersionAndProvenanceTests.test_contract_with_versions_cannot_be_deleted_directly) ... ok
+test_provenance_records_source_metadata_without_duplicating_text (test_phase5_integrity.VersionAndProvenanceTests.test_provenance_records_source_metadata_without_duplicating_text) ... ok
+test_published_version_is_immutable_and_replacement_archives_history (test_phase5_integrity.VersionAndProvenanceTests.test_published_version_is_immutable_and_replacement_archives_history) ... ok
+test_version_firm_and_contract_boundaries_are_enforced (test_phase5_integrity.VersionAndProvenanceTests.test_version_firm_and_contract_boundaries_are_enforced) ... ok
+test_encrypted_pdf_is_rejected (test_phase6_upload_hardening.ExtractionUnitTests.test_encrypted_pdf_is_rejected) ... ok
+test_malformed_pdf_is_rejected_without_parser_detail (test_phase6_upload_hardening.ExtractionUnitTests.test_malformed_pdf_is_rejected_without_parser_detail) ... ok
+test_non_pdf_bytes_are_rejected (test_phase6_upload_hardening.ExtractionUnitTests.test_non_pdf_bytes_are_rejected) ... ok
+test_page_limit_is_enforced_before_page_text_is_read (test_phase6_upload_hardening.ExtractionUnitTests.test_page_limit_is_enforced_before_page_text_is_read) ... ok
+test_pdf_without_extractable_text_is_rejected (test_phase6_upload_hardening.ExtractionUnitTests.test_pdf_without_extractable_text_is_rejected) ... ok
+test_repaired_pdf_is_rejected (test_phase6_upload_hardening.ExtractionUnitTests.test_repaired_pdf_is_rejected) ... ok
+test_text_limit_is_enforced (test_phase6_upload_hardening.ExtractionUnitTests.test_text_limit_is_enforced) ... ok
+test_timeout_is_checked_after_the_last_page (test_phase6_upload_hardening.ExtractionUnitTests.test_timeout_is_checked_after_the_last_page) ... ok
+test_timeout_is_checked_before_the_parser_opens_the_file (test_phase6_upload_hardening.ExtractionUnitTests.test_timeout_is_checked_before_the_parser_opens_the_file) ... ok
+test_timeout_is_checked_between_pages (test_phase6_upload_hardening.ExtractionUnitTests.test_timeout_is_checked_between_pages) ... ok
+test_valid_pdf_extracts_text (test_phase6_upload_hardening.ExtractionUnitTests.test_valid_pdf_extracts_text) ... ok
+test_default_limits_are_documented_local_test_values (test_phase6_upload_hardening.UploadLimitConfigurationTests.test_default_limits_are_documented_local_test_values) ... ok
+test_environment_can_override_each_limit (test_phase6_upload_hardening.UploadLimitConfigurationTests.test_environment_can_override_each_limit) ... ok
+test_invalid_and_non_positive_limits_fail_closed (test_phase6_upload_hardening.UploadLimitConfigurationTests.test_invalid_and_non_positive_limits_fail_closed) ... ok
+test_actual_size_limit_is_enforced_and_partial_temp_is_removed (test_phase6_upload_hardening.UploadRouteTests.test_actual_size_limit_is_enforced_and_partial_temp_is_removed) ... ok
+test_anonymous_upload_is_rejected_before_any_file_is_stored (test_phase6_upload_hardening.UploadRouteTests.test_anonymous_upload_is_rejected_before_any_file_is_stored) ... ok
+test_database_failure_removes_the_published_file (test_phase6_upload_hardening.UploadRouteTests.test_database_failure_removes_the_published_file) ... Could not persist the accepted upload
+Traceback (most recent call last):
+  File "D:\Desktop\revengg-demo\api_a.py", line 967, in upload_contract
+    contract_id = save_contract_with_trace(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1183, in _execute_mock_call
+    raise effect
+RuntimeError: database detail must not leak
+ok
+test_demo_mode_never_writes_an_upload_or_creates_storage (test_phase6_upload_hardening.UploadRouteTests.test_demo_mode_never_writes_an_upload_or_creates_storage) ... ok
+test_empty_pdf_is_rejected_without_a_contract_row (test_phase6_upload_hardening.UploadRouteTests.test_empty_pdf_is_rejected_without_a_contract_row) ... ok
+test_encrypted_pdf_is_rejected_and_bytes_are_deleted (test_phase6_upload_hardening.UploadRouteTests.test_encrypted_pdf_is_rejected_and_bytes_are_deleted) ... ok
+test_failed_upload_does_not_change_the_last_known_good_graph (test_phase6_upload_hardening.UploadRouteTests.test_failed_upload_does_not_change_the_last_known_good_graph) ... ok
+test_malformed_pdf_is_rejected_with_a_safe_error (test_phase6_upload_hardening.UploadRouteTests.test_malformed_pdf_is_rejected_with_a_safe_error) ... ok
+test_no_text_pdf_is_rejected (test_phase6_upload_hardening.UploadRouteTests.test_no_text_pdf_is_rejected) ... ok
+test_non_pdf_content_with_pdf_extension_creates_a_failed_version (test_phase6_upload_hardening.UploadRouteTests.test_non_pdf_content_with_pdf_extension_creates_a_failed_version) ... ok
+test_page_limit_is_enforced_and_failed_version_is_recorded (test_phase6_upload_hardening.UploadRouteTests.test_page_limit_is_enforced_and_failed_version_is_recorded) ... ok
+test_parser_exception_is_sanitized_and_leaves_no_partial_record (test_phase6_upload_hardening.UploadRouteTests.test_parser_exception_is_sanitized_and_leaves_no_partial_record) ... Unexpected error during PDF extraction
+Traceback (most recent call last):
+  File "D:\Desktop\revengg-demo\api_a.py", line 834, in upload_contract
+    text, pages, _page_count = ingest.extract_document(
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Desktop\revengg-demo\ingest.py", line 79, in extract_document
+    result = reader(
+             ^^^^^^^
+  File "D:\Desktop\revengg-demo\api_a.py", line 634, in _extract_pages_for_upload
+    return extract_text(path, return_pages=True, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lavan\AppData\Local\Programs\Python\Python311\Lib\unittest\mock.py", line 1183, in _execute_mock_call
+    raise effect
+RuntimeError: secret parser path C:\private\contract
+ok
+test_processing_timeout_is_enforced_cooperatively (test_phase6_upload_hardening.UploadRouteTests.test_processing_timeout_is_enforced_cooperatively) ... ok
+test_reviewer_upload_is_denied_and_audited (test_phase6_upload_hardening.UploadRouteTests.test_reviewer_upload_is_denied_and_audited) ... ok
+test_startup_removes_only_abandoned_staging_files (test_phase6_upload_hardening.UploadRouteTests.test_startup_removes_only_abandoned_staging_files) ... ok
+test_text_limit_is_enforced_and_failed_version_is_recorded (test_phase6_upload_hardening.UploadRouteTests.test_text_limit_is_enforced_and_failed_version_is_recorded) ... ok
+test_traversal_filename_is_metadata_only (test_phase6_upload_hardening.UploadRouteTests.test_traversal_filename_is_metadata_only) ... ok
+test_valid_upload_is_published_under_a_server_generated_firm_path (test_phase6_upload_hardening.UploadRouteTests.test_valid_upload_is_published_under_a_server_generated_firm_path) ... ok
+test_wrong_extension_is_rejected_before_staging (test_phase6_upload_hardening.UploadRouteTests.test_wrong_extension_is_rejected_before_staging) ... ok
+test_conflicts_carry_rule_id_status_and_bound_evidence (test_phase7_hardening.CounterfactualEvidenceTests.test_conflicts_carry_rule_id_status_and_bound_evidence) ... ok
+test_every_counterfactual_row_has_a_rule_trace_and_assumptions (test_phase7_hardening.CounterfactualEvidenceTests.test_every_counterfactual_row_has_a_rule_trace_and_assumptions) ... ok
+test_evidence_keeps_full_text_and_marks_explicit_excerpts (test_phase7_hardening.CounterfactualEvidenceTests.test_evidence_keeps_full_text_and_marks_explicit_excerpts) ... ok
+test_interest_accrual_row_is_removed_and_explained (test_phase7_hardening.CounterfactualEvidenceTests.test_interest_accrual_row_is_removed_and_explained) ... ok
+test_payment_and_sla_doubts_use_type_specific_wording_and_evidence (test_phase7_hardening.CounterfactualEvidenceTests.test_payment_and_sla_doubts_use_type_specific_wording_and_evidence) ... ok
+test_status_taxonomy_is_explicit_for_supported_and_unmodelled (test_phase7_hardening.CounterfactualEvidenceTests.test_status_taxonomy_is_explicit_for_supported_and_unmodelled) ... FAIL
+test_competing_within_periods_are_ambiguous (test_phase7_hardening.DurationAndUnitTests.test_competing_within_periods_are_ambiguous) ... ok
+test_decimal_formatting_preserves_exact_amounts (test_phase7_hardening.DurationAndUnitTests.test_decimal_formatting_preserves_exact_amounts) ... ok
+test_months_years_and_business_days_are_not_converted (test_phase7_hardening.DurationAndUnitTests.test_months_years_and_business_days_are_not_converted) ... ok
+test_payment_change_in_months_or_years_has_no_implicit_conversion (test_phase7_hardening.DurationAndUnitTests.test_payment_change_in_months_or_years_has_no_implicit_conversion) ... ok
+test_percentage_only_payment_clause_is_not_read_as_days (test_phase7_hardening.DurationAndUnitTests.test_percentage_only_payment_clause_is_not_read_as_days) ... ok
+test_percentages_and_money_are_never_day_counts (test_phase7_hardening.DurationAndUnitTests.test_percentages_and_money_are_never_day_counts) ... ok
+test_sla_bounds_include_zero_and_one_hundred (test_phase7_hardening.DurationAndUnitTests.test_sla_bounds_include_zero_and_one_hundred) ... ok
+test_within_period_accepts_only_calendar_days_and_simple_words (test_phase7_hardening.DurationAndUnitTests.test_within_period_accepts_only_calendar_days_and_simple_words) ... ok
+test_clause_hash_must_match_before_analysis (test_phase7_hardening.GraphBindingTests.test_clause_hash_must_match_before_analysis) ... ok
+test_current_binding_exposes_build_hash_and_version (test_phase7_hardening.GraphBindingTests.test_current_binding_exposes_build_hash_and_version) ... ok
+test_failed_clause_save_rolls_back_and_keeps_the_graph_current (test_phase7_hardening.GraphBindingTests.test_failed_clause_save_rolls_back_and_keeps_the_graph_current) ... ok
+test_legacy_clause_without_a_hash_fails_closed_when_hash_is_expected (test_phase7_hardening.GraphBindingTests.test_legacy_clause_without_a_hash_fails_closed_when_hash_is_expected) ... ok
+test_malformed_expected_hash_is_rejected_by_the_schema (test_phase7_hardening.GraphBindingTests.test_malformed_expected_hash_is_rejected_by_the_schema) ... ok
+test_missing_graph_returns_http_409 (test_phase7_hardening.GraphBindingTests.test_missing_graph_returns_http_409) ... ok
+test_new_contract_version_invalidates_the_graph_without_deleting_it (test_phase7_hardening.GraphBindingTests.test_new_contract_version_invalidates_the_graph_without_deleting_it) ... ok
+test_only_current_build_rows_are_readable (test_phase7_hardening.GraphBindingTests.test_only_current_build_rows_are_readable) ... ok
+test_row_count_tampering_makes_the_graph_stale (test_phase7_hardening.GraphBindingTests.test_row_count_tampering_makes_the_graph_stale) ... ok
+test_saving_clauses_atomically_invalidates_the_graph_pointer (test_phase7_hardening.GraphBindingTests.test_saving_clauses_atomically_invalidates_the_graph_pointer) ... ok
+test_stale_graph_returns_http_409_and_does_not_leak_clause_text (test_phase7_hardening.GraphBindingTests.test_stale_graph_returns_http_409_and_does_not_leak_clause_text) ... ok
+test_legacy_graph_is_readable_but_marked_partially_supported (test_phase7_hardening.LegacyGraphTests.test_legacy_graph_is_readable_but_marked_partially_supported) ... ok
+test_clause_list_is_scoped_to_the_requested_contract (test_security_scope.CrossContractAccessTests.test_clause_list_is_scoped_to_the_requested_contract) ... ok
+test_contract_detail_stays_within_the_requested_contract (test_security_scope.CrossContractAccessTests.test_contract_detail_stays_within_the_requested_contract) ... ok
+test_contract_list_does_not_expose_raw_text (test_security_scope.CrossContractAccessTests.test_contract_list_does_not_expose_raw_text) ... ok
+test_foreign_only_clause_cannot_be_analyzed_or_explained (test_security_scope.CrossContractAccessTests.test_foreign_only_clause_cannot_be_analyzed_or_explained) ... ok
+test_stored_clause_routes_are_scoped_to_the_requested_contract (test_security_scope.CrossContractAccessTests.test_stored_clause_routes_are_scoped_to_the_requested_contract) ... ok
+test_foreign_endpoint_edge_is_not_returned_by_adapter (test_security_scope.GraphAndEvidenceScopeTests.test_foreign_endpoint_edge_is_not_returned_by_adapter) ... ok
+test_graph_endpoint_does_not_expose_cross_contract_nodes_or_edges (test_security_scope.GraphAndEvidenceScopeTests.test_graph_endpoint_does_not_expose_cross_contract_nodes_or_edges) ... ok
+test_graph_references_share_stored_section_canonicalization (test_security_scope.GraphAndEvidenceScopeTests.test_graph_references_share_stored_section_canonicalization) ... ok
+test_impact_traversal_and_evidence_stay_in_contract_scope (test_security_scope.GraphAndEvidenceScopeTests.test_impact_traversal_and_evidence_stay_in_contract_scope) ... ok
+test_a_clause_with_no_stored_number_keeps_unmodelled_behaviour (test_security_scope.ImpactInputIntegrityTests.test_a_clause_with_no_stored_number_keeps_unmodelled_behaviour) ... ok
+test_missing_change_values_are_rejected (test_security_scope.ImpactInputIntegrityTests.test_missing_change_values_are_rejected) ... ok
+test_negative_values_are_rejected (test_security_scope.ImpactInputIntegrityTests.test_negative_values_are_rejected) ... ok
+test_old_value_is_read_from_the_requested_contract (test_security_scope.ImpactInputIntegrityTests.test_old_value_is_read_from_the_requested_contract) ... ok
+test_old_value_must_match_the_stored_clause (test_security_scope.ImpactInputIntegrityTests.test_old_value_must_match_the_stored_clause) ... ok
+test_unknown_clause_returns_400_without_contract_text (test_security_scope.ImpactInputIntegrityTests.test_unknown_clause_returns_400_without_contract_text) ... ok
+test_unknown_contract_returns_404 (test_security_scope.ImpactInputIntegrityTests.test_unknown_contract_returns_404) ... ok
+test_valid_payment_and_sla_requests_still_work (test_security_scope.ImpactInputIntegrityTests.test_valid_payment_and_sla_requests_still_work) ... ok
+test_decimal_payment_values_are_compared_exactly (test_security_scope.NumericIntegrityTests.test_decimal_payment_values_are_compared_exactly) ... ok
+test_decimal_sla_values_work_over_http_and_directly (test_security_scope.NumericIntegrityTests.test_decimal_sla_values_work_over_http_and_directly) ... ok
+test_http_rejects_non_finite_and_invalid_numeric_values (test_security_scope.NumericIntegrityTests.test_http_rejects_non_finite_and_invalid_numeric_values) ... ok
+test_invalid_numeric_types_are_rejected_by_engine (test_security_scope.NumericIntegrityTests.test_invalid_numeric_types_are_rejected_by_engine) ... ok
+test_non_finite_direct_engine_values_never_reach_counterfactual (test_security_scope.NumericIntegrityTests.test_non_finite_direct_engine_values_never_reach_counterfactual) ... ok
+test_payment_period_in_months_is_rejected_without_conversion (test_security_scope.UnitConventionTests.test_payment_period_in_months_is_rejected_without_conversion) ... ok
+test_payment_validation_uses_only_the_operative_day_value (test_security_scope.UnitConventionTests.test_payment_validation_uses_only_the_operative_day_value) ... ok
+test_sla_validation_uses_only_the_stored_percentage (test_security_scope.UnitConventionTests.test_sla_validation_uses_only_the_stored_percentage) ... ok
+test_sla_without_a_percentage_is_rejected_not_reinterpreted (test_security_scope.UnitConventionTests.test_sla_without_a_percentage_is_rejected_not_reinterpreted) ... ok
+test_unmodelled_type_keeps_number_only_ambiguity (test_security_scope.UnitConventionTests.test_unmodelled_type_keeps_number_only_ambiguity) ... ok
+test_direct_engine_unknown_contract_is_an_error_not_a_report (test_security_scope.UnknownGraphAndComparisonTests.test_direct_engine_unknown_contract_is_an_error_not_a_report) ... ok
+test_unknown_contract_ids_return_404_on_read_endpoints (test_security_scope.UnknownGraphAndComparisonTests.test_unknown_contract_ids_return_404_on_read_endpoints) ... ok
+
+======================================================================
+FAIL: test_status_taxonomy_is_explicit_for_supported_and_unmodelled (test_phase7_hardening.CounterfactualEvidenceTests.test_status_taxonomy_is_explicit_for_supported_and_unmodelled)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Desktop\revengg-demo\tests\test_phase7_hardening.py", line 433, in test_status_taxonomy_is_explicit_for_supported_and_unmodelled
+    self.assertEqual(unmodelled["counterfactual"]["status"],
+AssertionError: 'partially_supported' != 'unsupported'
+- partially_supported
++ unsupported
+
+
+----------------------------------------------------------------------
+Ran 334 tests in 106.827s
+
+FAILED (failures=1)
+RC:1

@@ -30,6 +30,7 @@ OVERVIEW_HTML = TEMPLATES_DIR / "overview.html"
 IMPACT_HTML = TEMPLATES_DIR / "index.html"
 EXPLAIN_HTML = TEMPLATES_DIR / "explain.html"
 ASK_HTML = TEMPLATES_DIR / "qa.html"
+GRAPH_HTML = TEMPLATES_DIR / "graph.html"
 
 
 def _database_config(settings: AppSettings) -> db.DatabaseConfig:
@@ -211,6 +212,10 @@ def create_app(
     @app.get("/ask", include_in_schema=False)
     def ask_page() -> FileResponse:
         return _serve(ASK_HTML, "Contract question answering")
+
+    @app.get("/graph", include_in_schema=False)
+    def graph_page() -> FileResponse:
+        return _serve(GRAPH_HTML, "Dependency graph")
 
     @app.get("/login", include_in_schema=False)
     def login_page() -> FileResponse:

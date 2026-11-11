@@ -1,0 +1,230 @@
+PHASE 5B INSPECTION RECOVERY REPORT
+====================================
+
+== TIMESTAMP
+Tue Nov 10 2026
+
+== COMMAND ENVIRONMENT
+Windows PowerShell; Python 3.11; git repo at D:\Desktop\revengg-demo
+
+== MODIFIED FILES (git diff)
+The following files have uncommitted modifications:
+1. api_b.py         - Added change_type field to ImpactRequest model
+2. impact.py        - Added change-type catalogue, enhanced counterfactual()
+3. templates/index.html - Added change type selector dropdown and result panels
+4. graph.py         - Modified (nature of changes not inspected in detail)
+5. full_test_output.txt - Test output (modified, not code)
+6. test_output.txt  - Test output (modified, not code)
+
+== IN-DEPTH DEFECT ANALYSIS
+
+--- impact.py ---
+
+DEFECT 1: Called functions that are NOT DEFINED
+  The counterfactual() function's elif chain calls these functions
+  which have NO definition anywhere in the codebase:
+    _fee_counterfactual      (line 986)  - called when ctype=="fee"
+    _interest_counterfactual (line 990)  - called when ctype=="interest"
+    _termination_counterfactual (line 992) - called when requested_type=="termination"
+    _removal_counterfactual  (line 998)  - called when requested_type=="removal"
+    _replacement_counterfactual (line 1000) - called when requested_type=="replacement"
+  → If any of these code paths are ever reached (e.g., via API request
+     with change_type="fee"), a NameError will crash the server.
+
+DEFECT 2: analyze_change() does NOT pass change_type to counterfactual()
+  The api_b.py route passes req.change_type in the Pydantic model, but
+  the analyze_change() function signature does not accept it:
+    def analyze_change(contract_id, changed_sec, old_value, new_value,
+                       expected_clause_sha256=None):
+  And the call inside it does not pass change_type:
+    cfact = counterfactual(contract_id, changed_sec, old_value, new_value)
+  → The change_type parameter is silently ignored. The counterfactual()
+     function defaults to requested_type = change_type or ctype, but since
+     change_type is always None (not passed), it always uses the clause's
+     actual type. The UI dropdown has 8 options but NONE of them affect
+     the analysis.
+
+DEFECT 3: _validate_change_values integrates new change_type but with risk
+  The _validate_change_values function references changed.get("type") to
+  determine SLA range validation. The new change_type constants are
+  integrated, but the logic for non-payment/SLA types simply preserves
+  existing behaviour (no arithmetic modelled). This is correct but the
+  transition from unmodelled to modelled for "notice" has broken the
+  test_status_taxonomy test.
+
+--- api_b.py ---
+
+DEFECT 4: change_type field exists but is NOT threaded through
+  The ImpactRequest model has:
+    change_type: str | None = Field(None, description="...")
+  But the analyze() route does not pass it:
+    report = impact.analyze_change(
+        req.contract_id, req.clause_id, req.old_value, req.new_value,
+        expected_clause_sha256=req.expected_clause_sha256,
+    )
+  → req.change_type is completely lost. The field exists in the model
+     but has no effect on the engine.
+
+DEFECT 5: No validation of change_type value
+  The model accepts any string for change_type. There is no validator
+  to restrict it to the 8 catalogue values. A caller could submit
+  change_type="unknown_type" and the engine would infer from the clause
+  type, potentially producing confusing results.
+
+--- templates/index.html ---
+
+DEFECT 6: UI change_type dropdown does NOT send value to API
+  The HTML has a <select id="change-type"> with 8 options, but the
+  JavaScript run() function sends this payload to /impact:
+    var payload = {
+      contract_id: ...,
+      clause_id: ...,
+      old_value: ...,
+      new_value: ...,
+    };
+  → No change_type field is included. The 8 dropdown options are
+     purely cosmetic; they do not affect the API request.
+
+DEFECT 7: No UI JavaScript handler for change type selection
+  There is no onchange handler on the change-type <select> element that
+  updates any state or sends the selection to the server. The dropdown
+  exists but is non-functional.
+
+--- Test Results ---
+
+334 tests ran; 333 passed; 1 failed:
+
+FAILURE: test_status_taxonomy_is_explicit_for_supported_and_unmodelled
+  Error: AssertionError: 'partially_supported' != 'unsupported'
+
+  Root cause: The test changes clause "3" (typed "notice") from 7 to 5 days.
+  Before the Phase 5B changes, this code path fell into the else clause
+  of counterfactual() and returned UNSUPPORTED status (no rows, no notes
+  from the engine). The test was written expecting this behaviour.
+
+  After the changes: _notice_counterfactual() is now called (the new
+  elif branch for requested_type=="notice") and it produces rows + notes.
+  The _counterfactual_status() function then sees "notes is not empty" and
+  returns PARTIAL instead of UNSUPPORTED.
+
+  This is a behavioural change caused by adding notice counterfactual
+  support. The test needs updating to expect PARTIAL instead of UNSUPPORTED
+  for notice-type clauses, but per instructions, no code/test changes
+  are to be made during this inspection.
+
+== WHICH PHASE 5B FEATURES ACTUALLY WORK
+
+1. Payment-period impact analysis
+   - ✅ WORKS end-to-end
+   - Clause type inferred from stored clause ("payment")
+   - _payment_counterfactual produces day arithmetic
+   - Doubts generated correctly (notice_vs_cure, scope_of_change, etc.)
+   - Analysis status: supported/partial based on graph state
+
+2. SLA availability impact analysis
+   - ✅ WORKS end-to-end
+   - Clause type inferred from stored clause ("sla")
+   - _sla_counterfactual produces credit exposure arithmetic
+   - Doubts generated correctly (sla_schedule_mismatch, etc.)
+   - Analysis status: supported/partial based on graph state
+
+3. Counterfactual status reporting
+   - ✅ WORKS for payment and SLA types
+   - Status correctly reports supported/partial/unsupported based on
+     rows/notes/evidence_state
+
+== WHICH PHASE 5B FEATURES ARE INCOMPLETE
+
+1. Termination change analysis
+   - ❌ NOT supported end-to-end
+   - UI dropdown has "termination" option, but:
+     * No _termination_counterfactual function defined
+     * change_type not sent from UI
+     * change_type not passed from API to engine
+     * Even if triggered, would NameError
+
+2. Notice period analysis
+   - ⚠️ PARTIALLY supported (behavioural change)
+   - UI dropdown has "notice" option
+   - _notice_counterfactual IS defined and produces results
+   - BUT this changes test expectations: previously returned UNSUPPORTED,
+     now returns PARTIAL (because notes are produced)
+   - Test test_status_taxonomy_is_explicit_for_supported_and_unmodelled
+     now fails expecting UNSUPPORTED
+
+3. Removal clause analysis
+   - ❌ NOT supported end-to-end
+   - UI dropdown has "removal" option, but:
+     * No _removal_counterfactual function defined
+     * change_type not sent from UI
+     * change_type not passed from API to engine
+
+4. Replacement clause analysis
+   - ❌ NOT supported end-to-end
+   - UI dropdown has "replacement" option, but:
+     * No _replacement_counterfactual function defined
+     * change_type not sent from UI
+     * change_type not passed from API to engine
+
+5. Fee rate analysis
+   - ❌ NOT supported end-to-end
+   - UI dropdown has "fee" option, but:
+     * No _fee_counterfactual function defined
+     * change_type not sent from UI
+     * change_type not passed from API to engine
+     * Would NameError if code path reached
+
+6. Interest rate analysis
+   - ❌ NOT supported end-to-end
+   - UI dropdown has "interest" option, but:
+     * No _interest_counterfactual function defined
+     * change_type not sent from UI
+     * change_type not passed from API to engine
+     * Would NameError if code path reached
+
+== INTEGRATION GAP SUMMARY
+
+The Phase 5B features exist in isolation but are NOT connected end-to-end:
+
+Level 1 - Change-type catalogue: ✅ Defined in impact.py (8 types)
+Level 2 - API model change_type field: ✅ Defined in api_b.py
+Level 3 - UI change-type dropdown: ✅ Defined in templates/index.html (8 options)
+Level 4 - UI sends change_type to API: ❌ Not implemented (JavaScript missing)
+Level 5 - API passes change_type to analyze_change: ❌ Not implemented
+Level 6 - analyze_change passes change_type to counterfactual: ❌ Not implemented
+Level 7 - counterfactual dispatches to typed method: ✅ Logic exists but
+     functions for 5/8 types are undefined (fee, interest, termination,
+     removal, replacement)
+Level 8 - Counterfactual produces results: ✅ For payment/SLA; ⚠️ for notice
+     (behavioural change); ❌ For others (would NameError)
+
+== RECOMMENDATIONS (for user approval)
+
+1. Fix the integration gap: Pass change_type from UI → API → engine
+   - Add change_type to the /impact POST payload in templates/index.html
+   - Accept change_type in analyze_change() and pass to counterfactual()
+
+2. Define missing counterfactual functions:
+   - _fee_counterfactual, _interest_counterfactual, _termination_counterfactual,
+     _removal_counterfactual, _replacement_counterfactual
+   - These can start with descriptive-only implementations (like _notice_counterfactual)
+     and be enhanced later with arithmetic
+
+3. Fix the test_status_taxonomy failure:
+   - The test expects UNSUPPORTED for notice changes, but the new code
+     correctly produces PARTIAL because notice is now modelled
+   - Update test expectation to impact.ANALYSIS_STATUS_PARTIAL
+
+4. Add change_type validation in the API model:
+   - Restrict change_type to the 8 catalogue values
+
+5. Consider whether the 5 "descriptive" change types should have
+   minimal counterfactual implementations (rows with "not modelled" notes)
+   rather than falling into NameError.
+
+== VERIFICATION STATUS
+
+- 333/334 tests pass (1 pre-existing failure from status taxonomy change)
+- Payment and SLA analysis fully functional
+- All other Phase 5B capabilities incomplete due to integration gaps
+- No code modifications were made during this inspection (as requested)

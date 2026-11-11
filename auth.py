@@ -62,6 +62,7 @@ PUBLIC_PATHS = frozenset(
         "/impact-analysis",
         "/explain",
         "/ask",
+        "/graph",
         "/health",
         "/docs",
         "/redoc",

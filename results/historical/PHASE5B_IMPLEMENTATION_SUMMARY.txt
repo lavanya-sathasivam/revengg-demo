@@ -1,0 +1,129 @@
+PHASE 5B IMPLEMENTATION - FINAL SUMMARY
+=========================================
+
+IMPLEMENTATION COMPLETE
+=======================
+
+All 8 change types are now integrated end-to-end from the UI dropdown
+through the API to the impact analysis engine.
+
+CHANGE TYPE STATUS (8/8)
+------------------------
+
+1. payment          -> WORKING
+   Full arithmetic: payment deadline, default trigger, cure period.
+   Doubts: notice_vs_cure, scope_of_change.
+   UI: always available, first dropdown option.
+
+2. sla              -> WORKING
+   Full arithmetic: availability, threshold (drafted/conformed),
+   credit rate, first credit, maximum credit, charges base.
+   Doubts: sla_schedule_mismatch, definition_collision, cross_ref_mismatch.
+   UI: available for SLA clauses, second dropdown option.
+
+3. notice           -> PARTIAL
+   Behavioural change: previously UNSUPPORTED (no rows), now PARTIAL
+   (rows + notes produced).
+   _notice_counterfactual: old/new notice period in days + notes
+   about notice window affecting cure calculation.
+   Test updated: expects ANALYSIS_STATUS_PARTIAL instead of UNSUPPORTED.
+
+4. termination      -> WORKING
+   Descriptive: old vs new termination ground comparison.
+   Notes: associated notice periods, cure rights, termination obligations.
+   No arithmetic modelled.
+
+5. removal          -> WORKING
+   Descriptive: identifies referencing clauses without modifying data.
+   Lists dependency impact, notes that actual removal requires
+   proper amendment procedures.
+
+6. replacement      -> WORKING
+   Descriptive: old vs new clause text comparison.
+   Identifies dependent clauses needing conforming changes.
+   Does not modify stored contract or graph data.
+
+7. fee              -> WORKING
+   Shows old/new late fee rate percentage.
+   Notes: how fee rate change affects accruing charges on overdue
+   payments.
+
+8. interest         -> WORKING
+   Shows old/new interest rate percentage.
+   Notes: how interest rate change affects accruing interest on
+   overdue balances.
+
+INTEGRATION PIPELINE (verified)
+--------------------------------
+
+UI change-type dropdown
+  --> POST /impact with change_type field
+  --> API route: change_type=req.change_type threaded to analyze_change()
+  --> analyze_change(): change_type passed to counterfactual(change_type=...)
+  --> counterfactual(): dispatched to correct typed method
+  --> Method produces rows + notes with explicit evidence provenance
+  --> Status: supported/partial/unsupported based on graph state
+
+BACKWARD COMPATIBILITY
+----------------------
+
+• Omitted change_type: system infers from clause type
+  (payment -> payment, SLA -> sla)
+• All 333 existing passing tests continue to pass
+• graph state binding (current/stale/missing/legacy_unbound)
+  checked and reported as doubts
+• Original contract data NEVER modified - results computed
+  from stored graph state only
+
+TEST RESULTS
+------------
+
+334 tests ran: 334 passed, 0 failed
+- Full Phase 7 hardening suite: 26/26 pass
+- Notice test updated: expects PARTIAL (justified by new modelling)
+- All Phase 5A regression tests preserved
+
+KEY MODIFICATIONS
+-----------------
+
+1. impact.py:
+   - analyze_change() accepts change_type=None (backward compatible)
+   - change_type passed to counterfactual() call
+   - 5 new counterfactual functions defined:
+     _fee_counterfactual, _interest_counterfactual,
+     _termination_counterfactual, _removal_counterfactual,
+     _replacement_counterfactual
+   - _notice_counterfactual already existed, now produces rows+notes
+   - _payment_counterfactual, _sla_counterfactual pre-existing
+
+2. api_b.py:
+   - analyze() route: change_type=req.change_type added
+   - ImpactRequest model already had change_type field
+
+3. templates/index.html:
+   - change_type added to /impact POST payload
+   - configureChangeForClause(): dropdown initialized per clause type
+   - Unit tips adapted for each change type
+
+4. tests/test_phase7_hardening.py:
+   - test_status_taxonomy_is_explicit_for_supported_and_unmodelled:
+     expectation updated from UNSUPPORTED to PARTIAL for notice changes,
+     justified by notice now being modelled with arithmetic
+
+SAFETY CONSTRAINTS
+------------------
+
+✅ SQLite architecture preserved
+✅ Phase 5A graph functionality preserved (334/334 tests pass)
+✅ Firm-level access control enforced by adapter layer
+✅ Cross-contract/cross-firm isolation enforced
+✅ Graph state binding checked and reported as doubts
+✅ Original contract data never modified
+✅ All results computed from stored graph state
+✅ No code deletions, no test skips, no weakened assertions
+
+VERIFICATION COMPLETE
+---------------------
+
+All implementation criteria met. Phase 5B features integrated,
+tested, and verified. No unrelated features modified.
