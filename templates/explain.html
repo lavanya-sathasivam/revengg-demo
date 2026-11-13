@@ -1133,7 +1133,6 @@
     <div>
       <div class="sidebar-header">
         <a href="/" class="brand-link" title="Contract Intelligence Home">
-          <div class="brand-icon">⚖️</div>
           <div class="brand-text">
             <span class="brand-title">Contract Intel</span>
             <span class="brand-tag">Legal Risk &amp; Analysis</span>
@@ -1183,7 +1182,7 @@
   <main class="app-main">
     <header class="app-topbar">
       <div class="topbar-left">
-        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">☰</button>
+        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">Menu</button>
         <div>
           <h1 class="page-title">Clause Explanation</h1>
           <span class="page-tagline">Deterministic legal reasoning, authority retrieval &amp; uncertainties</span>
@@ -1194,7 +1193,6 @@
     <div class="content-container">
 
       <!-- <div class="disclaimer-banner">
-        <span>⚠️</span>
         <div>
           <strong>Legal Disclaimer:</strong> Explanations are generated from deterministic keyword matching against Indian contract law authorities. They are informational only and are not formal legal advice.
         </div>
@@ -1301,8 +1299,8 @@
                   </div>
                   <div class="viewer-controls-row">
                     <div class="viewer-tab-group" role="tablist" aria-label="Viewer Modes">
-                      <button type="button" class="viewer-tab-btn active" id="btn-tab-doc" role="tab" aria-selected="true">📄 Full Document</button>
-                      <button type="button" class="viewer-tab-btn" id="btn-tab-clause" role="tab" aria-selected="false">🔍 Clause Source</button>
+                      <button type="button" class="viewer-tab-btn active" id="btn-tab-doc" role="tab" aria-selected="true">Full Document</button>
+                      <button type="button" class="viewer-tab-btn" id="btn-tab-clause" role="tab" aria-selected="false">Clause Source</button>
                     </div>
                     <a id="impact-analysis-link" class="btn-impact-link" href="/impact-analysis">
                       Analyze Change Impact &rarr;
@@ -1410,14 +1408,13 @@
 
 <!-- ================= Floating Gemini AI Assistant ================= -->
 <button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-expanded="false" aria-controls="ai-chat-drawer" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
-  <span>✨</span>
   <span>Ask Legal AI</span>
 </button>
 
 <aside class="ai-chat-drawer" id="ai-chat-drawer" aria-label="Gemini Legal Assistant" hidden>
   <div class="ai-drawer-header">
     <div class="ai-drawer-header-left">
-      <div class="ai-bot-avatar">🤖</div>
+      <div class="ai-bot-avatar">AI</div>
       <div class="ai-title-wrap">
         <span class="ai-drawer-title">Gemini Contract Assistant</span>
         <span class="ai-model-tag" id="ai-model-badge">gemini-2.5-flash</span>
@@ -2677,7 +2674,7 @@
     if (!aiDrawer) return;
     var maximized = aiDrawer.classList.toggle("maximized");
     if (aiMaximizeBtn) {
-      aiMaximizeBtn.textContent = maximized ? "❐" : "□";
+      aiMaximizeBtn.textContent = maximized ? "Restore" : "Max";
       aiMaximizeBtn.setAttribute("aria-label", maximized ? "Restore assistant size" : "Maximize assistant");
       aiMaximizeBtn.title = maximized ? "Restore assistant size" : "Maximize assistant";
     }

@@ -1,7 +1,7 @@
-"""Create a synthetic local firm/user/membership and optionally a session.
+"""Create a local administrator, firm membership, and password.
 
-This is explicit local provisioning tooling, not a production login flow and
-not an identity provider.  It writes only to the database path you pass and
+This is the one-time local administrator setup tool. It writes only to the
+database path you pass and
 refuses to touch the repository's synthetic demo.db.
 
 Example (PowerShell):
@@ -10,11 +10,11 @@ Example (PowerShell):
         --firm "Demo Law Firm" `
         --subject local:demo-lawyer `
         --display-name "Demo Lawyer" `
-        --role lawyer `
-        --session
+        --role administrator
 """
 
 import argparse
+import getpass
 import os
 import sys
 from pathlib import Path
@@ -30,7 +30,7 @@ from app_config import DEFAULT_DEMO_DB  # noqa: E402
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
-        description="Provision a synthetic local firm, user, membership, and session."
+        description="Provision a local firm administrator with a password."
     )
     parser.add_argument("--db", required=True, help="Explicit writable SQLite path")
     parser.add_argument("--firm", required=True, help="Firm name")
@@ -43,15 +43,9 @@ def main(argv=None) -> int:
         help="Firm role (default: lawyer)",
     )
     parser.add_argument(
-        "--session",
-        action="store_true",
-        help="Create an opaque session token and print it once",
-    )
-    parser.add_argument(
-        "--ttl",
-        type=int,
-        default=8 * 60 * 60,
-        help="Session lifetime in seconds (default: 28800)",
+        "--password",
+        default=None,
+        help="Password; omit to enter it without echoing",
     )
     args = parser.parse_args(argv)
 
@@ -67,18 +61,14 @@ def main(argv=None) -> int:
         firm = auth.find_firm(args.firm)
         firm_id = firm["firm_id"] if firm else auth.create_firm(args.firm)
         user_id = auth.create_user(args.subject, args.display_name)
+        password = args.password or getpass.getpass("Password: ")
+        if len(password) < 8:
+            parser.error("Password must be at least 8 characters.")
+        auth.set_password(user_id, password)
         auth.add_membership(firm_id, user_id, args.role)
 
         print("firm_id=%d user_id=%d role=%s db=%s"
               % (firm_id, user_id, args.role, db_path))
-
-        if args.session:
-            token = auth.create_session(user_id, firm_id, ttl_seconds=args.ttl)
-            print("session_token=%s" % token)
-            print(
-                "Set this value as the HttpOnly cookie named %r. Treat it as a "
-                "secret and do not commit it." % auth.SESSION_COOKIE_NAME
-            )
 
     return 0
 

@@ -29,6 +29,7 @@ data/contracts/*.pdf
 # Logs / local scratch files
 *.log
 uvicorn.pid
+local-docs/
 
 # Editors / OS
 .vscode/

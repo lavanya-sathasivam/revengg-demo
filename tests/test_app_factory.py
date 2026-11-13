@@ -116,18 +116,13 @@ class RouteManifestTests(TempDirectoryTestCase):
 
         self.assertEqual(counts[("/", ("GET",))], 1)
 
-    def test_homepage_is_the_contract_intelligence_overview(self):
+    def test_homepage_redirects_to_login_in_default_local_mode(self):
         from fastapi.testclient import TestClient
         import app as app_entry
 
-        response = TestClient(app_entry.app).get("/")
-        self.assertEqual(response.status_code, 200)
-        body = response.text
-        self.assertIn("Contract Intelligence", body)
-        self.assertIn('href="/impact-analysis"', body)
-        self.assertIn('href="/explain"', body)
-        self.assertIn("read-only", body)
-        self.assertNotIn('id="upload-form"', body)
+        response = TestClient(app_entry.app).get("/", follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/login")
 
     def test_import_and_route_registration_do_not_create_app_db(self):
         before = os.path.exists(APP_DB)

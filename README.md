@@ -104,15 +104,19 @@ contract, analysis, and chat routers exactly once. See
 [`docs/phase1_audit.md`](docs/phase1_audit.md) for the request lifecycle and
 module map.
 
-### Authentication and firm scope (upload mode)
+### Authentication and firm scope (local upload mode)
 
-Demo mode remains anonymous and read-only. Upload mode requires a server-side
-session and scopes every contract, clause, graph, impact, explanation,
-suggestion, comparison, and upload request to the session's active firm. The
-identity provider is **not selected yet**; there is no password login. See
+The normal local startup uses a dedicated writable `local-uploads.db` and
+`local-uploads\` directory. Open the app at `http://127.0.0.1:8000/`;
+anonymous workspace navigation goes to the login page. Upload mode requires a
+server-side session and scopes every contract, clause, graph, impact,
+explanation, suggestion, comparison, and upload request to the session's
+active firm. See
 [`docs/authentication.md`](docs/authentication.md) for the session foundation,
-required environment variables, local provisioning, roles, and security
-assumptions.
+registration, one-time administrator setup, roles, and security assumptions.
+
+Demo mode remains anonymous and read-only and is selected explicitly with
+`REVENGG_MODE=demo`.
 
 | endpoint | what it returns |
 |---|---|

@@ -208,7 +208,6 @@
 
 <div class="auth-card">
   <div class="auth-brand">
-    <div class="auth-brand-icon">⚖️</div>
     <div class="auth-brand-text">
       <div class="auth-brand-title">Contract Intel</div>
       <div class="auth-brand-tag">Legal Risk &amp; Analysis</div>
@@ -285,9 +284,7 @@
           return res.json();
         })
         .then(function (data) {
-          // Choose a sensible landing page: the impact workspace if available.
-          var target = data.active_firm ? "/impact-analysis" : "/";
-          window.location.href = target;
+          window.location.href = "/";
         })
         .catch(function (err) {
           showError(err.message || "Could not sign in. Please try again.");

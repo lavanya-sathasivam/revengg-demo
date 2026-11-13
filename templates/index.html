@@ -1303,7 +1303,6 @@
     <div>
       <div class="sidebar-header">
         <a href="/" class="brand-link" title="Contract Intelligence Home">
-          <div class="brand-icon">⚖️</div>
           <div class="brand-text">
             <span class="brand-title">Contract Intel</span>
             <span class="brand-tag">Legal Risk &amp; Analysis</span>
@@ -1353,7 +1352,7 @@
   <main class="app-main">
     <header class="app-topbar">
       <div class="topbar-left">
-        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">☰</button>
+        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">Menu</button>
         <div>
           <h1 class="page-title">Conflict &amp; Change Impact</h1>
         </div>
@@ -1368,7 +1367,6 @@
     <div class="content-container">
 
       <!-- <div class="disclaimer-banner">
-        <span>⚠️</span>
         <div>
           <strong>Legal Disclaimer:</strong> Impact analysis models internal dependency arithmetic and statutory cross-references. It does not establish contract validity, breach, or legal counsel.
         </div>
@@ -1527,14 +1525,13 @@
 
 <!-- ================= Floating Gemini AI Assistant ================= -->
 <button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-expanded="false" aria-controls="ai-chat-drawer" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
-  <span>✨</span>
   <span>Ask Legal AI</span>
 </button>
 
 <aside class="ai-chat-drawer" id="ai-chat-drawer" aria-label="Gemini Legal Assistant" hidden>
   <div class="ai-drawer-header">
     <div class="ai-drawer-header-left">
-      <div class="ai-bot-avatar">🤖</div>
+      <div class="ai-bot-avatar">AI</div>
       <div class="ai-title-wrap">
         <span class="ai-drawer-title">Gemini Contract Assistant</span>
         <span class="ai-model-tag" id="ai-model-badge">gemini-2.5-flash</span>
@@ -1674,7 +1671,7 @@
     var unit = "";
     if (type === "payment") {
       var withinMatches = [];
-      var withinPattern = /within\s+(\d+(?:\.\d+)?)\s+(days?)\b/ig;
+      var withinPattern = /within\s+(\d+(?:\.\d+)?)\s+(?:calendar\s+)?(days?)\b/ig;
       var withinMatch;
       while ((withinMatch = withinPattern.exec(String(clause.text || ""))) !== null) {
         withinMatches.push(withinMatch);
@@ -2054,7 +2051,7 @@
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(data) {
         if (!data || !data.clause_id) return;
-        btnExample.textContent = "✨ " + (data.label || ("Use example for Clause " + data.clause_id));
+        btnExample.textContent = data.label || ("Use example for Clause " + data.clause_id);
         btnExample.style.display = "block";
       })
       .catch(function() {});
@@ -2180,7 +2177,6 @@
     var card1 = el("section", "impact-summary-card");
     var h1 = el("div", "impact-card-head");
     var titleGrp1 = el("div", "impact-card-title-group");
-    titleGrp1.appendChild(el("span", "impact-card-icon", "📊"));
     titleGrp1.appendChild(el("h2", "impact-card-title", "Summary"));
     h1.appendChild(titleGrp1);
 
@@ -2238,7 +2234,6 @@
     var card2 = el("section", "impact-summary-card");
     var h2 = el("div", "impact-card-head");
     var titleGrp2 = el("div", "impact-card-title-group");
-    titleGrp2.appendChild(el("span", "impact-card-icon", "⚡"));
     titleGrp2.appendChild(el("h2", "impact-card-title", "Impacts on other clauses"));
     h2.appendChild(titleGrp2);
     card2.appendChild(h2);
@@ -2348,7 +2343,6 @@
     var card3 = el("section", "impact-summary-card");
     var h3 = el("div", "impact-card-head");
     var titleGrp3 = el("div", "impact-card-title-group");
-    titleGrp3.appendChild(el("span", "impact-card-icon", "⚖️"));
     titleGrp3.appendChild(el("h2", "impact-card-title", "Contractual & Statutory Conflicts"));
     h3.appendChild(titleGrp3);
 
@@ -2393,7 +2387,6 @@
     var card4 = el("section", "impact-summary-card");
     var h4 = el("div", "impact-card-head");
     var titleGrp4 = el("div", "impact-card-title-group");
-    titleGrp4.appendChild(el("span", "impact-card-icon", "❓"));
     titleGrp4.appendChild(el("h2", "impact-card-title", "Uncertainty & Ambiguities"));
     h4.appendChild(titleGrp4);
 
@@ -2508,7 +2501,6 @@
     var card5 = el("section", "impact-summary-card");
     var h5 = el("div", "impact-card-head");
     var titleGrp5 = el("div", "impact-card-title-group");
-    titleGrp5.appendChild(el("span", "impact-card-icon", "🔢"));
     titleGrp5.appendChild(el("h2", "impact-card-title", "Calculation Traces"));
     h5.appendChild(titleGrp5);
     card5.appendChild(h5);
@@ -2587,7 +2579,6 @@
     var card6 = el("section", "impact-summary-card");
     var h6 = el("div", "impact-card-head");
     var titleGrp6 = el("div", "impact-card-title-group");
-    titleGrp6.appendChild(el("span", "impact-card-icon", "🔒"));
     titleGrp6.appendChild(el("h2", "impact-card-title", "Cryptographic Evidence & Source Text"));
     h6.appendChild(titleGrp6);
 
@@ -2864,7 +2855,7 @@
     if (!aiDrawer) return;
     var maximized = aiDrawer.classList.toggle("maximized");
     if (aiMaximizeBtn) {
-      aiMaximizeBtn.textContent = maximized ? "❐" : "□";
+      aiMaximizeBtn.textContent = maximized ? "Restore" : "Max";
       aiMaximizeBtn.setAttribute("aria-label", maximized ? "Restore assistant size" : "Maximize assistant");
       aiMaximizeBtn.title = maximized ? "Restore assistant size" : "Maximize assistant";
     }

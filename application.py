@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.routing import iter_route_contexts
 
 import api_a
@@ -190,6 +190,21 @@ def create_app(
                     content={"detail": "Authentication required"},
                     headers={"WWW-Authenticate": "Session"},
                 )
+
+            if (
+                settings.mode != MODE_DEMO
+                and request.method == "GET"
+                and request.url.path in {
+                    "/",
+                    "/impact-analysis",
+                    "/explain",
+                    "/ask",
+                    "/graph",
+                    "/members",
+                }
+                and not principal.authenticated
+            ):
+                return RedirectResponse("/login", status_code=303)
 
             return await call_next(request)
         finally:

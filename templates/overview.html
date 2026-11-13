@@ -1069,7 +1069,6 @@
     <div>
       <div class="sidebar-header">
         <a href="/" class="brand-link" title="Contract Intelligence Home">
-          <div class="brand-icon">⚖️</div>
           <div class="brand-text">
             <span class="brand-title">Contract Intel</span>
             <span class="brand-tag">Legal Risk &amp; Analysis</span>
@@ -1117,7 +1116,7 @@
   <main class="app-main">
     <header class="app-topbar">
       <div class="topbar-left">
-        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">☰</button>
+        <button type="button" class="mobile-toggle-btn" id="mobile-toggle-btn" aria-label="Toggle Navigation">Menu</button>
         <div>
           <h1 class="page-title">Contract Portfolio &amp; Intake</h1>
           <!-- <span class="page-tagline">Central repository, version provenance, and document ingestion</span> -->
@@ -1125,7 +1124,7 @@
       </div>
       <!-- <div class="topbar-actions">
         <button type="button" class="btn-open-assistant" id="btn-header-ai">
-          <span>🤖</span> Ask Legal AI
+          Ask Legal AI
         </button>
       </div> -->
     </header>
@@ -1133,7 +1132,6 @@
     <div class="content-container">
 <!-- 
       <div class="disclaimer-banner">
-        <span>⚠️</span>
         <div>
           <strong>Legal Disclaimer:</strong> Contract Intelligence is an informational analysis workspace for legal teams. Outputs do not evaluate contract enforceability or substitute for formal legal counsel.
         </div>
@@ -1273,7 +1271,7 @@
             <div class="card-panel-body">
               <form id="contract-upload-form">
                 <div class="upload-box">
-                  <div class="upload-icon">📄</div>
+                  <div class="upload-icon">Upload</div>
                   <label for="portfolio-upload-file" style="font-size: 0.88rem; font-weight: 600; display: block; margin-bottom: 4px;">
                     Select PDF Contract
                   </label>
@@ -1287,13 +1285,13 @@
                 </div>
               </form>
 
-              <div id="upload-demo-note" class="status-line warn" style="display: none;">
+              <!-- <div id="upload-demo-note" class="status-line warn" style="display: none;">
                 <strong>Notice:</strong> The synthetic demo environment operates in read-only mode. New file uploads are disabled in this mode.
               </div>
               <div id="upload-status" class="status-line" style="display: none;"></div>
               <div id="upload-progress" class="upload-progress" hidden aria-label="Upload progress">
                 <div id="upload-progress-bar" class="upload-progress-bar"></div>
-              </div>
+              </div> -->
             </div>
           </section>
 
@@ -1308,7 +1306,6 @@
 
 <!-- ================= Floating Gemini AI Assistant ================= -->
 <button type="button" class="floating-ai-btn" id="ai-chat-launcher" aria-expanded="false" aria-controls="ai-chat-drawer" aria-label="Open Gemini Legal Assistant" title="Open Gemini Legal AI Assistant">
-  <span>🤖</span>
   <span>Ask Legal AI</span>
 </button>
 
@@ -2113,7 +2110,7 @@
     if (!aiDrawer) return;
     var maximized = aiDrawer.classList.toggle("maximized");
     if (aiMaximizeBtn) {
-      aiMaximizeBtn.textContent = maximized ? "❐" : "□";
+      aiMaximizeBtn.textContent = maximized ? "Restore" : "Max";
       aiMaximizeBtn.setAttribute("aria-label", maximized ? "Restore assistant size" : "Maximize assistant");
       aiMaximizeBtn.title = maximized ? "Restore assistant size" : "Maximize assistant";
     }

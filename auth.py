@@ -8,7 +8,8 @@ approved IdP (or an explicit local provisioning step) can use:
 * the active firm is stored on the server-side session;
 * membership and role are re-read from the database on every request;
 * a client-supplied firm id is only a switch request, never proof of access;
-* no passwords or password hashes exist in this design.
+* passwords are verified against salted PBKDF2 hashes and never stored
+  plaintext.
 
 The demo mode bypasses authentication entirely, but it is read-only and only
 sees synthetic contracts whose ``firm_id`` is NULL.  Upload mode requires a
@@ -63,6 +64,7 @@ PUBLIC_PATHS = frozenset(
         "/explain",
         "/ask",
         "/graph",
+        "/members",
         "/health",
         "/docs",
         "/redoc",

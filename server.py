@@ -1,9 +1,8 @@
 """Thin launch entry point for the canonical Contract Intelligence app.
 
-Same factory and route manifest as app.py. The default is the read-only
-synthetic demo database; upload mode requires an explicit database path:
-    REVENGG_MODE=upload
-    REVENGG_UPLOAD_DB_PATH=D:\\path\\to\\local-uploads.db
+Same factory and route manifest as app.py. The default is the dedicated local
+writable database and upload directory. Demo mode is explicit:
+    REVENGG_MODE=demo
 
 Run:
     py -3.11 seed.py                 # once, builds the synthetic demo.db

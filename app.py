@@ -1,9 +1,9 @@
 """Thin launch entry point for the canonical Contract Intelligence app.
 
 Configuration is explicit:
-    demo    (default) read-only synthetic database, no uploads
-    upload  requires REVENGG_UPLOAD_DB_PATH (or an injected path) and never
-            falls back to demo.db
+    upload  (default) local writable database at local-uploads.db with
+            local-uploads storage
+    demo    read-only synthetic database, selected with REVENGG_MODE=demo
 
 Run with either entry point; both expose the same route manifest:
     py -3.11 -m uvicorn app:app --reload

@@ -41,9 +41,12 @@
     .graph-toolbar button { padding:7px 11px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:var(--text); cursor:pointer; font:inherit; }
     .graph-toolbar button:hover { background:#eff6ff; border-color:#93c5fd; }
     .graph-toolbar select { min-width:140px; padding:7px 10px; }
-    .graph-canvas { height:520px; position:relative; background:#f8fafc; }
+    .graph-view-note { margin:0 0 0 8px; color:var(--muted); font-size:.8rem; }
+    .graph-canvas { height:min(680px,70vh); min-height:520px; position:relative; background:#f8fafc; }
     .graph-empty { position:absolute; inset:0; display:grid; place-items:center; padding:32px; text-align:center; color:var(--muted); }
+    .graph-empty[hidden], .graph-loading[hidden], .graph-load-error[hidden] { display:none; }
     .graph-empty strong { display:block; color:var(--text); font-size:1.1rem; margin-bottom:8px; }
+    .graph-loading { padding:10px 16px; color:#1e3a8a; background:#eff6ff; border-bottom:1px solid #bfdbfe; font-size:.84rem; }
     .graph-load-error { padding:12px 16px; color:#b91c1c; background:#fef2f2; border-top:1px solid #fecaca; }
     .selection-card { display:none; margin-top:20px; padding:18px 20px; background:var(--card); border:1px solid #bfdbfe; border-radius:var(--radius); }
     .selection-card.visible { display:block; }
@@ -131,6 +134,16 @@
             <option value="3">Up to 3 levels</option>
             <option value="all">All connected levels</option>
           </select>
+          <label for="graph-view" style="margin:0 0 0 8px;">Visible clauses</label>
+          <select id="graph-view" aria-label="Visible clauses">
+            <option value="clusters" selected>Primary clusters</option>
+            <option value="connected">Connected clauses</option>
+            <option value="all">Show all clauses</option>
+          </select>
+          <span id="graph-view-note" class="graph-view-note"></span>
+        </div>
+        <div id="graph-loading" class="graph-loading" role="status" aria-live="polite" hidden>
+          Loading graph relationships...
         </div>
         <div id="graph-canvas" class="graph-canvas">
           <div id="graph-empty" class="graph-empty">
@@ -207,6 +220,7 @@
       var edgeCount = document.getElementById("edge-count");
       var graphCanvas = document.getElementById("graph-canvas");
       var graphEmpty = document.getElementById("graph-empty");
+      var graphLoading = document.getElementById("graph-loading");
       var graphLoadError = document.getElementById("graph-load-error");
       var selectionCard = document.getElementById("selection-card");
       var selectedNodeReference = document.getElementById("selected-node-reference");
@@ -220,6 +234,8 @@
       var nodeSearch = document.getElementById("node-search");
       var nodeTypeFilter = document.getElementById("node-type-filter");
       var relationshipFilter = document.getElementById("relationship-filter");
+      var graphView = document.getElementById("graph-view");
+      var graphViewNote = document.getElementById("graph-view-note");
       var searchResults = document.getElementById("search-results");
       var nodeInspection = document.getElementById("node-inspection");
       var edgeInspection = document.getElementById("edge-inspection");
@@ -228,8 +244,14 @@
       var cy = null;
       var lastElements = null;
       var requestedId = new URLSearchParams(window.location.search).get("contract");
+      var graphRequestVersion = 0;
+      var focusedReference = null;
 
       function setMessage(text, isError) { message.textContent = text || ""; message.className = "message" + (isError ? " error" : ""); }
+      function setGraphLoading(loading) {
+        graphLoading.hidden = !loading;
+        graphLoading.setAttribute("aria-busy", String(Boolean(loading)));
+      }
       function showGraphError(text) {
         graphLoadError.textContent = text || "";
         graphLoadError.hidden = !text;
@@ -246,6 +268,7 @@
       }
       function clearContractData() {
         graphData = null;
+        focusedReference = null;
         clauseMap = {};
         nodeSearch.value = "";
         nodeTypeFilter.innerHTML = '<option value="">All node types</option>';
@@ -316,8 +339,13 @@
         document.getElementById("node-reference-value").textContent = reference;
         document.getElementById("node-type-value").textContent = textOrUnavailable(node.data("nodeType"));
         document.getElementById("node-heading-value").textContent = textOrUnavailable(clause && clause.heading);
+        var sourceParts = [];
+        if (clause && clause.page_number != null) sourceParts.push("Page " + clause.page_number);
+        if (clause && clause.char_start != null && clause.char_end != null) {
+          sourceParts.push("chars " + clause.char_start + "–" + clause.char_end);
+        }
         document.getElementById("node-source-value").textContent = textOrUnavailable(
-          clause && (clause.page_number == null ? null : "Page " + clause.page_number)
+          sourceParts.length ? sourceParts.join(" · ") : null
         );
         document.getElementById("node-text-value").textContent = textOrUnavailable(
           clause && (clause.text || clause.normalized_text) || node.data("detail")
@@ -330,18 +358,39 @@
         document.getElementById("edge-source-value").textContent = textOrUnavailable(edge.source().id());
         document.getElementById("edge-target-value").textContent = textOrUnavailable(edge.target().id());
         document.getElementById("edge-type-value").textContent = textOrUnavailable(edge.data("relationship"));
-        document.getElementById("edge-confidence-value").textContent = "Not available";
-        document.getElementById("edge-evidence-source-value").textContent = "Not available";
-        document.getElementById("edge-provenance-value").textContent = "Not available";
-        document.getElementById("edge-evidence-value").textContent = "Supporting evidence: Not available";
+        var confidence = edge.data("confidence");
+        document.getElementById("edge-confidence-value").textContent =
+          confidence == null ? "Not available" : Math.round(Number(confidence) * 100) + "%";
+        document.getElementById("edge-evidence-source-value").textContent =
+          textOrUnavailable(edge.data("relationship_source"));
+        var sourceClause = clauseForReference(edge.source().id());
+        var targetClause = clauseForReference(edge.target().id());
+        var pages = [];
+        [sourceClause, targetClause].forEach(function (clause) {
+          if (clause && clause.page_number != null && pages.indexOf(clause.page_number) === -1) {
+            pages.push(clause.page_number);
+          }
+        });
+        document.getElementById("edge-provenance-value").textContent =
+          pages.length ? "Pages " + pages.join(", ") : "Not available";
+        document.getElementById("edge-evidence-value").textContent =
+          edge.data("evidence") || (
+            edge.data("relationship_source")
+              ? "Supporting evidence source: " + edge.data("relationship_source") + "."
+              : "Supporting evidence: Not available"
+          );
         edgeInspection.classList.add("visible");
         cy.elements().removeClass("edge-selected");
         edge.addClass("edge-selected");
       }
       function focusNode(reference) {
-        if (!cy) return;
+        if (!cy || !graphData) return;
         var node = cy.getElementById(String(reference));
-        if (!node || !node.nonempty()) return;
+        if (!node || !node.nonempty()) {
+          focusedReference = String(reference);
+          renderGraph(graphData, focusedReference);
+          return;
+        }
         cy.$(":visible").unselect();
         node.select();
         cy.animate({ center: { eles: node }, zoom: Math.max(cy.zoom(), 1) }, { duration: 250 });
@@ -496,15 +545,51 @@
         document.getElementById("graph-empty-copy").textContent = copy;
       }
       function resetGraph(text) {
+        graphRequestVersion += 1;
+        setGraphLoading(false);
         clearGraph(); setEmptyState("Dependency graph", "Select an authorized contract to view its relationships.");
         contractName.textContent = "No contract selected"; graphStatus.textContent = "Unavailable"; graphBinding.textContent = "Unavailable";
         nodeCount.textContent = "—"; edgeCount.textContent = "—"; showGraphError(""); setMessage(text, true);
       }
+      function captionTitle(node, clause) {
+        var type = String(node.node_type || "").toLowerCase();
+        var titles = {
+          "clause:payment": "Payment deadline",
+          "payment": "Payment deadline",
+          "clause:interest": "Late payment interest",
+          "clause:cure": "Cure period",
+          "clause:termination": "Termination rights",
+          "termination": "Termination event",
+          "clause:fee": "Payment fees",
+          "clause:notice": "Overdue notice",
+          "clause:liability": "Liability limits",
+          "clause:limitation": "Liability limits",
+          "clause:governing_law": "Governing law",
+          "clause:definition": "Definition",
+          "clause:sla": "Service levels",
+          "clause:force_majeure": "Force majeure",
+          "clause:obligations": "Obligations",
+          "obligation": "Obligation",
+          "right": "Rights",
+          "deadline": "Deadline",
+          "condition": "Condition"
+        };
+        if (titles[type]) return titles[type];
+        var source = clause && clause.heading ? clause.heading : node.detail;
+        var words = String(source || "")
+          .replace(/[“”"()[\],.;:!?]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .split(" ")
+          .filter(function (word) { return word && word.toLowerCase() !== String(node.clause_reference || "").toLowerCase(); });
+        return words.slice(0, 4).join(" ") || "Contract clause";
+      }
       function readableNodeLabel(node) {
         var ref = String(node.clause_reference || "").trim();
-        var detail = String(node.detail || "").trim();
-        if (ref && detail && detail !== ref) return ref + "\n" + detail;
-        return ref || detail || "Unnamed node";
+        var baseRef = ref.split("::")[0];
+        var clause = clauseForReference(ref);
+        var displayRef = baseRef || ref || "Unnamed node";
+        return displayRef + " — " + captionTitle(node, clause);
       }
       function graphElements(data) {
         if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
@@ -533,18 +618,120 @@
             id: "edge-" + index,
             source: source,
             target: target,
-            relationship: String(edge.rel || "related")
+            relationship: String(edge.rel || "related"),
+            confidence: edge.confidence,
+            relationship_source: edge.relationship_source,
+            evidence: edge.evidence
           }});
         });
         return elements;
       }
-      function renderGraph(data) {
+      function graphStructure(data) {
+        var nodeIds = {};
+        var adjacency = {};
+        (data.nodes || []).forEach(function (node) {
+          if (!node || !node.clause_reference) return;
+          var id = String(node.clause_reference);
+          nodeIds[id] = true;
+          adjacency[id] = [];
+        });
+        (data.edges || []).forEach(function (edge) {
+          if (!edge || !edge.src || !edge.dst) return;
+          var source = String(edge.src);
+          var target = String(edge.dst);
+          if (!nodeIds[source] || !nodeIds[target]) return;
+          adjacency[source].push(target);
+          adjacency[target].push(source);
+        });
+        return { nodeIds: nodeIds, adjacency: adjacency };
+      }
+      function graphComponents(data) {
+        var structure = graphStructure(data);
+        var seen = {};
+        var components = [];
+        Object.keys(structure.nodeIds).forEach(function (id) {
+          if (seen[id]) return;
+          var component = [];
+          var queue = [id];
+          seen[id] = true;
+          while (queue.length) {
+            var current = queue.shift();
+            component.push(current);
+            (structure.adjacency[current] || []).forEach(function (neighbor) {
+              if (!seen[neighbor]) {
+                seen[neighbor] = true;
+                queue.push(neighbor);
+              }
+            });
+          }
+          components.push(component);
+        });
+        return components.sort(function (left, right) { return right.length - left.length; });
+      }
+      function focusedNodeIds(data, reference, depth) {
+        var structure = graphStructure(data);
+        if (!structure.nodeIds[reference]) return {};
+        var visible = {};
+        var queue = [{ id: reference, depth: 0 }];
+        visible[reference] = true;
+        while (queue.length) {
+          var current = queue.shift();
+          if (current.depth >= depth) continue;
+          (structure.adjacency[current.id] || []).forEach(function (neighbor) {
+            if (!visible[neighbor]) {
+              visible[neighbor] = true;
+              queue.push({ id: neighbor, depth: current.depth + 1 });
+            }
+          });
+        }
+        return visible;
+      }
+      function visibleNodeIds(data) {
+        if (focusedReference) {
+          return focusedNodeIds(data, focusedReference, selectedDepth());
+        }
+        var components = graphComponents(data);
+        var visible = {};
+        if (graphView.value === "clusters" && components.length) {
+          components[0].forEach(function (id) { visible[id] = true; });
+        } else {
+          var minimumSize = graphView.value === "connected" ? 2 : 1;
+          components.forEach(function (component) {
+            if (component.length >= minimumSize) {
+              component.forEach(function (id) { visible[id] = true; });
+            }
+          });
+        }
+        if (!Object.keys(visible).length && components.length) {
+          components[0].forEach(function (id) { visible[id] = true; });
+        }
+        return visible;
+      }
+      function updateGraphViewNote(data, visibleIds) {
+        var total = (data.nodes || []).length;
+        var visible = Object.keys(visibleIds).length;
+        var hidden = total - visible;
+        var modeText = focusedReference
+          ? "Focused on " + focusedReference + " · "
+          : graphView.value === "clusters"
+            ? "Primary clusters · "
+            : graphView.value === "connected"
+              ? "Connected clauses · "
+              : "All clauses · ";
+        graphViewNote.textContent = modeText + visible + " of " + total + " visible" + (hidden ? " · " + hidden + " hidden" : "");
+      }
+      function renderGraph(data, selectedReference) {
         if (typeof window.cytoscape !== "function") {
           throw new Error("The graph visualization library could not be loaded.");
         }
-        var elements = graphElements(data);
+        var visibleIds = visibleNodeIds(data);
+        var elements = graphElements(data).filter(function (element) {
+          if (element.group === "nodes") return visibleIds[element.data.id];
+          return visibleIds[element.data.source] && visibleIds[element.data.target];
+        });
         clearGraph();
         lastElements = elements;
+        updateGraphViewNote(data, visibleIds);
         if (!elements.some(function (element) { return element.group === "nodes"; })) {
           setEmptyState("No graph relationships", "The selected contract has no graph nodes or edges to display.");
           graphEmpty.hidden = false;
@@ -554,12 +741,23 @@
         cy = window.cytoscape({
           container: graphCanvas,
           elements: elements,
-          layout: { name: "cose", animate: false, fit: true, padding: 28 },
+          minZoom: 0.2,
+          maxZoom: 3,
+          layout: {
+            name: focusedReference ? "cose" : "grid", rows: graphView.value === "clusters" ? 3 : undefined,
+            animate: false, fit: true, padding: 54,
+            idealEdgeLength: focusedReference ? 220 : graphView.value === "clusters" ? 300 : 135,
+            nodeRepulsion: focusedReference ? 20000 : graphView.value === "clusters" ? 40000 : 12000,
+            edgeElasticity: 0.25, nestingFactor: 1.2,
+            gravity: 0.2, componentSpacing: focusedReference ? 160 : graphView.value === "clusters" ? 240 : 120, numIter: 900,
+            avoidOverlap: true, avoidOverlapPadding: 28, nodeDimensionsIncludeLabels: true, spacingFactor: 1.2, condense: false
+          },
           style: [
             { selector: "node", style: {
               "background-color": "#2563eb", "label": "data(label)", "color": "#0f172a",
-              "font-size": 10, "text-wrap": "wrap", "text-max-width": 115,
-              "text-valign": "bottom", "text-margin-y": 7, "width": 24, "height": 24,
+              "font-size": 11, "font-weight": 600, "text-wrap": "none",
+              "text-max-width": 160,
+              "text-valign": "bottom", "text-margin-y": 10, "width": 34, "height": 34,
               "border-width": 2, "border-color": "#dbeafe"
             }},
             { selector: 'node[nodeType^="clause:"]', style: { "shape": "round-rectangle", "background-color": "#2563eb", "color": "#0f172a" }},
@@ -571,7 +769,8 @@
             { selector: "edge", style: {
               "curve-style": "bezier", "width": 1.5, "line-color": "#94a3b8",
               "target-arrow-color": "#64748b", "target-arrow-shape": "triangle",
-              "label": "data(relationship)", "font-size": 8, "color": "#475569",
+              "label": focusedReference ? "data(relationship)" : "", "font-size": 8, "font-weight": 600,
+              "text-rotation": "autorotate", "text-margin-y": -6, "color": "#475569",
               "text-background-color": "#f8fafc", "text-background-opacity": 1,
               "text-background-padding": 2
             }},
@@ -592,6 +791,19 @@
         });
         cy.on("tap", "node", function (event) { selectNode(event.target); });
         cy.on("tap", "edge", function (event) { showEdgeDetails(event.target); });
+        if (focusedReference || graphView.value === "clusters") {
+          var minimumZoom = focusedReference ? 1 : 0.85;
+          var maximumZoom = focusedReference ? 1.8 : 1.5;
+          cy.zoom(Math.min(Math.max(cy.zoom(), minimumZoom), maximumZoom));
+          cy.center(cy.nodes());
+        }
+        if (selectedReference) {
+          var selected = cy.getElementById(String(selectedReference));
+          if (selected && selected.nonempty()) {
+            selected.select();
+            selectNode(selected);
+          }
+        }
       }
       function graphAction(action) {
         if (!cy) return;
@@ -600,10 +812,16 @@
         if (action === "zoom-out") cy.zoom({ level: cy.zoom() / 1.25, renderedPosition: { x: graphCanvas.clientWidth / 2, y: graphCanvas.clientHeight / 2 }});
         if (action === "reset") { cy.reset(); cy.fit(undefined, 28); }
       }
+      function rerenderGraph(selectedReference) {
+        if (!graphData) return;
+        renderGraph(graphData, selectedReference || null);
+      }
       function loadGraph(contract) {
         var id = String(contract.contract_id);
+        var requestVersion = ++graphRequestVersion;
         clearContractData();
-        clearGraph(); setEmptyState("Dependency graph", "Loading graph relationships..."); showGraphError(""); contractName.textContent = contract.filename || ("Contract #" + id); setMessage("Loading graph data...", false);
+        setGraphLoading(true);
+        clearGraph(); setEmptyState("Dependency graph", "Select an authorized contract to view its relationships."); showGraphError(""); contractName.textContent = contract.filename || ("Contract #" + id); setMessage("Loading graph data...", false);
         return fetch("/graph/" + encodeURIComponent(id), { headers: { "Accept": "application/json" } })
           .then(function (response) {
             return response.json().catch(function () { return {}; }).then(function (body) {
@@ -631,7 +849,8 @@
                 });
                 populateFilters();
                 updateSearchResults();
-                renderGraph(data);
+                focusedReference = null;
+                renderGraph(data, null);
                 return data;
               });
           })
@@ -645,6 +864,9 @@
           .catch(function (error) {
             clearGraph(); showGraphError(error.message || "The graph service is unavailable. Try again later.");
             graphEmpty.hidden = false; setMessage(error.message || "The graph service is unavailable. Try again later.", true);
+          })
+          .finally(function () {
+            if (requestVersion === graphRequestVersion) setGraphLoading(false);
           });
       }
       fetch("/contracts", { headers: { "Accept": "application/json" } })
@@ -682,9 +904,18 @@
       nodeSearch.addEventListener("input", updateSearchResults);
       nodeTypeFilter.addEventListener("change", applyFilters);
       relationshipFilter.addEventListener("change", applyFilters);
+      graphView.addEventListener("change", function () {
+        focusedReference = null;
+        rerenderGraph(null);
+      });
       dependencyLevel.addEventListener("change", function () {
         var selected = cy && cy.$("node.selected");
-        if (selected && selected.length) selectNode(selected[0]);
+        if (selected && selected.length) {
+          focusedReference = selected[0].id();
+          rerenderGraph(focusedReference);
+        } else if (focusedReference) {
+          rerenderGraph(focusedReference);
+        }
       });
     }());
   </script>

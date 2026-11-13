@@ -211,6 +211,19 @@ class DurationAndUnitTests(Phase7HardeningTestCase):
             },
         )
         self.assertEqual(
+            clause_tools.find_within_period("pay within 30 calendar days"),
+            {
+                "days": 30,
+                "unit": "days",
+                "supported": True,
+                "ambiguous": False,
+                "reason": None,
+            },
+        )
+        self.assertEqual(
+            clause_tools.find_within_days("pay within 30 calendar days"), 30
+        )
+        self.assertEqual(
             clause_tools.find_within_days("pay within thirty days"), 30
         )
         self.assertEqual(
@@ -231,6 +244,29 @@ class DurationAndUnitTests(Phase7HardeningTestCase):
                 self.assertFalse(period["supported"])
                 self.assertIsNone(period["days"])
                 self.assertIsNone(clause_tools.find_within_days(text))
+
+    def test_calendar_day_payment_reaches_existing_impact_logic(self):
+        contract_id = self._make_contract(
+            [clause(
+                "3.3",
+                "3.3 Payment Period. The Customer shall pay each undisputed "
+                "invoice within 30 calendar days after receipt.",
+                "Payment Period",
+                "payment",
+            )]
+        )
+        report = impact.analyze_change(
+            contract_id,
+            "3.3",
+            30,
+            15,
+            change_type="payment",
+        )
+        self.assertNotIn("error", report)
+        self.assertEqual(report["changed_clause"]["sec_no"], "3.3")
+        self.assertEqual(report["changed_clause"]["type"], "payment")
+        self.assertEqual(report["changed_clause"]["old_value"], 30)
+        self.assertTrue(report["counterfactual"]["rows"])
 
     def test_competing_within_periods_are_ambiguous(self):
         text = "pay within 30 days or within 15 days, at the Supplier's option"
@@ -260,6 +296,10 @@ class DurationAndUnitTests(Phase7HardeningTestCase):
         )
         numbers = clause_tools.find_numbers(mixed)
         self.assertIn({"value": Decimal("30"), "unit": "days"}, numbers)
+        self.assertIn(
+            {"value": Decimal("30"), "unit": "days"},
+            clause_tools.find_numbers("pay within 30 calendar days"),
+        )
         self.assertIn({"value": Decimal("1.5"), "unit": "%"}, numbers)
         self.assertNotIn(Decimal("450000"), [n["value"] for n in numbers])
         self.assertEqual(

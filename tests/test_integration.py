@@ -296,6 +296,10 @@ class TestTheUiServesTheEngine(IntegrationTestCase):
                     encoding="utf-8").read()
         self.assertIn("Structured change analysis is unavailable", html)
         self.assertIn("withinMatches", html)
+        self.assertIn(
+            r"/within\s+(\d+(?:\.\d+)?)\s+(?:calendar\s+)?(days?)\b/ig",
+            html,
+        )
         self.assertIn("Service-level values must be between 0% and 100%.", html)
         self.assertIn("Calendar-day values must be whole numbers.", html)
         self.assertIn("configureChangeForClause(clauseMap[clauseId])", html)

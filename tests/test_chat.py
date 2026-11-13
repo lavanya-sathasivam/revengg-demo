@@ -14,7 +14,7 @@ import db
 
 class ChatEndpointTests(unittest.TestCase):
     def setUp(self):
-        self.app = create_app()
+        self.app = create_app(mode="demo")
         self.client = TestClient(self.app)
 
     def test_chat_status_endpoint(self):

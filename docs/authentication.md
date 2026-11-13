@@ -1,12 +1,15 @@
 # Authentication and Firm-Level Authorization
 
-**Status:** Phase 4 foundation implemented for local/test use. This is **not** a production authentication deployment and does not select an identity provider.
+**Status:** Local password login and server-side authorization are implemented.
+This is **not** a production authentication deployment and does not select an
+identity provider.
 
 ## 1. What is implemented
 
 - Server-side opaque sessions. The browser receives a random token; the database stores only its SHA-256 hash.
 - `HttpOnly`, `SameSite=Lax`, `Secure`-configurable session cookie.
-- Users, firms, firm memberships, roles, and sessions in additive SQLite tables.
+- Users, PBKDF2 password hashes, firms, firm memberships, roles, and sessions
+  in additive SQLite tables.
 - A nullable `contracts.firm_id`: `NULL` is the synthetic demo scope; an integer is a firm-owned contract.
 - Server-derived active firm on every request. A client-supplied firm id is only a switch request and is checked against membership.
 - Authentication enforced by the application middleware for every non-public route in upload mode, not per-handler.
@@ -15,7 +18,8 @@
 - Demo mode remains anonymous and read-only, and only sees `contracts.firm_id IS NULL`.
 - Security-relevant actions and denials are written to an append-only `audit_events` table. This covers firm/user/membership/session lifecycle, authentication and authorization denials, firm-switch denials, uploads, clause persistence, and graph publication/failure. Audit metadata is sanitized and must not contain contract text, clause text, session tokens, or secrets.
 
-There is deliberately **no login endpoint, password table, password hash, MFA, SSO, or production identity provider integration** yet. OQ-02 in `docs/DECISIONS_AND_OPEN_QUESTIONS.md` remains open.
+There is deliberately no MFA, SSO, or production identity provider
+integration. OQ-02 in `docs/DECISIONS_AND_OPEN_QUESTIONS.md` remains open.
 
 ## 2. Roles
 
@@ -40,7 +44,16 @@ The demo database and an upload database must remain separate. `load_settings()`
 
 ## 4. Environment configuration
 
-Existing mode configuration:
+The normal local startup is writable and uses dedicated files:
+
+```powershell
+py -3.11 -m uvicorn server:app --reload
+```
+
+This defaults to `local-uploads.db` and `local-uploads\`, never `demo.db`.
+Demo mode is explicit with `REVENGG_MODE=demo`.
+
+Optional mode configuration:
 
 ```text
 REVENGG_MODE=demo|upload
@@ -51,8 +64,8 @@ REVENGG_UPLOAD_DIR=D:\path\to\uploads
 New session configuration:
 
 ```text
-# Default true. Keep true behind HTTPS. Set false only for local HTTP testing.
-REVENGG_SESSION_COOKIE_SECURE=true
+# Local HTTP default is false. Set true when serving over HTTPS.
+REVENGG_SESSION_COOKIE_SECURE=false
 
 # Default 28800 (8 hours).
 REVENGG_SESSION_TTL_SECONDS=28800
@@ -68,34 +81,42 @@ Upload-processing limits (upload mode only):
 # REVENGG_UPLOAD_MAX_PROCESSING_SECONDS=30
 ```
 
-No session signing secret is required because tokens are random and stored server-side as hashes. Do not add an authentication secret to `.env.example` or source control.
+Passwords are never stored; only PBKDF2-HMAC-SHA256 hashes with per-user
+random salts are persisted. Session tokens are random bearer values, stored
+only as SHA-256 hashes, and revoked on logout or expiry.
 
 ## 5. Local setup
 
-1. Choose an explicit upload database path outside `demo.db`.
-2. Start the app in upload mode.
-3. Provision a synthetic firm, user, membership, and session with the local tool:
+1. Start the app; the default paths are already separate from `demo.db`.
+2. Run the one-time administrator setup. The password is prompted without
+   echoing:
 
 ```powershell
 py -3.11 tools/provision_auth.py `
-    --db D:\path\to\local-uploads.db `
+    --db .\local-uploads.db `
     --firm "Demo Law Firm" `
-    --subject local:demo-lawyer `
+    --subject admin@demo.local `
     --display-name "Demo Lawyer" `
-    --role lawyer `
-    --session
+    --role administrator
 ```
 
-The tool prints a `session_token` once. Set it as the `revengg_session` cookie in a local HTTP client or browser developer tools. Treat the token as a secret; it is not committed and no fixed credential is stored in the repository.
+3. Open `http://127.0.0.1:8000/`, sign in, and use the Contract Portfolio &
+   Intake workspace. Normal users then only need the login page; no session
+   token or cookie provisioning is required.
 
-For a multi-firm local user, run the tool for each firm with the same `--subject` and the desired `--role`. A session with multiple memberships starts without an active firm; call `POST /auth/firm` to select one.
+Ordinary users may register at `/register`, but registration does not grant
+administrator privileges or firm access. An administrator adds them to the
+firm through the existing firm-membership flow. A multi-firm user can switch
+only among memberships already granted by the server.
 
 ## 6. Endpoint behavior
 
 Public in upload mode:
 
 - `GET /health`
-- `GET /`, `/impact-analysis`, `/explain` (HTML shells only)
+- `GET /`, `/impact-analysis`, `/explain`, `/ask`, `/graph`, `/members`
+  (HTML shells only; upload-mode navigation redirects anonymous users to
+  `/login`)
 - `/docs`, `/redoc`, `/openapi.json`
 
 Protected in upload mode:
@@ -137,7 +158,9 @@ Authentication and authorization semantics:
 - The audit trail is append-only at the SQLite trigger level, but there is no audit viewer, export endpoint, retention job, access-review workflow, or protection against a database owner who can drop triggers. See `docs/phase5_integrity.md`.
 - No production identity provider is selected. Do not treat local provisioning as production login.
 - Session tokens are bearer credentials. Anyone who obtains one can use it until expiry or logout.
-- In upload mode the HTML workspaces are public shells but have no browser login flow yet. Their API calls return `401` until a session cookie is provisioned out of band or an approved IdP integration is added.
+- In upload mode unauthenticated workspace navigation redirects to `/login`;
+  protected API calls still return `401`. The login response establishes the
+  HttpOnly, SameSite session cookie.
 - A legacy database that predates `contracts.firm_id` is still readable in demo mode for compatibility; in that case demo reads are not filtered by firm. Never point demo mode at an upload or production database.
 
 ## 8. Remaining risks / open decisions

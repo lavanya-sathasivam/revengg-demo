@@ -125,12 +125,15 @@ REF_PLURAL_RE = re.compile(r"\b[Cc]lauses\s+(\d+(?:\.\d+)*)\s*(?:,|and|&)\s*(\d+
 # No trailing \b after the unit, otherwise '99%' never matches (a '%' is not a
 # word character, so there is no word boundary after it).
 NUM_RE = re.compile(
-    r"\b(\d+(?:\.\d+)?)\s*(?:\([^)]*\)\s*)?(days?|months?|years?|%|per\s*cent)",
+    r"\b(\d+(?:\.\d+)?)\s*(?:\([^)]*\)\s*)?"
+    r"((?:calendar\s+)?days?|months?|years?|%|per\s*cent)",
     re.IGNORECASE,
 )
-# 'within 30 (thirty) days' - the operative deadline, not any number at all
+# 'within 30 (thirty) days' - the operative deadline, not any number at all.
+# 'calendar days' is explicit but remains distinct from business days.
 WITHIN_RE = re.compile(
-    r"within\s+(\d+)\s*(?:\([^)]*\)\s*)?(day|days|month|months|year|years)\b",
+    r"within\s+(\d+)\s*(?:\([^)]*\)\s*)?"
+    r"(?:calendar\s+)?(day|days|month|months|year|years)\b",
     re.IGNORECASE,
 )
 # 'within 30 Business Days' and 'within 10 working days' use a different
@@ -144,7 +147,7 @@ WITHIN_BUSINESS_RE = re.compile(
 # numbers are supported; an unknown word fails closed rather than guessing.
 WITHIN_WORD_RE = re.compile(
     r"within\s+([A-Za-z]+(?:[\s-]+[A-Za-z]+)?)\s+"
-    r"(day|days|month|months|year|years)\b",
+    r"(?:calendar\s+)?(day|days|month|months|year|years)\b",
     re.IGNORECASE,
 )
 _WORD_UNITS = {
@@ -523,7 +526,9 @@ def find_numbers(text):
     out = []
     for m in NUM_RE.finditer(text or ""):
         unit = m.group(2).lower()
-        if unit.startswith("per"):
+        if unit.startswith("calendar"):
+            unit = "days"
+        elif unit.startswith("per"):
             unit = "%"
         elif unit.startswith("day"):
             unit = "days"

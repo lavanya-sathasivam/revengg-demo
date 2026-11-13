@@ -2,11 +2,10 @@
 
 Two database modes are supported:
 
-    demo    Read-only synthetic data. This is the default because the demo
+    demo    Read-only synthetic data. This mode is explicit because the demo
             dataset must never receive an upload or any other mutation.
-    upload  A local, writable database selected by an explicit path. The path
-            must be supplied by the caller or by REVENGG_UPLOAD_DB_PATH. There
-            is no fallback to the demo database.
+    upload  A local, writable database. The local deployment defaults to the
+            dedicated local-uploads.db path and local-uploads directory.
 
 Importing this module or the application factory never creates or initialises
 a database. Only the upload-mode lifespan opens a writable database.
@@ -18,7 +17,8 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_DEMO_DB = BASE_DIR / "demo.db"
-DEFAULT_UPLOAD_DIR = BASE_DIR / "uploads"
+DEFAULT_UPLOAD_DB = BASE_DIR / "local-uploads.db"
+DEFAULT_UPLOAD_DIR = BASE_DIR / "local-uploads"
 
 MODE_DEMO = "demo"
 MODE_UPLOAD = "upload"
@@ -35,6 +35,9 @@ UPLOAD_MAX_EXTRACTED_CHARS_ENV = "REVENGG_UPLOAD_MAX_EXTRACTED_CHARS"
 UPLOAD_MAX_PROCESSING_SECONDS_ENV = "REVENGG_UPLOAD_MAX_PROCESSING_SECONDS"
 
 DEFAULT_SESSION_TTL_SECONDS = 8 * 60 * 60
+# Local development uses HTTP. HTTPS deployments should set the environment
+# variable to true.
+DEFAULT_SESSION_COOKIE_SECURE = False
 
 # Local/test defaults only. Production upload limits remain an open policy
 # decision (OQ-04); these values are configurable and must not be represented
@@ -58,7 +61,7 @@ class AppSettings:
     database_read_only: bool
     uploads_enabled: bool
     upload_dir: Path | None
-    session_cookie_secure: bool = True
+    session_cookie_secure: bool = DEFAULT_SESSION_COOKIE_SECURE
     session_ttl_seconds: int = DEFAULT_SESSION_TTL_SECONDS
     upload_max_bytes: int = DEFAULT_UPLOAD_MAX_BYTES
     upload_max_pages: int = DEFAULT_UPLOAD_MAX_PAGES
@@ -85,7 +88,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def _session_settings() -> tuple[bool, int]:
-    secure = _env_bool(SESSION_COOKIE_SECURE_ENV, True)
+    secure = _env_bool(SESSION_COOKIE_SECURE_ENV, DEFAULT_SESSION_COOKIE_SECURE)
     raw_ttl = os.environ.get(SESSION_TTL_ENV, "").strip()
     if not raw_ttl:
         ttl = DEFAULT_SESSION_TTL_SECONDS
@@ -141,13 +144,14 @@ def _demo_path() -> Path:
 def load_settings(mode=None, database_path=None, upload_dir=None) -> AppSettings:
     """Build settings from explicit arguments and environment variables.
 
-    An explicit database_path with no mode selects upload mode; that path is
-    therefore intentional rather than a silent fallback. Upload mode always
-    requires such a path and always rejects the synthetic demo database.
+    An explicit database_path with no mode selects upload mode. With no
+    arguments or mode environment variable, the dedicated local upload
+    database is selected. Explicit upload mode still requires its path.
     """
-    selected_mode = (mode or os.environ.get(MODE_ENV, "")).strip().lower()
+    configured_mode = mode if mode is not None else os.environ.get(MODE_ENV, "")
+    selected_mode = (configured_mode or "").strip().lower()
     if not selected_mode:
-        selected_mode = MODE_UPLOAD if database_path is not None else MODE_DEMO
+        selected_mode = MODE_UPLOAD
 
     demo_path = _demo_path()
     session_cookie_secure, session_ttl_seconds = _session_settings()
@@ -165,7 +169,12 @@ def load_settings(mode=None, database_path=None, upload_dir=None) -> AppSettings
         )
 
     if selected_mode == MODE_UPLOAD:
-        chosen = database_path or os.environ.get(UPLOAD_DB_ENV, "").strip()
+        configured_upload = os.environ.get(UPLOAD_DB_ENV, "").strip()
+        # An explicit upload-mode selection must name its database. With no
+        # mode selection, use the dedicated local writable deployment.
+        chosen = database_path or configured_upload
+        if not chosen and not configured_mode:
+            chosen = str(DEFAULT_UPLOAD_DB)
         if not chosen:
             raise ConfigurationError(
                 "Upload mode requires an explicit database path "
